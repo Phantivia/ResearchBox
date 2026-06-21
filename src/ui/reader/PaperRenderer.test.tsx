@@ -557,6 +557,34 @@ describe("PaperRenderer figure image URLs", () => {
       container.querySelector('img[src="https://arxiv.org/html/2401.12345v2/x1.png"]'),
     ).not.toBeNull();
   });
+
+  it("repairs version-prefixed malformed cached image URLs at render time", () => {
+    const paper: PaperIR = {
+      arxivId: "2602.19128",
+      version: "latest",
+      title: "Figure Fixture",
+      abstract: "Abstract",
+      abstractBlocks: [],
+      authors: ["Alice"],
+      createdAt: 0,
+      modelUsed: "test",
+      references: [],
+      blocks: [
+        {
+          id: "f1",
+          type: "figure",
+          content:
+            '<figure><img src="https://arxiv.org/html/2602.19128/2602.19128v2/x1.png" alt="Refer to caption" /></figure>',
+        },
+      ],
+    };
+
+    const { container } = render(<PaperRenderer paper={paper} />);
+
+    expect(
+      container.querySelector('img[src="https://arxiv.org/html/2602.19128v2/x1.png"]'),
+    ).not.toBeNull();
+  });
 });
 
 describe("PaperRenderer citation popover", () => {

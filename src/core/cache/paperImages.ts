@@ -1,3 +1,4 @@
+import { resolvePaperImageUrl } from "@/core/media";
 import {
   PAPER_IMAGES_CACHE_NAME,
   PAPER_IMAGE_CACHE_MAX_ENTRIES,
@@ -28,13 +29,9 @@ export function extractPaperImageUrls(
   for (const img of doc.querySelectorAll("img[src]")) {
     const src = img.getAttribute("src")?.trim();
     if (!src) continue;
-    try {
-      const absolute = new URL(src, base).href;
-      if (IMAGE_URL_PATTERN.test(absolute)) {
-        urls.add(absolute);
-      }
-    } catch {
-      // skip malformed URLs
+    const absolute = resolvePaperImageUrl(src, base.href);
+    if (IMAGE_URL_PATTERN.test(absolute)) {
+      urls.add(absolute);
     }
   }
 
@@ -44,13 +41,9 @@ export function extractPaperImageUrls(
     for (const candidate of srcset.split(",")) {
       const part = candidate.trim().split(/\s+/)[0];
       if (!part) continue;
-      try {
-        const absolute = new URL(part, base).href;
-        if (IMAGE_URL_PATTERN.test(absolute)) {
-          urls.add(absolute);
-        }
-      } catch {
-        // skip malformed URLs
+      const absolute = resolvePaperImageUrl(part, base.href);
+      if (IMAGE_URL_PATTERN.test(absolute)) {
+        urls.add(absolute);
       }
     }
   }

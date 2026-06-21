@@ -295,6 +295,26 @@ describe("cleanArxivHtml", () => {
     expect(inline?.content).toContain('src="https://arxiv.org/html/2401.12345v2/inline.png"');
   });
 
+  it("rewrites version-prefixed relative image paths to the versioned html directory", () => {
+    const html = `<!DOCTYPE html>
+<html><body>
+<article class="ltx_document">
+  <h1 class="ltx_title ltx_title_document">Figure Paper</h1>
+  <div class="ltx_authors"><span class="ltx_personname">Fig Author</span></div>
+  <div class="ltx_abstract"><p class="ltx_p">Abstract.</p></div>
+  <figure id="F1" class="ltx_figure">
+    <img class="ltx_graphics" src="2602.19128v2/x1.png" alt="Refer to caption" />
+  </figure>
+</article>
+</body></html>`;
+
+    const result = cleanArxivHtml(html, "arxiv", "https://arxiv.org/html/2602.19128/");
+
+    const figure = result.blocks.find((b) => b.type === "figure");
+    expect(figure?.content).toContain('src="https://arxiv.org/html/2602.19128v2/x1.png"');
+    expect(figure?.content).not.toContain("2602.19128/2602.19128v2");
+  });
+
   it("leaves image src untouched when no pageUrl is provided", () => {
     const html = `<!DOCTYPE html>
 <html><body>

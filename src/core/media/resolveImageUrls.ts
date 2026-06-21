@@ -1,6 +1,12 @@
 const CORRUPTED_ARXIV_IMAGE =
   /^https:\/\/(arxiv\.org|ar5iv\.org)\/html\/[^/]+\.(?:png|jpe?g|gif|svg|webp)$/i;
 
+const ARXIV_ID_SEGMENT =
+  /^(?:\d{4}\.\d{4,5}(?:v\d+)?|[a-zA-Z][a-zA-Z0-9\-]*(?:\.[A-Z]{2,})?\/\d{7}(?:v\d+)?)$/;
+
+const MALFORMED_ARXIV_IMAGE =
+  /^https:\/\/(arxiv\.org|ar5iv\.org)\/html\/([^/]+)\/([^/]+)\/(.+)$/i;
+
 function defaultDomParser(html: string): Document {
   return new DOMParser().parseFromString(html, "text/html");
 }
@@ -13,24 +19,78 @@ function absolutizeUrl(value: string, base: string): string | null {
   }
 }
 
-function shouldRewriteImageSrc(src: string): boolean {
-  if (!src || src.startsWith("data:") || src.startsWith("blob:")) return false;
-  if (CORRUPTED_ARXIV_IMAGE.test(src)) return true;
-  if (src.startsWith("/")) return true;
-  if (!/^https?:\/\//i.test(src)) return true;
-  return false;
+function pageOrigin(pageUrl: string): string | null {
+  try {
+    return new URL(pageUrl).origin;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 新版 arXiv HTML 图片常用「{idWithVersion}/xN.png」相对 /html/ 根目录，
+ * 不能按 pageUrl 解析（会拼成 …/2602.19128/2602.19128v2/x1.png 等 404）。
+ */
+function resolveVersionPrefixedRelativePath(src: string, pageUrl: string): string | null {
+  if (src.startsWith("/") || /^https?:\/\//i.test(src)) return null;
+
+  const slash = src.indexOf("/");
+  if (slash <= 0) return null;
+
+  const idSegment = src.slice(0, slash);
+  if (!ARXIV_ID_SEGMENT.test(idSegment)) return null;
+
+  const origin = pageOrigin(pageUrl);
+  if (!origin) return null;
+
+  return `${origin}/html/${src}`;
+}
+
+/** 修复已错误 absolutize 的多余 id 段（含缓存 IR 里的历史错误 URL）。 */
+function fixMalformedArxivImageUrl(src: string): string | null {
+  const match = src.match(MALFORMED_ARXIV_IMAGE);
+  if (!match) return null;
+
+  const host = match[1];
+  const seg1 = match[2];
+  const seg2 = match[3];
+  const rest = match[4];
+  if (!host || !seg1 || !seg2 || !rest) return null;
+  if (!ARXIV_ID_SEGMENT.test(seg2)) return null;
+  if (seg2 === seg1 || seg2.startsWith(`${seg1}v`)) {
+    return `https://${host}/html/${seg2}/${rest}`;
+  }
+
+  return null;
+}
+
+export function resolvePaperImageUrl(src: string, pageUrl: string): string {
+  const trimmed = src.trim();
+  if (!trimmed || trimmed.startsWith("data:") || trimmed.startsWith("blob:")) {
+    return trimmed;
+  }
+
+  const versionPrefixed = resolveVersionPrefixedRelativePath(trimmed, pageUrl);
+  if (versionPrefixed) return versionPrefixed;
+
+  const malformedAbsolute = fixMalformedArxivImageUrl(trimmed);
+  if (malformedAbsolute) return malformedAbsolute;
+
+  if (CORRUPTED_ARXIV_IMAGE.test(trimmed)) {
+    const filename = trimmed.split("/").pop();
+    if (!filename) return trimmed;
+    return absolutizeUrl(filename, pageUrl) ?? trimmed;
+  }
+
+  if (trimmed.startsWith("/") || !/^https?:\/\//i.test(trimmed)) {
+    return absolutizeUrl(trimmed, pageUrl) ?? trimmed;
+  }
+
+  return trimmed;
 }
 
 function rewriteImageSrc(src: string, pageUrl: string): string {
-  if (!shouldRewriteImageSrc(src)) return src;
-
-  if (CORRUPTED_ARXIV_IMAGE.test(src)) {
-    const filename = src.split("/").pop();
-    if (!filename) return src;
-    return absolutizeUrl(filename, pageUrl) ?? src;
-  }
-
-  return absolutizeUrl(src, pageUrl) ?? src;
+  return resolvePaperImageUrl(src, pageUrl);
 }
 
 function absolutizeSrcset(srcset: string, pageUrl: string): string {

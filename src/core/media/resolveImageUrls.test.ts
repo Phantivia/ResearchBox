@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildArxivPaperPageUrl,
   resolveImageUrlsInHtml,
+  resolvePaperImageUrl,
 } from "./resolveImageUrls";
 
 describe("buildArxivPaperPageUrl", () => {
@@ -66,5 +67,43 @@ describe("resolveImageUrlsInHtml", () => {
   it("returns html unchanged when no images are present", () => {
     const html = "<p>No images here.</p>";
     expect(resolveImageUrlsInHtml(html, pageUrl)).toBe(html);
+  });
+
+  it("resolves version-prefixed relative paths against /html/ root", () => {
+    const html = '<img src="2602.19128v2/x1.png" alt="Refer to caption" />';
+    const barePageUrl = "https://arxiv.org/html/2602.19128/";
+
+    expect(resolveImageUrlsInHtml(html, barePageUrl)).toContain(
+      'src="https://arxiv.org/html/2602.19128v2/x1.png"',
+    );
+  });
+
+  it("fixes malformed absolute URLs with an extra bare-id segment", () => {
+    const html =
+      '<img src="https://arxiv.org/html/2602.19128/2602.19128v2/x1.png" alt="Refer to caption" />';
+
+    expect(resolveImageUrlsInHtml(html, pageUrl)).toContain(
+      'src="https://arxiv.org/html/2602.19128v2/x1.png"',
+    );
+  });
+
+  it("fixes malformed absolute URLs with a duplicated version segment", () => {
+    const html =
+      '<img src="https://arxiv.org/html/2602.19128v2/2602.19128v2/x1.png" alt="Refer to caption" />';
+
+    expect(resolveImageUrlsInHtml(html, pageUrl)).toContain(
+      'src="https://arxiv.org/html/2602.19128v2/x1.png"',
+    );
+  });
+});
+
+describe("resolvePaperImageUrl", () => {
+  it("maps version-prefixed relative paths to the versioned html directory", () => {
+    expect(
+      resolvePaperImageUrl(
+        "2602.19128v2/x1.png",
+        "https://arxiv.org/html/2602.19128/",
+      ),
+    ).toBe("https://arxiv.org/html/2602.19128v2/x1.png");
   });
 });

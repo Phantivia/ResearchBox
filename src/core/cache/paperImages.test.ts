@@ -35,6 +35,13 @@ describe("extractPaperImageUrls", () => {
       "https://ar5iv.org/html/x2.png",
     ]);
   });
+
+  it("resolves version-prefixed relative paths against the html root", () => {
+    const html = `<img src="2602.19128v2/x1.png" />`;
+    const urls = extractPaperImageUrls(html, "https://arxiv.org/html/2602.19128/");
+
+    expect(urls).toEqual(["https://arxiv.org/html/2602.19128v2/x1.png"]);
+  });
 });
 
 describe("cachePaperImages", () => {
