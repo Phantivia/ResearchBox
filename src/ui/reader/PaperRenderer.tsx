@@ -1,5 +1,5 @@
 import DOMPurify from "dompurify";
-import { memo, useMemo, useState, type JSX, type MouseEvent } from "react";
+import { memo, useMemo, useState, type JSX, type KeyboardEvent, type MouseEvent } from "react";
 import type { Block, PaperIR, Reference } from "@/core/ir";
 import { buildArxivPaperPageUrl, resolveImageUrlsInHtml } from "@/core/media";
 import { breakDisplayEquation, mathDisplayMode } from "@/core/math/layout";
@@ -14,6 +14,7 @@ import { DisplayMath } from "./DisplayMath";
 import { FigureBlock } from "./FigureBlock";
 import { groupPaperBlocks, type PaperRenderUnit } from "./flowBlocks";
 import { MathBlock } from "./MathBlock";
+import { MathSpotlight } from "./MathSpotlight";
 import { OverflowContainer } from "./OverflowContainer";
 import { TableContainer } from "./TableContainer";
 
@@ -119,10 +120,39 @@ function InlineMath({
   display: boolean;
 }) {
   const katexDisplay = mathDisplayMode(tex, display);
+  const [open, setOpen] = useState(false);
+
+  // display 公式被 flow 吸收后仍按行内字号排版（katexDisplay=false），
+  // 但语义上是单行展示公式，给它和块级公式一致的点击放大能力。
+  if (!display) {
+    return (
+      <span {...(blockId ? { "data-block-id": blockId } : {})} className="inline-math">
+        <MathBlock tex={tex} display={katexDisplay} />
+      </span>
+    );
+  }
+
+  const onKeyDown = (event: KeyboardEvent<HTMLSpanElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      setOpen(true);
+    }
+  };
 
   return (
     <span {...(blockId ? { "data-block-id": blockId } : {})} className="inline-math">
-      <MathBlock tex={tex} display={katexDisplay} />
+      <span
+        className="rb-inline-display-math"
+        role="button"
+        tabIndex={0}
+        title="点击放大查看公式"
+        aria-label="放大查看公式"
+        onClick={() => setOpen(true)}
+        onKeyDown={onKeyDown}
+      >
+        <MathBlock tex={tex} display={katexDisplay} />
+      </span>
+      {open && <MathSpotlight tex={tex} onClose={() => setOpen(false)} />}
     </span>
   );
 }

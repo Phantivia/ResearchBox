@@ -475,6 +475,58 @@ describe("PaperRenderer display math spotlight", () => {
     fireEvent.click(screen.getByRole("button", { name: "放大查看公式" }));
     expect(screen.getByTestId("math-spotlight")).toBeInTheDocument();
   });
+
+  it("opens spotlight for a single-line display formula flowed between paragraphs", () => {
+    const paper: PaperIR = {
+      arxivId: "2401.12345",
+      version: "v1",
+      title: "Flowed Display Math Fixture",
+      abstract: "Abstract",
+      abstractBlocks: [],
+      authors: ["Alice"],
+      createdAt: 0,
+      modelUsed: "test",
+      references: [],
+      blocks: [
+        { id: "p1", type: "paragraph", content: "We have " },
+        { id: "m1", type: "math", content: "", math: { tex: "E=mc^2", display: true } },
+        { id: "p2", type: "paragraph", content: " by definition." },
+      ],
+    };
+
+    const { container } = render(<PaperRenderer paper={paper} viewMode="original" />);
+
+    // The display formula is flowed inline, not rendered as a standalone block.
+    expect(container.querySelector(".flow-group")).not.toBeNull();
+    expect(container.querySelector(".rb-display-math")).toBeNull();
+
+    expect(screen.queryByTestId("math-spotlight")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "放大查看公式" }));
+    expect(screen.getByTestId("math-spotlight")).toBeInTheDocument();
+  });
+
+  it("does not make a truly inline formula clickable", () => {
+    const paper: PaperIR = {
+      arxivId: "2401.12345",
+      version: "v1",
+      title: "Inline Math Fixture",
+      abstract: "Abstract",
+      abstractBlocks: [],
+      authors: ["Alice"],
+      createdAt: 0,
+      modelUsed: "test",
+      references: [],
+      blocks: [
+        { id: "p1", type: "paragraph", content: "We have " },
+        { id: "m1", type: "math", content: "", math: { tex: "x^2", display: false } },
+        { id: "p2", type: "paragraph", content: " here." },
+      ],
+    };
+
+    render(<PaperRenderer paper={paper} viewMode="original" />);
+
+    expect(screen.queryByRole("button", { name: "放大查看公式" })).not.toBeInTheDocument();
+  });
 });
 
 describe("PaperRenderer figure image URLs", () => {

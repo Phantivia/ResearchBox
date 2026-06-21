@@ -208,6 +208,23 @@
     vertical-align: -0.15em;
   }
 
+  /* 被 flow 吸收的单行展示公式：行内排版，但同样可点击放大。 */
+  .paper-content .rb-inline-display-math {
+    cursor: zoom-in;
+    border-radius: 0.3rem;
+    padding: 0 0.1em;
+    transition: background-color 0.15s;
+  }
+
+  .paper-content .rb-inline-display-math:hover {
+    background-color: color-mix(in srgb, var(--rb-border) 30%, transparent);
+  }
+
+  .paper-content .rb-inline-display-math:focus-visible {
+    outline: 2px solid var(--rb-primary);
+    outline-offset: 2px;
+  }
+
   /* Belt-and-suspenders: KaTeX's clip-path-only sr-only hack fails on Firefox mobile. */
   .paper-content .katex .katex-mathml {
     position: absolute !important;
