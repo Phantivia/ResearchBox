@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { BRAND_CREDITS } from "@/core/brand";
 import { useTranslation } from "@/i18n";
 import { Logo } from "./Logo";
@@ -23,15 +24,21 @@ export function CreditsDialog({ open, onClose }: CreditsDialogProps) {
     }
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
   }, [open, onClose]);
 
   if (!open) {
     return null;
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <button
         type="button"
         aria-label={t("common.cancel")}
@@ -81,6 +88,7 @@ export function CreditsDialog({ open, onClose }: CreditsDialogProps) {
           {t("brand.close")}
         </button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
