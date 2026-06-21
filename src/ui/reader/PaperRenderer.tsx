@@ -1,7 +1,7 @@
 import DOMPurify from "dompurify";
 import { memo, useMemo, useState, type JSX, type MouseEvent } from "react";
 import type { Block, PaperIR, Reference } from "@/core/ir";
-import { mathDisplayMode, shouldFlowInlineMath } from "@/core/math/layout";
+import { breakDisplayEquation, mathDisplayMode, shouldFlowInlineMath } from "@/core/math/layout";
 import { stripMathmlSourceAnnotations } from "@/core/math/sanitizeMathml";
 import {
   getTranslationDebugMetrics,
@@ -9,6 +9,8 @@ import {
 } from "@/core/transformer";
 import type { ViewMode } from "@/store";
 import { CitationPopover } from "./CitationPopover";
+import { DisplayMath } from "./DisplayMath";
+import { FigureBlock } from "./FigureBlock";
 import { groupPaperBlocks, type PaperRenderUnit } from "./flowBlocks";
 import { MathBlock } from "./MathBlock";
 import { OverflowContainer } from "./OverflowContainer";
@@ -525,9 +527,7 @@ const BlockRenderer = memo(function BlockRenderer({
 
         return (
           <BlockContainer blockId={block.id} className="my-4">
-            <OverflowContainer>
-              <MathBlock tex={block.math.tex} display={display} />
-            </OverflowContainer>
+            <DisplayMath tex={breakDisplayEquation(block.math.tex)} display={display} />
           </BlockContainer>
         );
       }
@@ -554,9 +554,9 @@ const BlockRenderer = memo(function BlockRenderer({
         hasCaption && (viewMode === "translation" || viewMode === "bilingual");
       return (
         <BlockContainer blockId={block.id} className="my-6">
-          <OverflowContainer>
+          <FigureBlock>
             <HtmlFragment html={block.content} tag="figure" />
-          </OverflowContainer>
+          </FigureBlock>
           {showCaptionTranslation &&
             renderTranslationSlot({
               block,

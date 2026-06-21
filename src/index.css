@@ -90,45 +90,106 @@
   .paper-content table :is(th, td) {
     border: 1px solid var(--rb-border);
     padding: 0.4em 0.75em;
+    /* 单元格原始内容若无换行（无 <br>）则页面上也不折行；<br> 仍会强制换行。 */
+    white-space: nowrap;
   }
 
   .paper-content table thead :is(th, td) {
     background-color: color-mix(in srgb, var(--rb-border) 35%, transparent);
   }
 
-  /* 移动端：首列冻结 + 横向滚动，保留表格原本结构（不重排 DOM）。 */
-  .rb-table-scroll {
+  /* 首列冻结 + 横向滚动，保留表格原本结构（不重排 DOM），各视口一致。 */
+  .rb-table-wrap {
     position: relative;
   }
 
-  @media (max-width: 640px) {
-    .rb-table-scroll table :is(th, td):first-child {
-      position: sticky;
-      left: 0;
-      z-index: 1;
-      background-color: var(--rb-card-bg);
-      box-shadow: 1px 0 0 0 var(--rb-border);
-    }
+  .rb-table-scroll table :is(th, td):first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background-color: var(--rb-card-bg);
+  }
 
-    .rb-table-scroll table thead :is(th, td):first-child {
-      background-color: color-mix(in srgb, var(--rb-border) 55%, var(--rb-card-bg));
-    }
+  .rb-table-scroll table thead :is(th, td):first-child {
+    background-color: color-mix(in srgb, var(--rb-border) 55%, var(--rb-card-bg));
+  }
 
-    .rb-table-scroll--scrollable::after {
-      content: "";
-      position: absolute;
-      top: 0;
-      right: 0;
-      bottom: 0;
-      width: 28px;
-      background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.12));
-      pointer-events: none;
-    }
+  /* 未横向滚动时首列只用一条细分隔线；滚动后冻结列向右投柔和阴影。 */
+  .rb-table-wrap:not([data-pinned="true"]) .rb-table-scroll table :is(th, td):first-child {
+    box-shadow: 1px 0 0 0 var(--rb-border);
+  }
+
+  .rb-table-wrap[data-pinned="true"] .rb-table-scroll table :is(th, td):first-child {
+    box-shadow: 6px 0 8px -6px color-mix(in srgb, var(--rb-text-primary) 28%, transparent);
+  }
+
+  /* 右缘渐变：仅在右侧还有未显示列时淡入，滚到底淡出。 */
+  .rb-table-edge {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 40px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+  }
+
+  .rb-table-edge--right {
+    right: 0;
+    background: linear-gradient(
+      to left,
+      color-mix(in srgb, var(--rb-text-primary) 12%, transparent),
+      transparent
+    );
+  }
+
+  .rb-table-wrap[data-overflow-right="true"] .rb-table-edge--right {
+    opacity: 1;
   }
 
   .paper-content .katex-display {
     margin: 0;
     max-width: 100%;
+  }
+
+  /* 块级公式：可点击放大；缩放由 DisplayMath 用 font-size 控制，容器仅负责滚动。 */
+  .paper-content .rb-display-math {
+    cursor: zoom-in;
+    border-radius: 0.5rem;
+    padding: 0.25rem 0.25rem;
+    transition: background-color 0.15s;
+  }
+
+  .paper-content .rb-display-math:hover {
+    background-color: color-mix(in srgb, var(--rb-border) 30%, transparent);
+  }
+
+  .paper-content .rb-display-math:focus-visible {
+    outline: 2px solid var(--rb-primary);
+    outline-offset: 2px;
+  }
+
+  .paper-content .rb-display-math__content .katex-display {
+    text-align: left;
+  }
+
+  /* 图片：提示可点击放大。 */
+  .rb-figure img {
+    cursor: zoom-in;
+  }
+
+  @keyframes rb-spotlight-slide-in {
+    from {
+      transform: translateY(-100%);
+    }
+
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  .rb-spotlight-card {
+    animation: rb-spotlight-slide-in 240ms cubic-bezier(0.32, 0.72, 0, 1) both;
   }
 
   .paper-content .flow-group .flow-line {
