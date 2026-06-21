@@ -225,6 +225,20 @@
     outline-offset: 2px;
   }
 
+  /* 触屏设备无 hover，用极淡底色 + 细描边提示公式可点击放大。 */
+  @media (hover: none) and (pointer: coarse) {
+    .paper-content .rb-display-math,
+    .paper-content .rb-inline-display-math {
+      background-color: color-mix(in srgb, var(--rb-border) 16%, transparent);
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rb-border) 28%, transparent);
+    }
+
+    .paper-content .rb-display-math:active,
+    .paper-content .rb-inline-display-math:active {
+      background-color: color-mix(in srgb, var(--rb-border) 32%, transparent);
+    }
+  }
+
   /* Belt-and-suspenders: KaTeX's clip-path-only sr-only hack fails on Firefox mobile. */
   .paper-content .katex .katex-mathml {
     position: absolute !important;

@@ -28,9 +28,17 @@ const RELATION_CHARS = new Set(["=", "<", ">"]);
 const ADDITIVE_COMMANDS = new Set(["pm", "mp", "oplus", "ominus", "cup", "cap"]);
 const ADDITIVE_CHARS = new Set(["+", "-"]);
 
-// 只对足够长的单行公式尝试换行；短式交给渲染层的等比缩放。
-const MIN_BREAK_LENGTH = 56;
-const RHS_CONTINUATION_LENGTH = 40;
+// 估算展示公式视觉宽度（相对 em），用于判断是否值得换行。
+// 阈值偏高：DisplayMath 会先等比缩放到 MIN_SCALE≈0.55，多数单行式不必拆成 aligned。
+const MIN_BREAK_WIDTH = 90;
+const RHS_CONTINUATION_WIDTH = 72;
+
+const WIDE_COMMANDS = new Set([
+  "frac", "dfrac", "tfrac", "cfrac", "sum", "prod", "coprod", "int", "iint", "iiint",
+  "oint", "oiint", "sqrt", "binom", "dbinom", "tbinom", "matrix", "pmatrix", "bmatrix",
+  "vmatrix", "Vmatrix", "overline", "underline", "widehat", "widetilde", "overbrace",
+  "underbrace", "stackrel", "overset", "underset",
+]);
 
 interface OpToken {
   start: number;
@@ -39,6 +47,61 @@ interface OpToken {
 }
 
 const LETTER = /[a-zA-Z]/;
+
+/** 粗估 KaTeX display 模式的横向占位，供换行决策使用（非像素精确值）。 */
+export function estimateDisplayMathWidth(tex: string): number {
+  let width = 0;
+  let i = 0;
+  const n = tex.length;
+
+  while (i < n) {
+    const ch = tex[i]!;
+
+    if (ch === "\\") {
+      let j = i + 1;
+      if (j < n && LETTER.test(tex[j]!)) {
+        while (j < n && LETTER.test(tex[j]!)) j += 1;
+        const cmd = tex.slice(i + 1, j);
+        if (WIDE_COMMANDS.has(cmd)) {
+          width += 5.5;
+        } else if (cmd.length > 1) {
+          width += 1.35;
+        } else {
+          width += 1.1;
+        }
+        i = j;
+        continue;
+      }
+      i += 2;
+      continue;
+    }
+
+    if (ch === "{" || ch === "}" || ch === " " || ch === "\n" || ch === "\t") {
+      i += 1;
+      continue;
+    }
+    if (ch === "^" || ch === "_") {
+      width += 0.25;
+      i += 1;
+      continue;
+    }
+    if (RELATION_CHARS.has(ch)) {
+      width += 1.35;
+      i += 1;
+      continue;
+    }
+    if (ADDITIVE_CHARS.has(ch)) {
+      width += 1.1;
+      i += 1;
+      continue;
+    }
+
+    width += 1;
+    i += 1;
+  }
+
+  return width;
+}
 
 // 扫描 brace 深度与 \left..\right 深度均为 0 的「顶层」算符位置。
 // 谓词分别判定单字符算符与反斜杠命令算符。
@@ -113,7 +176,7 @@ function buildRelationChain(tex: string, relations: OpToken[]): string {
 function buildSingleRelation(tex: string, rel: OpToken): string {
   const lhs = tex.slice(0, rel.start).trim();
   const rhs = tex.slice(rel.end).trim();
-  if (rhs.length <= RHS_CONTINUATION_LENGTH) {
+  if (estimateDisplayMathWidth(rhs) <= RHS_CONTINUATION_WIDTH) {
     return tex;
   }
 
@@ -144,7 +207,7 @@ function buildSingleRelation(tex: string, rel: OpToken): string {
  */
 export function breakDisplayEquation(tex: string): string {
   const trimmed = tex.trim();
-  if (trimmed.length < MIN_BREAK_LENGTH) return tex;
+  if (estimateDisplayMathWidth(trimmed) < MIN_BREAK_WIDTH) return tex;
   if (/\\\\/.test(trimmed)) return tex;
   if (trimmed.includes("&")) return tex;
   if (DISPLAY_ENV_PATTERN.test(trimmed)) return tex;

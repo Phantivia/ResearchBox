@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { breakDisplayEquation, mathDisplayMode, shouldFlowInlineMath } from "./layout";
+import {
+  breakDisplayEquation,
+  estimateDisplayMathWidth,
+  mathDisplayMode,
+  shouldFlowInlineMath,
+} from "./layout";
 
 describe("shouldFlowInlineMath", () => {
   it("treats inline math as flow content", () => {
@@ -35,9 +40,25 @@ describe("mathDisplayMode", () => {
   });
 });
 
+describe("estimateDisplayMathWidth", () => {
+  it("weights fractions and sums more heavily than plain letters", () => {
+    const plain = estimateDisplayMathWidth("a + b + c + d + e");
+    const heavy = estimateDisplayMathWidth(String.raw`\frac{a}{b} + \sum_{i=1}^{n} x_i`);
+    expect(heavy).toBeGreaterThan(plain);
+  });
+});
+
 describe("breakDisplayEquation", () => {
   it("leaves short formulas untouched", () => {
     expect(breakDisplayEquation("E = mc^2")).toBe("E = mc^2");
+  });
+
+  it("leaves moderately long formulas to DisplayMath scaling", () => {
+    const tex = "L(\\theta) = \\alpha + \\beta + \\gamma + \\delta + \\epsilon + \\zeta + \\eta";
+    expect(breakDisplayEquation(tex)).toBe(tex);
+
+    const chain = "f(x) = a + b + c + d + e = g + h + i + j + k = m + n + o + p";
+    expect(breakDisplayEquation(chain)).toBe(chain);
   });
 
   it("does not touch formulas that already break or align", () => {
@@ -48,12 +69,15 @@ describe("breakDisplayEquation", () => {
   });
 
   it("aligns a multi-relation chain before each relation", () => {
-    const tex = "f(x) = a + b + c + d + e = g + h + i + j + k = m + n + o + p";
+    const terms = (count: number) =>
+      Array.from({ length: count }, (_, index) =>
+        String.fromCharCode(97 + (index % 26)),
+      ).join(" + ");
+    const tex = `f(x) = ${terms(18)} = ${terms(18)} = ${terms(18)}`;
     const out = breakDisplayEquation(tex);
     expect(out).toContain("\\begin{aligned}");
-    expect(out).toContain("f(x) &= a + b + c + d + e");
-    expect(out).toContain("&= g + h + i + j + k");
-    expect(out).toContain("&= m + n + o + p");
+    expect(out).toContain(`f(x) &= ${terms(18)}`);
+    expect(out).toContain(`&= ${terms(18)}`);
     expect(out.match(/\\\\/g)).toHaveLength(2);
   });
 
@@ -63,16 +87,21 @@ describe("breakDisplayEquation", () => {
   });
 
   it("splits a single long equation at top-level additive operators", () => {
-    const tex = "L(\\theta) = \\alpha + \\beta + \\gamma + \\delta + \\epsilon + \\zeta + \\eta";
+    const rhs = Array.from({ length: 42 }, (_, index) =>
+      String.fromCharCode(97 + (index % 26)),
+    ).join(" + ");
+    const tex = `L(\\theta) = ${rhs}`;
     const out = breakDisplayEquation(tex);
     expect(out).toContain("\\begin{aligned}");
-    expect(out).toContain("L(\\theta) &= \\alpha");
-    expect(out).toContain("&\\quad + \\beta");
-    expect(out).toContain("&\\quad + \\eta");
+    expect(out).toContain("L(\\theta) &= a");
+    expect(out).toContain("&\\quad + b");
   });
 
   it("does not split a leading unary sign on the right-hand side", () => {
-    const tex = "y = -x + a + b + c + d + e + f + g + h + i + j + k + l + m";
+    const tail = Array.from({ length: 44 }, (_, index) =>
+      String.fromCharCode(97 + (index % 26)),
+    ).join(" + ");
+    const tex = `y = -x + ${tail}`;
     const out = breakDisplayEquation(tex);
     expect(out).toContain("y &= -x");
     expect(out).not.toContain("&\\quad -x");
