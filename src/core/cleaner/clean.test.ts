@@ -116,6 +116,58 @@ describe("cleanArxivHtml", () => {
     });
   });
 
+  it("extracts a real arxiv ltx_eqn_table into a clickable math block via alttext", () => {
+    const html = `<!DOCTYPE html>
+<html><body>
+<article class="ltx_document">
+  <h1 class="ltx_title ltx_title_document">Eqn Table Paper</h1>
+  <div class="ltx_authors"><span class="ltx_personname">Eq Author</span></div>
+  <div class="ltx_abstract"><p class="ltx_p">Abstract.</p></div>
+  <section class="ltx_section">
+    <table class="ltx_equation ltx_eqn_table">
+      <tbody>
+        <tr class="ltx_equation ltx_eqn_row ltx_align_baseline">
+          <td class="ltx_eqn_cell ltx_eqn_center_padleft"></td>
+          <td class="ltx_eqn_cell ltx_align_center"><math alttext="Q(s)=N(s)" class="ltx_Math" display="block" id="S3.E1.m1"><mrow><mi>Q</mi></mrow></math></td>
+          <td class="ltx_eqn_cell ltx_eqn_center_padright"></td>
+          <td class="ltx_eqn_cell ltx_eqn_eqno ltx_align_middle ltx_align_right" rowspan="1"><span class="ltx_tag ltx_tag_equation ltx_align_right">(1)</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+</article>
+</body></html>`;
+
+    const result = cleanArxivHtml(html, "arxiv");
+
+    const math = result.blocks.find((b) => b.type === "math");
+    expect(math?.math).toEqual({ tex: "Q(s)=N(s)", display: true });
+
+    // 不应残留被当作数据表渲染的空 pad 单元格。
+    expect(result.blocks.some((b) => b.type === "table")).toBe(false);
+    const allContent = result.blocks.map((b) => b.content).join(" ");
+    expect(allContent).not.toContain("ltx_eqn_center_padleft");
+    expect(allContent).not.toContain("ltx_eqn_cell");
+  });
+
+  it("reads inline math tex from the alttext attribute when no annotation is present", () => {
+    const html = `<!DOCTYPE html>
+<html><body>
+<article class="ltx_document">
+  <h1 class="ltx_title ltx_title_document">Inline Alttext Paper</h1>
+  <div class="ltx_authors"><span class="ltx_personname">Inline Author</span></div>
+  <div class="ltx_abstract"><p class="ltx_p">Abstract.</p></div>
+  <section class="ltx_section">
+    <p class="ltx_p">the value <math alttext="x^2" class="ltx_Math" display="inline" id="S1.m1"><mrow><msup><mi>x</mi><mn>2</mn></msup></mrow></math> matters.</p>
+  </section>
+</article>
+</body></html>`;
+
+    const result = cleanArxivHtml(html, "arxiv");
+    const inlineMath = result.blocks.find((b) => b.type === "math");
+    expect(inlineMath?.math).toEqual({ tex: "x^2", display: false });
+  });
+
   it("removes ar5iv banner and keeps body content", () => {
     const result = cleanArxivHtml(AR5IV_HTML, "ar5iv");
 

@@ -298,6 +298,10 @@ function extractTexFromMath(mathEl: Element): string | null {
     const tex = ann?.textContent?.trim();
     if (tex) return normalizeTex(tex);
   }
+  // arxiv.org/html 把 TeX 源放在 <math alttext>（无 <annotation> 子节点），
+  // 与 ar5iv 的 annotation 形式互补，二者任取其一即可还原公式。
+  const alttext = mathEl.getAttribute("alttext")?.trim();
+  if (alttext) return normalizeTex(alttext);
   return null;
 }
 
@@ -445,6 +449,16 @@ function isMathElement(el: Element): boolean {
   return el.localName.toLowerCase() === "math";
 }
 
+// 仅识别 LaTeXML 的「公式表」（布局用，单元格全是 ltx_eqn_cell），
+// 不误伤含行内公式的真实数据表（ltx_tabular，单元格是 ltx_td）。
+function isEquationTable(el: Element): boolean {
+  if (!el.querySelector("math")) return false;
+  if (el.classList.contains("ltx_eqn_table") || el.classList.contains("ltx_equation")) {
+    return true;
+  }
+  return el.querySelector("tr.ltx_eqn_row, td.ltx_eqn_cell") !== null;
+}
+
 function makeListBlock(el: Element, ctx: WalkContext): CleanBlock {
   const content = sanitizeFragment(el.outerHTML);
   return {
@@ -523,6 +537,15 @@ function walkElement(el: Element, blocks: CleanBlock[], ctx: WalkContext, meta: 
   }
 
   if (tag === "table") {
+    // arxiv 的编号公式被包进 ltx_eqn_table：左右是空的 padleft/padright 居中格、
+    // 右侧是编号格，公式本体只是其中一个单元格里的 <math>。当成数据表渲染会留下
+    // 两个空方框且公式不可点击，所以这里把其中的 <math> 抽成独立公式块。
+    if (isEquationTable(el)) {
+      for (const mathEl of el.querySelectorAll("math")) {
+        blocks.push(makeMathBlock(mathEl, ctx));
+      }
+      return;
+    }
     blocks.push(makeTableBlock(el, ctx));
     return;
   }
