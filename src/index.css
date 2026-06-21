@@ -54,6 +54,33 @@
     background-color: color-mix(in srgb, var(--rb-card-bg) 80%, transparent);
   }
 
+  /* PaperBox 卡片：桌面 hover 显示删除图标，触屏底部操作条。 */
+  .rb-card-action-touch {
+    display: none;
+  }
+
+  @media (hover: none) and (pointer: coarse) {
+    .rb-card-action-desktop {
+      display: none;
+    }
+
+    .rb-card-action-touch {
+      display: flex;
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .group .rb-card-action-desktop {
+      opacity: 0;
+      transition: opacity 150ms;
+    }
+
+    .group:hover .rb-card-action-desktop,
+    .rb-card-action-desktop:focus-visible {
+      opacity: 1;
+    }
+  }
+
   .rb-logo-emboss {
     opacity: 0.05;
     filter:

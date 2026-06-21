@@ -185,65 +185,77 @@ function PaperCard({ paper, statusMeta, locale, onOpen, onRemove }: PaperCardPro
 
   return (
     <li>
-      <div className="rb-card-surface group flex items-start gap-4 rounded-lg border border-[var(--rb-border)] p-4 shadow-sm transition-all hover:border-blue-300 hover:shadow-md">
-        <button
-          type="button"
-          onClick={onOpen}
-          className="min-w-0 flex-1 cursor-pointer rounded-md text-left transition-colors group-hover:bg-blue-50/60"
-        >
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="truncate text-xs text-[var(--rb-text-secondary)]">
-              {paper.arxivId} · {versionLabel}
-            </span>
-            {status && (
-              <span
-                className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${status.className}`}
-              >
-                {paper.status === "processing" && !showProgress && (
-                  <span
-                    className="mr-1 inline-block h-2 w-2 animate-pulse rounded-full bg-current"
-                    aria-hidden
-                  />
-                )}
-                {status.label}
+      <div className="rb-card-surface group rounded-lg border border-[var(--rb-border)] p-4 shadow-sm transition-all hover:border-blue-300 hover:shadow-md">
+        <div className="flex items-start gap-4">
+          <button
+            type="button"
+            onClick={onOpen}
+            className="min-w-0 flex-1 cursor-pointer rounded-md text-left transition-colors group-hover:bg-blue-50/60"
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="truncate text-xs text-[var(--rb-text-secondary)]">
+                {paper.arxivId} · {versionLabel}
               </span>
+              {status && (
+                <span
+                  className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${status.className}`}
+                >
+                  {paper.status === "processing" && !showProgress && (
+                    <span
+                      className="mr-1 inline-block h-2 w-2 animate-pulse rounded-full bg-current"
+                      aria-hidden
+                    />
+                  )}
+                  {status.label}
+                </span>
+              )}
+              {showProgress && (
+                <TranslationProgressRing
+                  completed={translationJob.completedBlocks}
+                  total={translationJob.totalBlocks}
+                  size={28}
+                />
+              )}
+            </div>
+            <h2 className="mt-2 truncate text-base font-semibold text-[var(--rb-text-primary)]">
+              {paper.title || paper.arxivId}
+            </h2>
+            {paper.authors.length > 0 && (
+              <p className="mt-1 truncate text-sm text-[var(--rb-text-secondary)]">
+                {paper.authors.join(", ")}
+              </p>
             )}
-            {showProgress && (
-              <TranslationProgressRing
-                completed={translationJob.completedBlocks}
-                total={translationJob.totalBlocks}
-                size={28}
-              />
+            {paper.status === "error" && paper.error && (
+              <p className="mt-1 text-sm text-red-600">{paper.error}</p>
             )}
-          </div>
-          <h2 className="mt-2 truncate text-base font-semibold text-[var(--rb-text-primary)]">
-            {paper.title || paper.arxivId}
-          </h2>
-          {paper.authors.length > 0 && (
-            <p className="mt-1 truncate text-sm text-[var(--rb-text-secondary)]">
-              {paper.authors.join(", ")}
+            <p className="mt-2 text-xs text-[var(--rb-text-secondary)]">
+              {t("projects.updatedAt", {
+                date: formatDate(paper.updatedAt, locale),
+              })}
+              {paper.modelUsed && paper.modelUsed !== "none"
+                ? ` · ${paper.modelUsed}`
+                : ""}
             </p>
-          )}
-          {paper.status === "error" && paper.error && (
-            <p className="mt-1 text-sm text-red-600">{paper.error}</p>
-          )}
-          <p className="mt-2 text-xs text-[var(--rb-text-secondary)]">
-            {t("projects.updatedAt", {
-              date: formatDate(paper.updatedAt, locale),
-            })}
-            {paper.modelUsed && paper.modelUsed !== "none"
-              ? ` · ${paper.modelUsed}`
-              : ""}
-          </p>
-        </button>
-        <button
-          type="button"
-          onClick={onRemove}
-          aria-label={t("paperBox.deletePaper")}
-          className="shrink-0 cursor-pointer rounded-lg p-1.5 text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-red-600 focus:opacity-100 group-hover:opacity-100"
-        >
-          <TrashIcon />
-        </button>
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label={t("paperBox.deletePaper")}
+            className="rb-card-action-desktop shrink-0 cursor-pointer rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-200"
+          >
+            <TrashIcon />
+          </button>
+        </div>
+        <div className="rb-card-action-touch mt-3 justify-end border-t border-[var(--rb-border)] pt-2.5">
+          <button
+            type="button"
+            onClick={onRemove}
+            className="-mr-1 inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-[var(--rb-text-secondary)] transition-colors active:bg-red-50 active:text-red-600"
+          >
+            <TrashIcon className="h-3.5 w-3.5" />
+            {t("paperBox.deletePaper")}
+          </button>
+        </div>
       </div>
     </li>
   );
@@ -305,7 +317,7 @@ function DocumentIcon() {
   );
 }
 
-function TrashIcon() {
+function TrashIcon({ className = "h-4 w-4" }: { className?: string }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -314,7 +326,7 @@ function TrashIcon() {
       strokeWidth={2}
       strokeLinecap="round"
       strokeLinejoin="round"
-      className="h-4 w-4"
+      className={className}
       aria-hidden
     >
       <polyline points="3 6 5 6 21 6" />
