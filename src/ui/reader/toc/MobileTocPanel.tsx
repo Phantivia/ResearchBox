@@ -16,7 +16,7 @@ import {
   MOBILE_TOC_CENTER_RATIO,
 } from "./mobileTocVisual";
 import {
-  MOBILE_TOC_ITEM_MIN_HEIGHT,
+  MOBILE_TOC_ITEM_HEIGHT,
   mobileTocFloatFromScrollTop,
   mobileTocHeights,
   mobileTocScrollTopForIndex,
@@ -109,7 +109,7 @@ export function MobileTocPanel() {
     const overlay = overlayRef.current;
     if (overlay) {
       const height =
-        heightsRef.current[centered] ?? MOBILE_TOC_ITEM_MIN_HEIGHT;
+        heightsRef.current[centered] ?? MOBILE_TOC_ITEM_HEIGHT;
       overlay.style.height = `${height}px`;
     }
     return centered;
@@ -179,12 +179,12 @@ export function MobileTocPanel() {
     0,
     entries.findIndex((entry) => entry.id === activeId),
   );
-  const centeredItemHeight = itemHeights[centeredIndex] ?? MOBILE_TOC_ITEM_MIN_HEIGHT;
+  const centeredItemHeight = itemHeights[centeredIndex] ?? MOBILE_TOC_ITEM_HEIGHT;
   const topSpacerHeight = mobileTocCenterOffsetCss(
-    itemHeights[0] ?? MOBILE_TOC_ITEM_MIN_HEIGHT,
+    itemHeights[0] ?? MOBILE_TOC_ITEM_HEIGHT,
   );
   const bottomSpacerHeight = mobileTocCenterOffsetCss(
-    itemHeights[itemHeights.length - 1] ?? MOBILE_TOC_ITEM_MIN_HEIGHT,
+    itemHeights[itemHeights.length - 1] ?? MOBILE_TOC_ITEM_HEIGHT,
   );
 
   useEffect(() => {
@@ -309,7 +309,13 @@ export function MobileTocPanel() {
           mobileTocFloatFromScrollTop(settledNode.scrollTop, heights),
           settledEntries.length,
         );
+        // 吸附会再次派发 scroll 事件；抑制它，避免触发二次交互循环导致松手抖动。
+        suppressScroll.current = true;
         settledNode.scrollTop = mobileTocScrollTopForIndex(settledIndex, heights);
+        centerFloatRef.current = settledIndex;
+        // 命令式样式直接落到目标 index，再翻回声明式渲染；
+        // 不经 clear 成 scale(1)，避免随后 200ms 过渡把所有卡片“整体弹一下”。
+        applyCardVisuals(settledIndex, settledEntries.length);
         setCenterFloat(settledIndex);
         setCenteredIndex(settledIndex);
         lastIndex.current = settledIndex;
@@ -326,7 +332,11 @@ export function MobileTocPanel() {
             "auto",
           );
         }
-        endInteraction();
+        setInteracting(false);
+        setBackdropInteract(false);
+        window.setTimeout(() => {
+          suppressScroll.current = false;
+        }, 80);
         settleTimer.current = null;
       }, SETTLE_MS);
     });
@@ -336,6 +346,7 @@ export function MobileTocPanel() {
     commitCenterIndex,
     endInteraction,
     setActiveId,
+    setBackdropInteract,
   ]);
 
   const handleScroll = () => {
@@ -413,7 +424,7 @@ export function MobileTocPanel() {
           >
             <div style={{ height: topSpacerHeight }} aria-hidden />
             {entries.map((entry, index) => {
-              const itemHeight = itemHeights[index] ?? MOBILE_TOC_ITEM_MIN_HEIGHT;
+              const itemHeight = itemHeights[index] ?? MOBILE_TOC_ITEM_HEIGHT;
               const isCentered = index === centeredIndex;
               const distance = index - centerFloat;
               const cardOpacity = interacting
@@ -427,7 +438,7 @@ export function MobileTocPanel() {
                   key={entry.id}
                   data-toc-section
                   onClick={stopSectionClick}
-                  className="px-3"
+                  className="flex items-center justify-end pl-6"
                   style={{ height: itemHeight, scrollSnapAlign: "start" }}
                 >
                   <div
@@ -435,7 +446,7 @@ export function MobileTocPanel() {
                       cardRefs.current[index] = node;
                     }}
                     className={[
-                      "relative flex h-full w-full items-center px-3 shadow-sm",
+                      "relative inline-flex h-full w-auto max-w-full items-center rounded-l-lg px-3 shadow-sm",
                       isCentered ? "z-20" : "z-0",
                       interacting ? "" : "transition-transform duration-200 ease-out",
                     ].join(" ")}

@@ -43,7 +43,7 @@ export function TocTick({
       }}
       className={[
         "flex items-center gap-2 bg-transparent text-left",
-        isPanel ? "h-full w-full" : "w-full",
+        isPanel ? "h-full min-w-0" : "w-full",
         !isPanel && motion ? "transition-[transform,opacity] duration-300 ease-out" : "",
       ].join(" ")}
     >
@@ -60,8 +60,8 @@ export function TocTick({
       )}
       <span
         className={[
-          "min-w-0 flex-1 text-left transition-colors",
-          isPanel ? "line-clamp-3 text-[15px] leading-snug" : "truncate text-[13px]",
+          "min-w-0 text-left transition-colors",
+          isPanel ? "truncate text-[15px]" : "flex-1 truncate text-[13px]",
           active
             ? "font-semibold text-[var(--rb-text-primary)]"
             : "text-[var(--rb-text-secondary)]",

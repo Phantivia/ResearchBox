@@ -1,21 +1,7 @@
-export const MOBILE_TOC_ITEM_MIN_HEIGHT = 52;
-export const MOBILE_TOC_LINE_EXTRA = 22;
-export const MOBILE_TOC_MAX_LINES = 3;
+export const MOBILE_TOC_ITEM_HEIGHT = 52;
 
-export function mobileTocItemHeight(title: string, level: number): number {
-  const indentFactor = Math.max(0, level - 1);
-  const charsPerLine = Math.max(10, 20 - indentFactor * 2);
-  const lines = Math.min(
-    MOBILE_TOC_MAX_LINES,
-    Math.max(1, Math.ceil(title.length / charsPerLine)),
-  );
-  return MOBILE_TOC_ITEM_MIN_HEIGHT + (lines - 1) * MOBILE_TOC_LINE_EXTRA;
-}
-
-export function mobileTocHeights(
-  entries: ReadonlyArray<{ title: string; level: number }>,
-): number[] {
-  return entries.map((entry) => mobileTocItemHeight(entry.title, entry.level));
+export function mobileTocHeights(entries: ReadonlyArray<unknown>): number[] {
+  return entries.map(() => MOBILE_TOC_ITEM_HEIGHT);
 }
 
 export function mobileTocOffsets(heights: readonly number[]): number[] {

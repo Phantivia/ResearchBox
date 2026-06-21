@@ -1,33 +1,27 @@
 import { describe, expect, it } from "vitest";
 import {
+  MOBILE_TOC_ITEM_HEIGHT,
   mobileTocFloatFromScrollTop,
-  mobileTocItemHeight,
+  mobileTocHeights,
   mobileTocScrollTopForIndex,
 } from "./mobileTocLayout";
 
-describe("mobileTocItemHeight", () => {
-  it("uses minimum height for short titles", () => {
-    expect(mobileTocItemHeight("Intro", 1)).toBe(52);
+describe("mobileTocHeights", () => {
+  it("gives every entry a uniform height", () => {
+    expect(mobileTocHeights([{}, {}, {}])).toEqual([
+      MOBILE_TOC_ITEM_HEIGHT,
+      MOBILE_TOC_ITEM_HEIGHT,
+      MOBILE_TOC_ITEM_HEIGHT,
+    ]);
   });
 
-  it("extends height for longer titles", () => {
-    const short = mobileTocItemHeight("Background", 1);
-    const long = mobileTocItemHeight(
-      "A much longer section title that should wrap onto multiple lines",
-      1,
-    );
-    expect(long).toBeGreaterThan(short);
-  });
-
-  it("accounts for deeper heading levels", () => {
-    const level1 = mobileTocItemHeight("Implementation details overview", 1);
-    const level3 = mobileTocItemHeight("Implementation details overview", 3);
-    expect(level3).toBeGreaterThanOrEqual(level1);
+  it("returns an empty array for no entries", () => {
+    expect(mobileTocHeights([])).toEqual([]);
   });
 });
 
 describe("mobileToc scroll mapping", () => {
-  const heights = [52, 74, 52];
+  const heights = [52, 52, 52];
 
   it("maps scrollTop back to fractional index", () => {
     expect(mobileTocFloatFromScrollTop(0, heights)).toBe(0);
@@ -38,6 +32,6 @@ describe("mobileToc scroll mapping", () => {
   it("maps index to scrollTop offset", () => {
     expect(mobileTocScrollTopForIndex(0, heights)).toBe(0);
     expect(mobileTocScrollTopForIndex(1, heights)).toBe(52);
-    expect(mobileTocScrollTopForIndex(2, heights)).toBe(126);
+    expect(mobileTocScrollTopForIndex(2, heights)).toBe(104);
   });
 });
