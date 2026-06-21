@@ -181,7 +181,7 @@ function ProjectCard({
 
   return (
     <li>
-      <div className="rb-card-surface group flex items-start gap-4 rounded-lg border border-[var(--rb-border)] p-4 shadow-sm transition-colors hover:border-blue-300">
+      <div className="rb-card-surface group flex items-start gap-4 rounded-lg border border-[var(--rb-border)] p-4 shadow-sm transition-all hover:border-blue-300 hover:shadow-md">
         {editing ? (
           <input
             type="text"
@@ -200,7 +200,11 @@ function ProjectCard({
             className="min-w-0 flex-1 rounded-lg border border-blue-300 px-3 py-1.5 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-blue-200"
           />
         ) : (
-          <button type="button" onClick={onOpen} className="min-w-0 flex-1 text-left">
+          <button
+            type="button"
+            onClick={onOpen}
+            className="min-w-0 flex-1 cursor-pointer rounded-md text-left transition-colors group-hover:bg-blue-50/60"
+          >
             <h2 className="truncate text-base font-semibold text-[var(--rb-text-primary)]">
               {project.name}
             </h2>
@@ -234,7 +238,7 @@ function ProjectCard({
           <button
             type="button"
             onClick={onOpen}
-            className="rounded-lg bg-[var(--rb-primary)] px-3 py-1.5 text-sm font-medium text-white hover:bg-[var(--rb-primary-hover)]"
+            className="cursor-pointer rounded-lg bg-[var(--rb-primary)] px-3 py-1.5 text-sm font-medium text-white hover:bg-[var(--rb-primary-hover)]"
           >
             {t("project.open")}
           </button>
@@ -246,7 +250,7 @@ function ProjectCard({
             }}
             aria-label={t("project.rename")}
             title={t("project.rename")}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            className="cursor-pointer rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
           >
             <PencilIcon />
           </button>
@@ -255,7 +259,7 @@ function ProjectCard({
             onClick={onRemove}
             aria-label={t("project.delete")}
             title={t("project.delete")}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-red-600"
+            className="cursor-pointer rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-red-600"
           >
             <TrashIcon />
           </button>

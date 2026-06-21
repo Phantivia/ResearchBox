@@ -12,6 +12,7 @@ import { CitationPopover } from "./CitationPopover";
 import { groupPaperBlocks, type PaperRenderUnit } from "./flowBlocks";
 import { MathBlock } from "./MathBlock";
 import { OverflowContainer } from "./OverflowContainer";
+import { TableContainer } from "./TableContainer";
 
 const FRAGMENT_SANITIZE_OPTIONS = {
   USE_PROFILES: { html: true, mathMl: true, svg: true },
@@ -538,12 +539,12 @@ const BlockRenderer = memo(function BlockRenderer({
     case "table":
       return (
         <BlockContainer blockId={block.id} className="my-4">
-          <OverflowContainer>
+          <TableContainer>
             <div
               className="min-w-0"
               dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.content) }}
             />
-          </OverflowContainer>
+          </TableContainer>
         </BlockContainer>
       );
     case "figure": {

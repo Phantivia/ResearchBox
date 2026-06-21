@@ -15,7 +15,7 @@ function mockFetchFn(routes: Record<string, { status: number; body: string }>) {
 describe("fetchPaperHtml", () => {
   it("returns arxiv source when primary succeeds", async () => {
     const fetchFn = mockFetchFn({
-      "https://arxiv.org/html/2401.12345v2": {
+      "https://arxiv.org/html/2401.12345v2/": {
         status: 200,
         body: "<html>arxiv content</html>",
       },
@@ -25,12 +25,12 @@ describe("fetchPaperHtml", () => {
 
     expect(result.source).toBe("arxiv");
     expect(result.html).toBe("<html>arxiv content</html>");
-    expect(result.resolvedUrl).toBe("https://arxiv.org/html/2401.12345v2");
+    expect(result.resolvedUrl).toBe("https://arxiv.org/html/2401.12345v2/");
   });
 
   it("returns arxiv source when primary succeeds (no version)", async () => {
     const fetchFn = mockFetchFn({
-      "https://arxiv.org/html/2401.12345": {
+      "https://arxiv.org/html/2401.12345/": {
         status: 200,
         body: "<html>latest</html>",
       },
@@ -40,13 +40,13 @@ describe("fetchPaperHtml", () => {
 
     expect(result.source).toBe("arxiv");
     expect(result.html).toBe("<html>latest</html>");
-    expect(result.resolvedUrl).toBe("https://arxiv.org/html/2401.12345");
+    expect(result.resolvedUrl).toBe("https://arxiv.org/html/2401.12345/");
   });
 
   it("falls back to ar5iv when primary returns 404", async () => {
     const fetchFn = mockFetchFn({
-      "https://arxiv.org/html/2401.12345v2": { status: 404, body: "Not Found" },
-      "https://ar5iv.org/html/2401.12345": {
+      "https://arxiv.org/html/2401.12345v2/": { status: 404, body: "Not Found" },
+      "https://ar5iv.org/html/2401.12345/": {
         status: 200,
         body: "<html>ar5iv content</html>",
       },
@@ -56,13 +56,13 @@ describe("fetchPaperHtml", () => {
 
     expect(result.source).toBe("ar5iv");
     expect(result.html).toBe("<html>ar5iv content</html>");
-    expect(result.resolvedUrl).toBe("https://ar5iv.org/html/2401.12345");
+    expect(result.resolvedUrl).toBe("https://ar5iv.org/html/2401.12345/");
   });
 
   it("falls back to ar5iv when primary throws network error", async () => {
     const fetchFn = mockFetchFn({
       // No entry for arxiv → will throw
-      "https://ar5iv.org/html/2401.12345": {
+      "https://ar5iv.org/html/2401.12345/": {
         status: 200,
         body: "<html>ar5iv fallback</html>",
       },
@@ -76,8 +76,8 @@ describe("fetchPaperHtml", () => {
 
   it("throws NoHtmlVersionError when both sources fail with non-2xx", async () => {
     const fetchFn = mockFetchFn({
-      "https://arxiv.org/html/2401.12345": { status: 404, body: "" },
-      "https://ar5iv.org/html/2401.12345": { status: 500, body: "" },
+      "https://arxiv.org/html/2401.12345/": { status: 404, body: "" },
+      "https://ar5iv.org/html/2401.12345/": { status: 500, body: "" },
     });
 
     await expect(

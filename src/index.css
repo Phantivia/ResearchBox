@@ -41,6 +41,12 @@
   #root {
     min-width: 0;
   }
+
+  /* 浏览器对 <button> 默认是 default 箭头光标而非 pointer，导致可点击区域缺少最基本的悬停反馈。 */
+  button:not(:disabled),
+  [role="button"] {
+    cursor: pointer;
+  }
 }
 
 @layer components {
@@ -77,6 +83,47 @@
   .paper-content table {
     width: max-content;
     max-width: 100%;
+    border-collapse: collapse;
+  }
+
+  /* arXiv/ar5iv 表格本身基本不带边框，PC 端密集数据无分隔线很难对齐着读。 */
+  .paper-content table :is(th, td) {
+    border: 1px solid var(--rb-border);
+    padding: 0.4em 0.75em;
+  }
+
+  .paper-content table thead :is(th, td) {
+    background-color: color-mix(in srgb, var(--rb-border) 35%, transparent);
+  }
+
+  /* 移动端：首列冻结 + 横向滚动，保留表格原本结构（不重排 DOM）。 */
+  .rb-table-scroll {
+    position: relative;
+  }
+
+  @media (max-width: 640px) {
+    .rb-table-scroll table :is(th, td):first-child {
+      position: sticky;
+      left: 0;
+      z-index: 1;
+      background-color: var(--rb-card-bg);
+      box-shadow: 1px 0 0 0 var(--rb-border);
+    }
+
+    .rb-table-scroll table thead :is(th, td):first-child {
+      background-color: color-mix(in srgb, var(--rb-border) 55%, var(--rb-card-bg));
+    }
+
+    .rb-table-scroll--scrollable::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 28px;
+      background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.12));
+      pointer-events: none;
+    }
   }
 
   .paper-content .katex-display {

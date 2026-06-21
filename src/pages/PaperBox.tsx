@@ -185,8 +185,12 @@ function PaperCard({ paper, statusMeta, locale, onOpen, onRemove }: PaperCardPro
 
   return (
     <li>
-      <div className="rb-card-surface group flex items-start gap-4 rounded-lg border border-[var(--rb-border)] p-4 shadow-sm transition-colors hover:border-blue-300">
-        <button type="button" onClick={onOpen} className="min-w-0 flex-1 text-left">
+      <div className="rb-card-surface group flex items-start gap-4 rounded-lg border border-[var(--rb-border)] p-4 shadow-sm transition-all hover:border-blue-300 hover:shadow-md">
+        <button
+          type="button"
+          onClick={onOpen}
+          className="min-w-0 flex-1 cursor-pointer rounded-md text-left transition-colors group-hover:bg-blue-50/60"
+        >
           <div className="flex min-w-0 items-center gap-2">
             <span className="truncate text-xs text-[var(--rb-text-secondary)]">
               {paper.arxivId} · {versionLabel}
@@ -236,7 +240,7 @@ function PaperCard({ paper, statusMeta, locale, onOpen, onRemove }: PaperCardPro
           type="button"
           onClick={onRemove}
           aria-label={t("paperBox.deletePaper")}
-          className="shrink-0 rounded-lg p-1.5 text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-red-600 focus:opacity-100 group-hover:opacity-100"
+          className="shrink-0 cursor-pointer rounded-lg p-1.5 text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-red-600 focus:opacity-100 group-hover:opacity-100"
         >
           <TrashIcon />
         </button>

@@ -1,17 +1,13 @@
-import { useLayoutEffect, useRef, useState, type HTMLAttributes, type ReactNode } from "react";
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  type HTMLAttributes,
+  type ReactNode,
+  type RefObject,
+} from "react";
 
-type OverflowContainerProps = HTMLAttributes<HTMLElement> & {
-  as?: "div" | "span" | "pre";
-  children: ReactNode;
-};
-
-export function OverflowContainer({
-  as: Tag = "div",
-  className = "",
-  children,
-  ...rest
-}: OverflowContainerProps) {
-  const ref = useRef<HTMLElement>(null);
+export function useScrollableWidth(ref: RefObject<HTMLElement | null>, watch: unknown): boolean {
   const [scrollable, setScrollable] = useState(false);
 
   useLayoutEffect(() => {
@@ -28,7 +24,25 @@ export function OverflowContainer({
     observer.observe(element);
 
     return () => observer.disconnect();
-  }, [children]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watch]);
+
+  return scrollable;
+}
+
+type OverflowContainerProps = HTMLAttributes<HTMLElement> & {
+  as?: "div" | "span" | "pre";
+  children: ReactNode;
+};
+
+export function OverflowContainer({
+  as: Tag = "div",
+  className = "",
+  children,
+  ...rest
+}: OverflowContainerProps) {
+  const ref = useRef<HTMLElement>(null);
+  const scrollable = useScrollableWidth(ref, children);
 
   const overflowClass = scrollable ? "overflow-x-auto" : "overflow-x-clip";
 

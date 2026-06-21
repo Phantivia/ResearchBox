@@ -96,7 +96,7 @@ beforeEach(async () => {
 describe("loadPaperReadonly", () => {
   it("assembles a valid PaperIR from fetch + clean pipeline", async () => {
     const fetchFn = mockFetchFn({
-      "https://arxiv.org/html/2401.99999": {
+      "https://arxiv.org/html/2401.99999/": {
         status: 200,
         body: SAMPLE_HTML,
       },
@@ -121,7 +121,7 @@ describe("loadPaperReadonly", () => {
 
   it("uses explicit version from input", async () => {
     const fetchFn = mockFetchFn({
-      "https://arxiv.org/html/2401.99999v3": {
+      "https://arxiv.org/html/2401.99999v3/": {
         status: 200,
         body: SAMPLE_HTML,
       },
@@ -197,7 +197,7 @@ describe("loadPaperForDisplay", () => {
 
   it("fetches readonly HTML when no cache exists", async () => {
     const fetchFn = mockFetchFn({
-      "https://arxiv.org/html/2401.99999": {
+      "https://arxiv.org/html/2401.99999/": {
         status: 200,
         body: SAMPLE_HTML,
       },
@@ -212,7 +212,7 @@ describe("loadPaperForDisplay", () => {
 
 describe("loadPaperWithTranslation", () => {
   const fetchFn = mockFetchFn({
-    "https://arxiv.org/html/2401.99999": {
+    "https://arxiv.org/html/2401.99999/": {
       status: 200,
       body: SAMPLE_HTML,
     },
