@@ -44,3 +44,20 @@ export function mobileTocPanelOpacity(distance: number, isCentered: boolean): nu
 export function mobileTocCenterOffsetCss(itemHeight: number): string {
   return `calc(${MOBILE_TOC_CENTER_RATIO * 100}% - ${itemHeight / 2}px)`;
 }
+
+export interface MobileTocCardVisual {
+  opacity: number;
+  scale: number;
+  zIndex: number;
+}
+
+export function mobileTocCardVisual(
+  distance: number,
+  isCentered: boolean,
+): MobileTocCardVisual {
+  return {
+    opacity: mobileTocPanelOpacity(distance, isCentered),
+    scale: mobileTocPanelScale(distance, isCentered),
+    zIndex: isCentered ? 20 : 0,
+  };
+}

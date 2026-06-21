@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  mobileTocCardVisual,
   mobileTocPanelOpacity,
   mobileTocPanelScale,
 } from "./mobileTocVisual";
@@ -45,5 +46,20 @@ describe("mobileTocPanelOpacity", () => {
 
   it("fades items above center faster than below", () => {
     expect(mobileTocPanelOpacity(-2, false)).toBeLessThan(mobileTocPanelOpacity(2, false));
+  });
+});
+
+describe("mobileTocCardVisual", () => {
+  it("returns full opacity and scale for centered item", () => {
+    expect(mobileTocCardVisual(0, true)).toEqual({
+      opacity: 1,
+      scale: 1,
+      zIndex: 20,
+    });
+  });
+
+  it("elevates z-index only for centered item", () => {
+    expect(mobileTocCardVisual(1, false).zIndex).toBe(0);
+    expect(mobileTocCardVisual(0, true).zIndex).toBe(20);
   });
 });

@@ -12,9 +12,10 @@ const ACTIVE_LINE_RATIO = 0.3;
  */
 export function useActiveHeading(entries: TocEntry[]): void {
   const setActiveId = useReaderTocStore((state) => state.setActiveId);
+  const mobileOpen = useReaderTocStore((state) => state.mobileOpen);
 
   useEffect(() => {
-    if (entries.length === 0) {
+    if (entries.length === 0 || mobileOpen) {
       return;
     }
 
@@ -58,5 +59,5 @@ export function useActiveHeading(entries: TocEntry[]): void {
         window.cancelAnimationFrame(frame);
       }
     };
-  }, [entries, setActiveId]);
+  }, [entries, mobileOpen, setActiveId]);
 }

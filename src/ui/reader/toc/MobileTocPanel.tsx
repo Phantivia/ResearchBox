@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "@/i18n";
 import { useReaderTocStore } from "@/store";
 import { useVisualViewportBox } from "@/ui/shell/useVisualViewportBox";
@@ -9,6 +9,7 @@ import {
   scrollToHeadingIndex,
 } from "./scrollToHeading";
 import {
+  mobileTocCardVisual,
   mobileTocCenterOffsetCss,
   mobileTocPanelOpacity,
   mobileTocPanelScale,
@@ -60,15 +61,21 @@ export function MobileTocPanel() {
   const [visible, setVisible] = useState(false);
   const [interacting, setInteracting] = useState(false);
   const [centerFloat, setCenterFloat] = useState(0);
+  const [centeredIndex, setCenteredIndex] = useState(0);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const topsRef = useRef<number[]>([]);
   const settleTimer = useRef<number | null>(null);
   const closeTimer = useRef<number | null>(null);
+  const scrollRaf = useRef(0);
+  const centerFloatRef = useRef(0);
   const suppressScroll = useRef(false);
   const lastIndex = useRef(0);
   const interactingRef = useRef(false);
+  const entriesRef = useRef(entries);
 
   const clearSettleTimer = () => {
     if (settleTimer.current !== null) {
@@ -76,6 +83,51 @@ export function MobileTocPanel() {
       settleTimer.current = null;
     }
   };
+
+  const cancelScrollRaf = () => {
+    if (scrollRaf.current !== 0) {
+      window.cancelAnimationFrame(scrollRaf.current);
+      scrollRaf.current = 0;
+    }
+  };
+
+  const applyCardVisuals = useCallback((floatIndex: number, count: number) => {
+    const centered = nearestCenterIndex(floatIndex, count);
+    for (let index = 0; index < count; index += 1) {
+      const card = cardRefs.current[index];
+      if (!card) {
+        continue;
+      }
+      const { opacity, scale, zIndex } = mobileTocCardVisual(
+        index - floatIndex,
+        index === centered,
+      );
+      card.style.opacity = String(opacity);
+      card.style.transform = `scale(${scale})`;
+      card.style.zIndex = String(zIndex);
+    }
+    const overlay = overlayRef.current;
+    if (overlay) {
+      const height =
+        heightsRef.current[centered] ?? MOBILE_TOC_ITEM_MIN_HEIGHT;
+      overlay.style.height = `${height}px`;
+    }
+    return centered;
+  }, []);
+
+  const clearCardVisuals = useCallback(() => {
+    cardRefs.current.forEach((card) => {
+      if (!card) {
+        return;
+      }
+      card.style.opacity = "";
+      card.style.transform = "";
+      card.style.zIndex = "";
+    });
+    if (overlayRef.current) {
+      overlayRef.current.style.height = "";
+    }
+  }, []);
 
   const setBackdropInteract = useCallback((active: boolean) => {
     if (interactingRef.current === active) {
@@ -127,7 +179,6 @@ export function MobileTocPanel() {
     0,
     entries.findIndex((entry) => entry.id === activeId),
   );
-  const centeredIndex = nearestCenterIndex(centerFloat, entries.length);
   const centeredItemHeight = itemHeights[centeredIndex] ?? MOBILE_TOC_ITEM_MIN_HEIGHT;
   const topSpacerHeight = mobileTocCenterOffsetCss(
     itemHeights[0] ?? MOBILE_TOC_ITEM_MIN_HEIGHT,
@@ -139,6 +190,17 @@ export function MobileTocPanel() {
   useEffect(() => {
     heightsRef.current = itemHeights;
   }, [itemHeights]);
+
+  useEffect(() => {
+    entriesRef.current = entries;
+  }, [entries]);
+
+  useLayoutEffect(() => {
+    if (!interacting) {
+      return;
+    }
+    applyCardVisuals(centerFloatRef.current, entries.length);
+  }, [applyCardVisuals, centeredIndex, entries.length, interacting]);
 
   useEffect(() => {
     if (!visible) {
@@ -154,6 +216,8 @@ export function MobileTocPanel() {
       return;
     }
     setCenterFloat(activeIndex);
+    setCenteredIndex(activeIndex);
+    centerFloatRef.current = activeIndex;
     lastIndex.current = activeIndex;
     suppressScroll.current = true;
     node.scrollTop = mobileTocScrollTopForIndex(activeIndex, itemHeights);
@@ -165,23 +229,19 @@ export function MobileTocPanel() {
   }, [visible]);
 
   useEffect(() => {
-    return clearSettleTimer;
+    return () => {
+      clearSettleTimer();
+      cancelScrollRaf();
+    };
   }, []);
 
-  const clampFloatIndex = useCallback(
-    (value: number) =>
-      Math.min(entries.length - 1, Math.max(0, value)),
-    [entries.length],
-  );
-
-  const applyFloatIndex = useCallback(
-    (floatIndex: number) => {
-      const clamped = clampFloatIndex(floatIndex);
-      setCenterFloat(clamped);
-      const index = nearestCenterIndex(clamped, entries.length);
+  const commitCenterIndex = useCallback(
+    (index: number) => {
+      const currentEntries = entriesRef.current;
       if (index !== lastIndex.current) {
         lastIndex.current = index;
-        const entry = entries[index];
+        setCenteredIndex(index);
+        const entry = currentEntries[index];
         if (entry) {
           setActiveId(entry.id);
         }
@@ -196,59 +256,87 @@ export function MobileTocPanel() {
         }
       }
     },
-    [clampFloatIndex, entries, setActiveId],
+    [setActiveId],
   );
 
   const beginInteraction = useCallback(() => {
-    setInteracting(true);
+    if (!interactingRef.current) {
+      setInteracting(true);
+    }
     setBackdropInteract(true);
   }, [setBackdropInteract]);
 
   const endInteraction = useCallback(() => {
+    clearCardVisuals();
     setInteracting(false);
     setBackdropInteract(false);
-  }, [setBackdropInteract]);
+  }, [clearCardVisuals, setBackdropInteract]);
 
   const syncFromScrollPosition = useCallback(() => {
     const node = scrollRef.current;
-    if (!node || entries.length === 0 || suppressScroll.current) {
+    const currentEntries = entriesRef.current;
+    if (!node || currentEntries.length === 0 || suppressScroll.current) {
       return;
     }
-    beginInteraction();
-    applyFloatIndex(mobileTocFloatFromScrollTop(node.scrollTop, heightsRef.current));
-    clearSettleTimer();
-    settleTimer.current = window.setTimeout(() => {
+    if (scrollRaf.current !== 0) {
+      return;
+    }
+    scrollRaf.current = window.requestAnimationFrame(() => {
+      scrollRaf.current = 0;
       const scrollNode = scrollRef.current;
-      if (!scrollNode) {
-        endInteraction();
-        settleTimer.current = null;
+      if (!scrollNode || suppressScroll.current) {
         return;
       }
-      const heights = heightsRef.current;
-      const settledIndex = nearestCenterIndex(
-        mobileTocFloatFromScrollTop(scrollNode.scrollTop, heights),
-        entries.length,
+      beginInteraction();
+      const floatIndex = mobileTocFloatFromScrollTop(
+        scrollNode.scrollTop,
+        heightsRef.current,
       );
-      scrollNode.scrollTop = mobileTocScrollTopForIndex(settledIndex, heights);
-      setCenterFloat(settledIndex);
-      lastIndex.current = settledIndex;
-      const entry = entries[settledIndex];
-      if (entry) {
-        setActiveId(entry.id);
-      }
-      const tops = topsRef.current;
-      if (tops.length > 0) {
-        scrollToHeadingIndex(
-          settledIndex,
-          tops,
-          MOBILE_TOC_ACTIVE_LINE_RATIO,
-          "auto",
+      centerFloatRef.current = floatIndex;
+      applyCardVisuals(floatIndex, currentEntries.length);
+      commitCenterIndex(nearestCenterIndex(floatIndex, currentEntries.length));
+      clearSettleTimer();
+      settleTimer.current = window.setTimeout(() => {
+        const settledNode = scrollRef.current;
+        const settledEntries = entriesRef.current;
+        if (!settledNode) {
+          endInteraction();
+          settleTimer.current = null;
+          return;
+        }
+        const heights = heightsRef.current;
+        const settledIndex = nearestCenterIndex(
+          mobileTocFloatFromScrollTop(settledNode.scrollTop, heights),
+          settledEntries.length,
         );
-      }
-      endInteraction();
-      settleTimer.current = null;
-    }, SETTLE_MS);
-  }, [applyFloatIndex, beginInteraction, endInteraction, entries, setActiveId]);
+        settledNode.scrollTop = mobileTocScrollTopForIndex(settledIndex, heights);
+        setCenterFloat(settledIndex);
+        setCenteredIndex(settledIndex);
+        lastIndex.current = settledIndex;
+        const entry = settledEntries[settledIndex];
+        if (entry) {
+          setActiveId(entry.id);
+        }
+        const tops = topsRef.current;
+        if (tops.length > 0) {
+          scrollToHeadingIndex(
+            settledIndex,
+            tops,
+            MOBILE_TOC_ACTIVE_LINE_RATIO,
+            "auto",
+          );
+        }
+        endInteraction();
+        settleTimer.current = null;
+      }, SETTLE_MS);
+    });
+  }, [
+    applyCardVisuals,
+    beginInteraction,
+    commitCenterIndex,
+    endInteraction,
+    setActiveId,
+  ]);
 
   const handleScroll = () => {
     syncFromScrollPosition();
@@ -256,8 +344,10 @@ export function MobileTocPanel() {
 
   const handleSelect = (id: string, index: number) => {
     clearSettleTimer();
+    cancelScrollRaf();
     lastIndex.current = index;
     setCenterFloat(index);
+    setCenteredIndex(index);
     setActiveId(id);
     scrollToHeadingAtLineRatio(id, MOBILE_TOC_ACTIVE_LINE_RATIO, "smooth");
     close();
@@ -265,6 +355,7 @@ export function MobileTocPanel() {
 
   const handleDismiss = () => {
     clearSettleTimer();
+    cancelScrollRaf();
     close();
   };
 
@@ -323,10 +414,14 @@ export function MobileTocPanel() {
             <div style={{ height: topSpacerHeight }} aria-hidden />
             {entries.map((entry, index) => {
               const itemHeight = itemHeights[index] ?? MOBILE_TOC_ITEM_MIN_HEIGHT;
-              const distance = index - centerFloat;
               const isCentered = index === centeredIndex;
-              const cardOpacity = mobileTocPanelOpacity(distance, isCentered);
-              const scale = mobileTocPanelScale(distance, isCentered);
+              const distance = index - centerFloat;
+              const cardOpacity = interacting
+                ? undefined
+                : mobileTocPanelOpacity(distance, isCentered);
+              const scale = interacting
+                ? undefined
+                : mobileTocPanelScale(distance, isCentered);
               return (
                 <div
                   key={entry.id}
@@ -336,6 +431,9 @@ export function MobileTocPanel() {
                   style={{ height: itemHeight, scrollSnapAlign: "start" }}
                 >
                   <div
+                    ref={(node) => {
+                      cardRefs.current[index] = node;
+                    }}
                     className={[
                       "relative flex h-full w-full items-center px-3 shadow-sm",
                       isCentered ? "z-20" : "z-0",
@@ -344,7 +442,7 @@ export function MobileTocPanel() {
                     style={{
                       backgroundColor: "#ffffff",
                       opacity: cardOpacity,
-                      transform: `scale(${scale})`,
+                      transform: scale === undefined ? undefined : `scale(${scale})`,
                       transformOrigin: "right center",
                     }}
                   >
@@ -365,11 +463,12 @@ export function MobileTocPanel() {
             <div style={{ height: bottomSpacerHeight }} aria-hidden />
           </div>
           <div
+            ref={overlayRef}
             aria-hidden
             className="pointer-events-none absolute inset-x-0 z-10 -translate-y-1/2 border-y border-[var(--rb-primary)]/25"
             style={{
               top: `${MOBILE_TOC_CENTER_RATIO * 100}%`,
-              height: centeredItemHeight,
+              height: interacting ? undefined : centeredItemHeight,
             }}
           />
         </div>
