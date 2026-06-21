@@ -86,6 +86,15 @@ function removeMarkFallback(container: HTMLElement): void {
   });
 }
 
+export function scrollToBlock(container: HTMLElement, blockId: string): boolean {
+  const element = container.querySelector(`[data-block-id="${blockId}"]`);
+  if (!element) {
+    return false;
+  }
+  element.scrollIntoView({ behavior: "smooth", block: "start" });
+  return true;
+}
+
 export function scrollToAnnotation(
   container: HTMLElement,
   annotation: Annotation,

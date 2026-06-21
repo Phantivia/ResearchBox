@@ -10,6 +10,11 @@ import {
 import type { ViewMode } from "@/store";
 import { CitationPopover } from "./CitationPopover";
 import { groupPaperBlocks, type PaperRenderUnit } from "./flowBlocks";
+import {
+  ActiveImage,
+  ImageLightbox,
+  resolveFigureImageFromClick,
+} from "./ImageLightbox";
 import { MathBlock } from "./MathBlock";
 import { OverflowContainer } from "./OverflowContainer";
 
@@ -840,6 +845,35 @@ function CitationInteractionLayer({
   );
 }
 
+function ImageInteractionLayer({ children }: { children: React.ReactNode }) {
+  const [activeImage, setActiveImage] = useState<ActiveImage | null>(null);
+
+  const handleContentClick = (event: MouseEvent<HTMLElement>) => {
+    const image = resolveFigureImageFromClick(event.target);
+    if (!image) {
+      return;
+    }
+    event.preventDefault();
+    setActiveImage(image);
+  };
+
+  return (
+    <div
+      onClick={handleContentClick}
+      className="[&_figure_img]:cursor-zoom-in"
+    >
+      {children}
+      {activeImage && (
+        <ImageLightbox
+          src={activeImage.src}
+          alt={activeImage.alt}
+          onClose={() => setActiveImage(null)}
+        />
+      )}
+    </div>
+  );
+}
+
 export interface PaperBlockContentProps {
   blocks: Block[];
   viewMode?: ViewMode;
@@ -893,8 +927,9 @@ export function PaperRenderer({
   const renderUnits = useMemo(() => groupPaperBlocks(paper.blocks), [paper.blocks]);
 
   return (
-    <CitationInteractionLayer references={paper.references}>
-      <article className="paper-content prose prose-gray max-w-none">
+    <ImageInteractionLayer>
+      <CitationInteractionLayer references={paper.references}>
+        <article className="paper-content prose prose-gray max-w-none">
         {renderUnits.map((unit) => (
           <RenderUnit
             key={unit.kind === "flow" ? unit.blocks.map((block) => block.id).join("-") : unit.block.id}
@@ -913,7 +948,8 @@ export function PaperRenderer({
             ))}
           </section>
         )}
-      </article>
-    </CitationInteractionLayer>
+        </article>
+      </CitationInteractionLayer>
+    </ImageInteractionLayer>
   );
 }
