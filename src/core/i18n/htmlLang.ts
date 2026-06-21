@@ -1,3 +1,4 @@
+import { resolveUiLocaleFromLanguages } from "./resolveUiLocale";
 import { DEFAULT_UI_LOCALE, type UiLocale } from "./schema";
 
 export const UI_LOCALE_STORAGE_KEY = "researchbox:uiLocale";
@@ -11,9 +12,5 @@ export function htmlLangToUiLocale(lang: string | null | undefined): UiLocale {
   if (!lang) {
     return DEFAULT_UI_LOCALE;
   }
-  const normalized = lang.trim().toLowerCase();
-  if (normalized === "en" || normalized.startsWith("en-")) {
-    return "en";
-  }
-  return DEFAULT_UI_LOCALE;
+  return resolveUiLocaleFromLanguages([lang]);
 }

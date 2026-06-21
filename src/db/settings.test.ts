@@ -79,7 +79,7 @@ describe("settings helpers", () => {
       viewMode: "bilingual",
       targetLang: "en",
       debugMode: false,
-      uiLocale: "zh",
+      uiLocale: "en",
       lastProjectId: null,
       activePaletteId: "default",
       customPalette: null,

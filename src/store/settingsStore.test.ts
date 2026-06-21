@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
-import { beforeEach, describe, expect, it } from "vitest";
-import { db } from "@/db";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { db, getSettings } from "@/db";
 import { useSettingsStore } from "./settingsStore";
 
 const OPENAI_CONFIG = {
@@ -19,12 +19,36 @@ beforeEach(async () => {
     viewMode: "original",
     targetLang: "zh",
     debugMode: false,
-    uiLocale: "zh",
+    uiLocale: "en",
     loaded: false,
   });
 });
 
 describe("useSettingsStore", () => {
+  it("persists uiLocale from browser languages on first load", async () => {
+    vi.stubGlobal("navigator", {
+      languages: ["zh-CN"],
+      language: "zh-CN",
+    });
+
+    await useSettingsStore.getState().load();
+
+    expect(useSettingsStore.getState().uiLocale).toBe("zh");
+    expect((await getSettings()).uiLocale).toBe("zh");
+  });
+
+  it("falls back to English when browser language is unsupported", async () => {
+    vi.stubGlobal("navigator", {
+      languages: ["fr-FR"],
+      language: "fr-FR",
+    });
+
+    await useSettingsStore.getState().load();
+
+    expect(useSettingsStore.getState().uiLocale).toBe("en");
+    expect((await getSettings()).uiLocale).toBe("en");
+  });
+
   it("loads providers and settings from IndexedDB", async () => {
     const store = useSettingsStore.getState();
     await store.saveProvider(OPENAI_CONFIG);

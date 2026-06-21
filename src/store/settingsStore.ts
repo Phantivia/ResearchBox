@@ -1,5 +1,10 @@
 import { create } from "zustand";
-import { UI_LOCALE_STORAGE_KEY, type UiLocale } from "@/core/i18n";
+import {
+  DEFAULT_UI_LOCALE,
+  resolveUiLocaleFromLanguages,
+  UI_LOCALE_STORAGE_KEY,
+  type UiLocale,
+} from "@/core/i18n";
 import type { ProviderConfig } from "@/core/llm";
 import {
   applyPalette,
@@ -9,6 +14,7 @@ import {
   type SavedPalette,
 } from "@/core/colorPalette";
 import {
+  db,
   deletePalette,
   deleteProviderConfig,
   getSettings,
@@ -17,6 +23,7 @@ import {
   putPalette,
   saveProviderConfig,
   saveSettings,
+  SETTINGS_KEY,
   type AppSettings,
   type ViewMode,
 } from "@/db";
@@ -61,6 +68,15 @@ function mirrorUiLocaleStorage(uiLocale: UiLocale): void {
   }
 }
 
+function getBrowserLanguages(): readonly string[] {
+  if (typeof navigator === "undefined") {
+    return [];
+  }
+  return [...(navigator.languages ?? []), navigator.language].filter(
+    (language): language is string => Boolean(language?.trim()),
+  );
+}
+
 export const useSettingsStore = create<SettingsState & SettingsActions>()(
   (set, get) => ({
     providers: [],
@@ -68,18 +84,26 @@ export const useSettingsStore = create<SettingsState & SettingsActions>()(
     viewMode: "original",
     targetLang: "zh",
     debugMode: false,
-    uiLocale: "zh",
+    uiLocale: DEFAULT_UI_LOCALE,
     activePaletteId: "default",
     customPalette: null,
     savedPalettes: [],
     loaded: false,
 
     load: async () => {
-      const [providers, settings, savedPalettes] = await Promise.all([
+      const [providers, settingsRow, savedPalettes] = await Promise.all([
         listProviderConfigs(),
-        getSettings(),
+        db.settings.get(SETTINGS_KEY),
         listPalettes(),
       ]);
+
+      let settings = await getSettings();
+      if (!settingsRow) {
+        settings = await saveSettings({
+          uiLocale: resolveUiLocaleFromLanguages(getBrowserLanguages()),
+        });
+      }
+
       set({
         providers,
         activeProviderId: settings.activeProviderId,

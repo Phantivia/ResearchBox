@@ -14,6 +14,10 @@ vi.mock("@/pwa", () => ({
 beforeEach(async () => {
   await db.secrets.clear();
   await db.settings.clear();
+  vi.stubGlobal("navigator", {
+    languages: ["zh-CN"],
+    language: "zh-CN",
+  });
   useSettingsStore.setState({
     providers: [],
     activeProviderId: null,
@@ -58,7 +62,7 @@ describe("SettingsPage", () => {
       model: "deepseek-chat",
       reasoningEffort: "medium",
     });
-    await saveSettings({ activeProviderId: "deepseek" });
+    await saveSettings({ activeProviderId: "deepseek", uiLocale: "zh" });
 
     render(
       <HashRouter>

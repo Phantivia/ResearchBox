@@ -1,16 +1,31 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <script>
       (function () {
         try {
           var stored = localStorage.getItem("researchbox:uiLocale");
-          if (stored === "en") {
-            document.documentElement.lang = "en";
-          } else if (stored === "zh") {
-            document.documentElement.lang = "zh-CN";
+          var locale = stored === "en" || stored === "zh" ? stored : null;
+          if (!locale) {
+            var langs =
+              navigator.languages && navigator.languages.length
+                ? navigator.languages
+                : [navigator.language || "en"];
+            locale = "en";
+            for (var i = 0; i < langs.length; i++) {
+              var tag = String(langs[i]).trim().toLowerCase();
+              if (tag === "en" || tag.indexOf("en-") === 0) {
+                locale = "en";
+                break;
+              }
+              if (tag === "zh" || tag.indexOf("zh-") === 0) {
+                locale = "zh";
+                break;
+              }
+            }
           }
+          document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
         } catch (_error) {
           /* localStorage may be unavailable in private mode */
         }

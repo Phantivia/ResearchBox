@@ -17,8 +17,9 @@ describe("htmlLangToUiLocale", () => {
     expect(htmlLangToUiLocale("en-US")).toBe("en");
   });
 
-  it("falls back to default for Chinese and missing values", () => {
+  it("maps Chinese variants and falls back to English", () => {
     expect(htmlLangToUiLocale("zh-CN")).toBe("zh");
-    expect(htmlLangToUiLocale(null)).toBe("zh");
+    expect(htmlLangToUiLocale("fr-FR")).toBe("en");
+    expect(htmlLangToUiLocale(null)).toBe("en");
   });
 });

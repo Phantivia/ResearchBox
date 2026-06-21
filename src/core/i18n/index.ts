@@ -10,3 +10,4 @@ export {
   uiLocaleToHtmlLang,
 } from "./htmlLang";
 export { normalizeUiLocale, translate } from "./translate";
+export { resolveUiLocaleFromLanguages } from "./resolveUiLocale";
