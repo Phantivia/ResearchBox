@@ -5,6 +5,7 @@ import { PaperBlockContent } from "./PaperRenderer";
 export interface AbstractSectionProps {
   abstract: string;
   blocks: Block[];
+  pageUrl: string;
   viewMode: ViewMode;
   translationPending: boolean;
   translationStarted?: boolean;
@@ -14,6 +15,7 @@ export interface AbstractSectionProps {
 export function AbstractSection({
   abstract,
   blocks,
+  pageUrl,
   viewMode,
   translationPending,
   translationStarted = false,
@@ -31,6 +33,7 @@ export function AbstractSection({
       {blocks.length > 0 ? (
         <PaperBlockContent
           blocks={blocks}
+          pageUrl={pageUrl}
           viewMode={viewMode}
           translationPending={translationPending}
           translationStarted={translationStarted}

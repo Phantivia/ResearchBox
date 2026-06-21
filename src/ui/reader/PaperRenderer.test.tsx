@@ -377,7 +377,9 @@ describe("PaperRenderer figure captions", () => {
       <PaperRenderer paper={figurePaper(translatedFigure)} viewMode="translation" />,
     );
 
-    expect(container.querySelector('img[src="x1.png"]')).not.toBeNull();
+    expect(
+      container.querySelector('img[src="https://arxiv.org/html/2401.12345v1/x1.png"]'),
+    ).not.toBeNull();
   });
 
   it("renders the translated caption in translation mode", () => {
@@ -438,6 +440,70 @@ describe("PaperRenderer figure captions", () => {
     expect(container.querySelector("img")).not.toBeNull();
     expect(screen.queryByText("未翻译")).not.toBeInTheDocument();
     expect(screen.queryByTestId("translation-placeholder")).not.toBeInTheDocument();
+  });
+});
+
+describe("PaperRenderer display math spotlight", () => {
+  function mathPaper(block: PaperIR["blocks"][number]): PaperIR {
+    return {
+      arxivId: "2401.12345",
+      version: "v1",
+      title: "Math Fixture",
+      abstract: "Abstract",
+      abstractBlocks: [],
+      authors: ["Alice"],
+      createdAt: 0,
+      modelUsed: "test",
+      references: [],
+      blocks: [block],
+    };
+  }
+
+  it("opens spotlight for short standalone display math blocks", () => {
+    render(
+      <PaperRenderer
+        paper={mathPaper({
+          id: "m-display",
+          type: "math",
+          content: "E=mc^2",
+          math: { tex: "E=mc^2", display: true },
+        })}
+      />,
+    );
+
+    expect(screen.queryByTestId("math-spotlight")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "放大查看公式" }));
+    expect(screen.getByTestId("math-spotlight")).toBeInTheDocument();
+  });
+});
+
+describe("PaperRenderer figure image URLs", () => {
+  it("repairs corrupted cached image URLs at render time", () => {
+    const paper: PaperIR = {
+      arxivId: "2401.12345",
+      version: "v2",
+      title: "Figure Fixture",
+      abstract: "Abstract",
+      abstractBlocks: [],
+      authors: ["Alice"],
+      createdAt: 0,
+      modelUsed: "test",
+      references: [],
+      blocks: [
+        {
+          id: "f1",
+          type: "figure",
+          content:
+            '<figure><img src="https://arxiv.org/html/x1.png" alt="Refer to caption" /></figure>',
+        },
+      ],
+    };
+
+    const { container } = render(<PaperRenderer paper={paper} />);
+
+    expect(
+      container.querySelector('img[src="https://arxiv.org/html/2401.12345v2/x1.png"]'),
+    ).not.toBeNull();
   });
 });
 

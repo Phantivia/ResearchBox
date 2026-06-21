@@ -1,4 +1,5 @@
 import DOMPurify from "dompurify";
+import { absolutizeImageUrlsInDocument } from "@/core/media";
 import { normalizeTex } from "@/core/math/normalizeTex";
 import { stripMathmlSourceAnnotations } from "@/core/math/sanitizeMathml";
 
@@ -146,51 +147,6 @@ function removeBoilerplate(doc: Document): void {
   for (const selector of BOILERPLATE_SELECTORS) {
     doc.querySelectorAll(selector).forEach((el) => el.remove());
   }
-}
-
-function absolutizeUrl(value: string, base: string): string | null {
-  try {
-    return new URL(value, base).href;
-  } catch {
-    return null;
-  }
-}
-
-function absolutizeSrcset(srcset: string, base: string): string {
-  const candidates: string[] = [];
-  for (const candidate of srcset.split(",")) {
-    const trimmed = candidate.trim();
-    if (!trimmed) continue;
-    const [url, ...descriptors] = trimmed.split(/\s+/);
-    if (!url) continue;
-    const absolute = absolutizeUrl(url, base);
-    if (!absolute) continue;
-    candidates.push([absolute, ...descriptors].join(" "));
-  }
-  return candidates.join(", ");
-}
-
-/**
- * arXiv/ar5iv HTML 里图片是相对路径（如 `/html/{id}/x1.png`），渲染层运行在
- * 应用自身 origin 下无法解析，会变成破图 + alt「Refer to caption」。这里以抓取时
- * 的页面 URL 为 base 改写为绝对地址，与 cache/paperImages 的缓存键保持一致，命中缓存。
- */
-function absolutizeImageUrls(doc: Document, pageUrl: string): void {
-  if (!absolutizeUrl(".", pageUrl)) return;
-
-  doc.querySelectorAll("img[src]").forEach((img) => {
-    const src = img.getAttribute("src")?.trim();
-    if (!src) return;
-    const absolute = absolutizeUrl(src, pageUrl);
-    if (absolute) img.setAttribute("src", absolute);
-  });
-
-  doc.querySelectorAll("img[srcset], source[srcset]").forEach((el) => {
-    const srcset = el.getAttribute("srcset");
-    if (!srcset) return;
-    const rewritten = absolutizeSrcset(srcset, pageUrl);
-    if (rewritten) el.setAttribute("srcset", rewritten);
-  });
 }
 
 function findMainRoot(doc: Document): Element {
@@ -616,7 +572,7 @@ export function cleanArxivHtml(
 ): CleanResult {
   const doc = parseDocument(rawHtml);
   removeBoilerplate(doc);
-  if (pageUrl) absolutizeImageUrls(doc, pageUrl);
+  if (pageUrl) absolutizeImageUrlsInDocument(doc, pageUrl);
 
   const root = findMainRoot(doc);
   const ctx: WalkContext = {

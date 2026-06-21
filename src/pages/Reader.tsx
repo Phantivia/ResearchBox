@@ -11,6 +11,7 @@ import {
 import { resolvePaperEntryStatus } from "@/core/paper";
 import { readerRightPanelWidth } from "@/core/reader";
 import { extractToc } from "@/core/toc";
+import { buildArxivPaperPageUrl } from "@/core/media";
 import { useTranslation } from "@/i18n";
 import {
   usePaperStore,
@@ -312,6 +313,13 @@ export function Reader() {
     () => (currentPaper ? extractToc(currentPaper) : []),
     [currentPaper],
   );
+  const paperPageUrl = useMemo(
+    () =>
+      currentPaper
+        ? buildArxivPaperPageUrl(currentPaper.arxivId, currentPaper.version)
+        : "",
+    [currentPaper],
+  );
   const setTocEntries = useReaderTocStore((state) => state.setEntries);
   const resetToc = useReaderTocStore((state) => state.reset);
   const annotationPanelWidth = useReaderTocStore((state) => state.annotationPanelWidth);
@@ -544,6 +552,7 @@ export function Reader() {
           <AbstractSection
             abstract={currentPaper.abstract}
             blocks={currentPaper.abstractBlocks}
+            pageUrl={paperPageUrl}
             viewMode={viewMode}
             translationPending={isTranslating}
             translationStarted={translationStarted}

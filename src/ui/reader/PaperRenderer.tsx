@@ -1,7 +1,8 @@
 import DOMPurify from "dompurify";
 import { memo, useMemo, useState, type JSX, type MouseEvent } from "react";
 import type { Block, PaperIR, Reference } from "@/core/ir";
-import { breakDisplayEquation, mathDisplayMode, shouldFlowInlineMath } from "@/core/math/layout";
+import { buildArxivPaperPageUrl, resolveImageUrlsInHtml } from "@/core/media";
+import { breakDisplayEquation, mathDisplayMode } from "@/core/math/layout";
 import { stripMathmlSourceAnnotations } from "@/core/math/sanitizeMathml";
 import {
   getTranslationDebugMetrics,
@@ -34,19 +35,21 @@ function isTranslatable(block: Block): boolean {
 const SANITIZE_CACHE_LIMIT = 2000;
 const sanitizeCache = new Map<string, string>();
 
-function sanitizeHtml(html: string): string {
-  const cached = sanitizeCache.get(html);
+function sanitizeHtml(html: string, pageUrl?: string): string {
+  const prepared = pageUrl ? resolveImageUrlsInHtml(html, pageUrl) : html;
+  const cacheKey = pageUrl ? `${pageUrl}\0${html}` : html;
+  const cached = sanitizeCache.get(cacheKey);
   if (cached !== undefined) {
     return cached;
   }
-  const clean = DOMPurify.sanitize(html, FRAGMENT_SANITIZE_OPTIONS);
+  const clean = DOMPurify.sanitize(prepared, FRAGMENT_SANITIZE_OPTIONS);
   if (sanitizeCache.size >= SANITIZE_CACHE_LIMIT) {
     const oldestKey = sanitizeCache.keys().next().value;
     if (oldestKey !== undefined) {
       sanitizeCache.delete(oldestKey);
     }
   }
-  sanitizeCache.set(html, clean);
+  sanitizeCache.set(cacheKey, clean);
   return clean;
 }
 
@@ -128,12 +131,14 @@ function HtmlFragment({
   html,
   tag: Tag,
   className,
+  pageUrl,
 }: {
   html: string;
   tag: keyof JSX.IntrinsicElements;
   className?: string;
+  pageUrl: string;
 }) {
-  const safeHtml = sanitizeHtml(html);
+  const safeHtml = sanitizeHtml(html, pageUrl);
   return <Tag className={className} dangerouslySetInnerHTML={{ __html: safeHtml }} />;
 }
 
@@ -386,12 +391,14 @@ const BlockRenderer = memo(function BlockRenderer({
   translationPending,
   translationStarted,
   debugMode,
+  pageUrl,
 }: {
   block: Block;
   viewMode: ViewMode;
   translationPending: boolean;
   translationStarted: boolean;
   debugMode: boolean;
+  pageUrl: string;
 }) {
   const translatable = isTranslatable(block);
   const showOriginal =
@@ -429,7 +436,7 @@ const BlockRenderer = memo(function BlockRenderer({
     }
     case "paragraph": {
       const original = (
-        <HtmlFragment html={block.content} tag="p" className="leading-relaxed" />
+        <HtmlFragment html={block.content} tag="p" className="leading-relaxed" pageUrl={pageUrl} />
       );
       return (
         <BlockContainer blockId={block.id} className="my-3 leading-relaxed">
@@ -445,6 +452,7 @@ const BlockRenderer = memo(function BlockRenderer({
                 <HtmlFragment
                   html={text}
                   tag="p"
+                  pageUrl={pageUrl}
                   className={
                     viewMode === "bilingual"
                       ? "mt-2 leading-relaxed text-[var(--rb-translation)]"
@@ -460,7 +468,7 @@ const BlockRenderer = memo(function BlockRenderer({
       );
     }
     case "list": {
-      const original = <HtmlFragment html={block.content} tag="div" />;
+      const original = <HtmlFragment html={block.content} tag="div" pageUrl={pageUrl} />;
       return (
         <BlockContainer blockId={block.id} className="my-3">
           {showOriginal && original}
@@ -475,6 +483,7 @@ const BlockRenderer = memo(function BlockRenderer({
                 <HtmlFragment
                   html={text}
                   tag="div"
+                  pageUrl={pageUrl}
                   className={viewMode === "bilingual" ? "mt-2 text-[var(--rb-translation)]" : "text-[var(--rb-translation)]"}
                 />
               ),
@@ -512,28 +521,28 @@ const BlockRenderer = memo(function BlockRenderer({
     }
     case "math":
       if (block.math) {
-        const display = mathDisplayMode(block.math.tex, block.math.display);
-        const flowsInline = shouldFlowInlineMath(block.math.tex, block.math.display);
-
-        if (flowsInline) {
+        if (block.math.display) {
           return (
-            <BlockContainer blockId={block.id} className="my-3 leading-relaxed">
-              <p className="m-0 leading-relaxed">
-                <InlineMath tex={block.math.tex} display={block.math.display} />
-              </p>
+            <BlockContainer blockId={block.id} className="my-4">
+              <DisplayMath
+                tex={breakDisplayEquation(block.math.tex)}
+                display={block.math.display}
+              />
             </BlockContainer>
           );
         }
 
         return (
-          <BlockContainer blockId={block.id} className="my-4">
-            <DisplayMath tex={breakDisplayEquation(block.math.tex)} display={display} />
+          <BlockContainer blockId={block.id} className="my-3 leading-relaxed">
+            <p className="m-0 leading-relaxed">
+              <InlineMath tex={block.math.tex} display={block.math.display} />
+            </p>
           </BlockContainer>
         );
       }
       return (
         <BlockContainer blockId={block.id} className="my-3">
-          <span dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.content) }} />
+          <span dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.content, pageUrl) }} />
         </BlockContainer>
       );
     case "table":
@@ -542,7 +551,7 @@ const BlockRenderer = memo(function BlockRenderer({
           <TableContainer>
             <div
               className="min-w-0"
-              dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.content) }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.content, pageUrl) }}
             />
           </TableContainer>
         </BlockContainer>
@@ -552,10 +561,12 @@ const BlockRenderer = memo(function BlockRenderer({
       const hasCaption = Boolean(block.caption?.trim());
       const showCaptionTranslation =
         hasCaption && (viewMode === "translation" || viewMode === "bilingual");
+      const figureHtml = block.content.trim();
+      const figureTag = /^<figure[\s>]/i.test(figureHtml) ? "div" : "figure";
       return (
         <BlockContainer blockId={block.id} className="my-6">
           <FigureBlock>
-            <HtmlFragment html={block.content} tag="figure" />
+            <HtmlFragment html={figureHtml} tag={figureTag} pageUrl={pageUrl} />
           </FigureBlock>
           {showCaptionTranslation &&
             renderTranslationSlot({
@@ -568,6 +579,7 @@ const BlockRenderer = memo(function BlockRenderer({
                 <HtmlFragment
                   html={text}
                   tag="figcaption"
+                  pageUrl={pageUrl}
                   className="mt-2 text-sm leading-relaxed text-[var(--rb-translation)]"
                 />
               ),
@@ -598,13 +610,19 @@ const BlockRenderer = memo(function BlockRenderer({
   }
 });
 
-const FlowOriginalPart = memo(function FlowOriginalPart({ block }: { block: Block }) {
+const FlowOriginalPart = memo(function FlowOriginalPart({
+  block,
+  pageUrl,
+}: {
+  block: Block;
+  pageUrl: string;
+}) {
   if (block.type === "paragraph") {
     return (
       <span
         data-block-id={block.id}
         className="inline"
-        dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.content) }}
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.content, pageUrl) }}
       />
     );
   }
@@ -623,11 +641,13 @@ const FlowTranslationPart = memo(function FlowTranslationPart({
   viewMode,
   translationPending,
   translationStarted,
+  pageUrl,
 }: {
   block: Block;
   viewMode: ViewMode;
   translationPending: boolean;
   translationStarted: boolean;
+  pageUrl: string;
 }) {
   if (block.type === "math" && block.math) {
     return <InlineMath tex={block.math.tex} display={block.math.display} />;
@@ -639,7 +659,7 @@ const FlowTranslationPart = memo(function FlowTranslationPart({
     return (
       <span
         className="inline"
-        dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.translation) }}
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.translation, pageUrl) }}
       />
     );
   }
@@ -652,7 +672,7 @@ const FlowTranslationPart = memo(function FlowTranslationPart({
     if (viewMode === "translation") {
       return (
         <span key={block.id} data-block-id={block.id} className="inline">
-          <span dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.content) }} />
+          <span dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.content, pageUrl) }} />
         </span>
       );
     }
@@ -662,7 +682,7 @@ const FlowTranslationPart = memo(function FlowTranslationPart({
   if (viewMode === "translation") {
     return (
       <span key={block.id} data-block-id={block.id} className="inline opacity-60">
-        <span dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.content) }} />
+        <span dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.content, pageUrl) }} />
         <UntranslatedMarker />
       </span>
     );
@@ -681,12 +701,14 @@ function FlowGroupRenderer({
   translationPending,
   translationStarted,
   debugMode,
+  pageUrl,
 }: {
   blocks: Block[];
   viewMode: ViewMode;
   translationPending: boolean;
   translationStarted: boolean;
   debugMode: boolean;
+  pageUrl: string;
 }) {
   const showOriginal = viewMode === "original" || viewMode === "bilingual";
   const showTranslationRow = viewMode === "bilingual" || viewMode === "translation";
@@ -696,7 +718,7 @@ function FlowGroupRenderer({
       {showOriginal && (
         <p className="flow-line leading-relaxed">
           {blocks.map((block) => (
-            <FlowOriginalPart key={block.id} block={block} />
+            <FlowOriginalPart key={block.id} block={block} pageUrl={pageUrl} />
           ))}
         </p>
       )}
@@ -715,6 +737,7 @@ function FlowGroupRenderer({
               viewMode={viewMode}
               translationPending={translationPending}
               translationStarted={translationStarted}
+              pageUrl={pageUrl}
             />
           ))}
         </p>
@@ -732,12 +755,14 @@ function RenderUnit({
   translationPending,
   translationStarted,
   debugMode,
+  pageUrl,
 }: {
   unit: PaperRenderUnit;
   viewMode: ViewMode;
   translationPending: boolean;
   translationStarted: boolean;
   debugMode: boolean;
+  pageUrl: string;
 }) {
   if (unit.kind === "flow") {
     return (
@@ -747,6 +772,7 @@ function RenderUnit({
         translationPending={translationPending}
         translationStarted={translationStarted}
         debugMode={debugMode}
+        pageUrl={pageUrl}
       />
     );
   }
@@ -758,6 +784,7 @@ function RenderUnit({
       translationPending={translationPending}
       translationStarted={translationStarted}
       debugMode={debugMode}
+      pageUrl={pageUrl}
     />
   );
 }
@@ -843,6 +870,7 @@ function CitationInteractionLayer({
 
 export interface PaperBlockContentProps {
   blocks: Block[];
+  pageUrl: string;
   viewMode?: ViewMode;
   translationPending?: boolean;
   translationStarted?: boolean;
@@ -852,6 +880,7 @@ export interface PaperBlockContentProps {
 
 export function PaperBlockContent({
   blocks,
+  pageUrl,
   viewMode = "original",
   translationPending = false,
   translationStarted = false,
@@ -870,6 +899,7 @@ export function PaperBlockContent({
           translationPending={translationPending}
           translationStarted={translationStarted}
           debugMode={debugMode}
+          pageUrl={pageUrl}
         />
       ))}
     </div>
@@ -892,6 +922,10 @@ export function PaperRenderer({
   debugMode = false,
 }: PaperRendererProps) {
   const renderUnits = useMemo(() => groupPaperBlocks(paper.blocks), [paper.blocks]);
+  const pageUrl = useMemo(
+    () => buildArxivPaperPageUrl(paper.arxivId, paper.version),
+    [paper.arxivId, paper.version],
+  );
 
   return (
     <CitationInteractionLayer references={paper.references}>
@@ -904,6 +938,7 @@ export function PaperRenderer({
             translationPending={translationPending}
             translationStarted={translationStarted}
             debugMode={debugMode}
+            pageUrl={pageUrl}
           />
         ))}
         {paper.references.length > 0 && (
