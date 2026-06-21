@@ -438,7 +438,7 @@ export function MobileTocPanel() {
                   key={entry.id}
                   data-toc-section
                   onClick={stopSectionClick}
-                  className="flex items-center justify-end pl-6"
+                  className="flex items-center pl-6"
                   style={{ height: itemHeight, scrollSnapAlign: "start" }}
                 >
                   <div
@@ -446,7 +446,7 @@ export function MobileTocPanel() {
                       cardRefs.current[index] = node;
                     }}
                     className={[
-                      "relative inline-flex h-full w-auto max-w-full items-center rounded-l-lg px-3 shadow-sm",
+                      "relative flex h-full w-full items-center rounded-l-lg px-3 shadow-sm",
                       isCentered ? "z-20" : "z-0",
                       interacting ? "" : "transition-transform duration-200 ease-out",
                     ].join(" ")}
