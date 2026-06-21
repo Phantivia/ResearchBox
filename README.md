@@ -14,8 +14,11 @@
 [![Vite](https://img.shields.io/badge/Vite-6-646cff?logo=vite&logoColor=white)](https://vite.dev/)
 [![PWA](https://img.shields.io/badge/PWA-installable-5a0fc8?logo=pwa&logoColor=white)](https://web.dev/progressive-web-apps/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](#license)
+[![Live Demo](https://img.shields.io/badge/在线体验-GitHub%20Pages-646cff)](https://phantivia.github.io/ResearchBox/)
 
 **简体中文** · [English](#english)
+
+🌐 **在线体验：** [https://phantivia.github.io/ResearchBox/](https://phantivia.github.io/ResearchBox/)
 
 </div>
 
@@ -112,8 +115,11 @@ Everything runs in your browser; your papers and settings stay on your own devic
 [![Vite](https://img.shields.io/badge/Vite-6-646cff?logo=vite&logoColor=white)](https://vite.dev/)
 [![PWA](https://img.shields.io/badge/PWA-installable-5a0fc8?logo=pwa&logoColor=white)](https://web.dev/progressive-web-apps/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](#license-1)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-646cff)](https://phantivia.github.io/ResearchBox/)
 
 [简体中文](#researchbox) · **English**
+
+🌐 **Live demo:** [https://phantivia.github.io/ResearchBox/](https://phantivia.github.io/ResearchBox/)
 
 </div>
 
