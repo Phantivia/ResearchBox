@@ -666,20 +666,36 @@ const FlowOriginalPart = memo(function FlowOriginalPart({
   return null;
 });
 
+function shouldShowFlowMathInTranslation(
+  blocks: Block[],
+  viewMode: ViewMode,
+  translationPending: boolean,
+  translationStarted: boolean,
+): boolean {
+  if (translationPending || translationStarted) return true;
+  if (viewMode === "translation") return true;
+  return blocks.some(
+    (candidate) => candidate.type === "paragraph" && Boolean(candidate.translation),
+  );
+}
+
 const FlowTranslationPart = memo(function FlowTranslationPart({
   block,
   viewMode,
   translationPending,
   translationStarted,
+  showFlowMathInTranslation,
   pageUrl,
 }: {
   block: Block;
   viewMode: ViewMode;
   translationPending: boolean;
   translationStarted: boolean;
+  showFlowMathInTranslation: boolean;
   pageUrl: string;
 }) {
   if (block.type === "math" && block.math) {
+    if (!showFlowMathInTranslation) return null;
     return <InlineMath tex={block.math.tex} display={block.math.display} />;
   }
 
@@ -742,6 +758,12 @@ function FlowGroupRenderer({
 }) {
   const showOriginal = viewMode === "original" || viewMode === "bilingual";
   const showTranslationRow = viewMode === "bilingual" || viewMode === "translation";
+  const showFlowMathInTranslation = shouldShowFlowMathInTranslation(
+    blocks,
+    viewMode,
+    translationPending,
+    translationStarted,
+  );
 
   return (
     <div className="flow-group my-3">
@@ -767,6 +789,7 @@ function FlowGroupRenderer({
               viewMode={viewMode}
               translationPending={translationPending}
               translationStarted={translationStarted}
+              showFlowMathInTranslation={showFlowMathInTranslation}
               pageUrl={pageUrl}
             />
           ))}

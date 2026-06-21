@@ -346,6 +346,53 @@ describe("PaperRenderer view modes", () => {
     expect(translationLine!.textContent).toContain("为输入。");
     expect(translationLine!.querySelectorAll(".katex")).toHaveLength(1);
   });
+
+  it("hides inline math in bilingual translation row before translation starts", () => {
+    const paper: PaperIR = {
+      arxivId: "2401.12345",
+      version: "v1",
+      title: "Flow Fixture",
+      abstract: "Abstract",
+      abstractBlocks: [],
+      authors: ["Alice"],
+      createdAt: 0,
+      modelUsed: "test",
+      references: [],
+      blocks: [
+        {
+          id: "p1",
+          type: "paragraph",
+          content: "We define ",
+        },
+        {
+          id: "m1",
+          type: "math",
+          content: "",
+          math: { tex: "x^2", display: false },
+        },
+        {
+          id: "p2",
+          type: "paragraph",
+          content: " as the input.",
+        },
+      ],
+    };
+
+    const { container } = render(<PaperRenderer paper={paper} viewMode="bilingual" />);
+
+    const flowGroup = container.querySelector(".flow-group");
+    expect(flowGroup).not.toBeNull();
+
+    const originalLine = flowGroup!.querySelector(
+      '.flow-line.leading-relaxed:not([class*="rb-translation"])',
+    );
+    expect(originalLine!.querySelectorAll(".katex")).toHaveLength(1);
+
+    const translationLine = flowGroup!.querySelector('.flow-line[class*="rb-translation"]');
+    expect(translationLine).not.toBeNull();
+    expect(translationLine!.querySelectorAll(".katex")).toHaveLength(0);
+    expect(translationLine!.textContent?.trim()).toBe("");
+  });
 });
 
 describe("PaperRenderer figure captions", () => {
