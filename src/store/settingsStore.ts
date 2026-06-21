@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { UiLocale } from "@/core/i18n";
+import { UI_LOCALE_STORAGE_KEY, type UiLocale } from "@/core/i18n";
 import type { ProviderConfig } from "@/core/llm";
 import {
   applyPalette,
@@ -53,6 +53,14 @@ interface SettingsActions {
   hasActiveProvider: () => boolean;
 }
 
+function mirrorUiLocaleStorage(uiLocale: UiLocale): void {
+  try {
+    localStorage.setItem(UI_LOCALE_STORAGE_KEY, uiLocale);
+  } catch {
+    /* localStorage may be unavailable in private mode */
+  }
+}
+
 export const useSettingsStore = create<SettingsState & SettingsActions>()(
   (set, get) => ({
     providers: [],
@@ -84,6 +92,7 @@ export const useSettingsStore = create<SettingsState & SettingsActions>()(
         savedPalettes,
         loaded: true,
       });
+      mirrorUiLocaleStorage(settings.uiLocale);
     },
 
     saveProvider: async (config) => {
@@ -126,6 +135,7 @@ export const useSettingsStore = create<SettingsState & SettingsActions>()(
     setUiLocale: async (locale) => {
       const settings = await saveSettings({ uiLocale: locale });
       set({ uiLocale: settings.uiLocale });
+      mirrorUiLocaleStorage(settings.uiLocale);
     },
 
     setActivePaletteId: async (id) => {
