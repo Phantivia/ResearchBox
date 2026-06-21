@@ -7,7 +7,7 @@ export function NoProject() {
 
   return (
     <main className="relative z-10 flex min-h-screen items-center justify-center overflow-x-clip px-4">
-      <div className="min-w-0 max-w-md rounded-lg border border-dashed border-[var(--rb-border)] bg-[var(--rb-card-bg)] px-6 py-12 text-center">
+      <div className="rb-card-surface min-w-0 max-w-md rounded-lg border border-dashed border-[var(--rb-border)] px-6 py-12 text-center">
         <BrandCreditsTrigger className="mx-auto mb-4 block rounded-lg transition-opacity hover:opacity-80">
           <MiniLogo
             className="mx-auto h-12 w-12 text-[var(--rb-primary)]"

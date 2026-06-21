@@ -3,6 +3,7 @@ export {
   type ReaderStatus,
   type TranslationStatus,
 } from "./readerStore";
+export { useReaderTocStore } from "./readerTocStore";
 export { useSettingsStore } from "./settingsStore";
 export { useAnnotationStore } from "./annotationStore";
 export { useProjectStore } from "./projectStore";

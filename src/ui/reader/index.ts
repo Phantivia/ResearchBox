@@ -8,7 +8,6 @@ export {
   applyAnnotationHighlights,
   clearAnnotationHighlights,
   scrollToAnnotation,
-  scrollToBlock,
   supportsCustomHighlight,
 } from "./highlights";
 export { MathBlock } from "./MathBlock";

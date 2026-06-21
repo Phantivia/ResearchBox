@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import Markdown from "react-markdown";
 import type { Annotation } from "@/core/annotation";
 import { useTranslation } from "@/i18n";
@@ -8,6 +8,8 @@ export interface AnnotationSidebarProps {
   onJump: (annotation: Annotation) => void;
   onDelete: (id: number) => void;
   onSaveNote: (id: number, note: string) => void;
+  className?: string;
+  style?: CSSProperties;
 }
 
 function NoteEditor({
@@ -78,12 +80,18 @@ export function AnnotationSidebar({
   onJump,
   onDelete,
   onSaveNote,
+  className,
+  style,
 }: AnnotationSidebarProps) {
   const { t } = useTranslation();
 
   return (
     <aside
-      className="sticky top-4 min-w-0 max-h-[calc(100vh-2rem)] overflow-y-auto rounded-lg border border-[var(--rb-border)] bg-[var(--rb-page-bg)] p-4"
+      className={[
+        "min-w-0 overflow-y-auto border border-[var(--rb-border)] bg-[var(--rb-page-bg)] p-4",
+        className ?? "",
+      ].join(" ")}
+      style={style}
       data-testid="annotation-sidebar"
     >
       <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--rb-text-secondary)]">

@@ -80,7 +80,7 @@ export function PaperBox() {
               {t("paperBox.addPaper")}
             </button>
           ) : (
-            <div className="rounded-lg border border-[var(--rb-border)] bg-[var(--rb-card-bg)] p-4 shadow-sm">
+            <div className="rb-card-surface rounded-lg border border-[var(--rb-border)] p-4 shadow-sm">
               <div className="mb-3 flex items-center justify-between">
                 <p className="text-sm font-medium text-[var(--rb-text-primary)]">
                   {t("paperBox.chooseMethod")}
@@ -100,7 +100,7 @@ export function PaperBox() {
                   <button
                     type="button"
                     onClick={() => setImportMode("arxiv-html")}
-                    className="flex w-full items-center gap-3 rounded-lg border border-[var(--rb-border)] bg-[var(--rb-card-bg)] px-4 py-3 text-left transition-colors hover:border-blue-300 hover:bg-blue-50"
+                    className="rb-card-surface flex w-full items-center gap-3 rounded-lg border border-[var(--rb-border)] px-4 py-3 text-left transition-colors hover:border-blue-300 hover:bg-blue-50"
                   >
                     <DocumentIcon />
                     <span className="text-sm font-medium text-[var(--rb-text-primary)]">
@@ -138,7 +138,7 @@ export function PaperBox() {
         </div>
 
         {loaded && papers.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-[var(--rb-border)] bg-[var(--rb-card-bg)] px-6 py-12 text-center text-[var(--rb-text-secondary)]">
+          <div className="rb-card-surface rounded-lg border border-dashed border-[var(--rb-border)] px-6 py-12 text-center text-[var(--rb-text-secondary)]">
             {t("paperBox.empty")}
           </div>
         ) : (
@@ -185,7 +185,7 @@ function PaperCard({ paper, statusMeta, locale, onOpen, onRemove }: PaperCardPro
 
   return (
     <li>
-      <div className="group flex items-start gap-4 rounded-lg border border-[var(--rb-border)] bg-[var(--rb-card-bg)] p-4 shadow-sm transition-colors hover:border-blue-300">
+      <div className="rb-card-surface group flex items-start gap-4 rounded-lg border border-[var(--rb-border)] p-4 shadow-sm transition-colors hover:border-blue-300">
         <button type="button" onClick={onOpen} className="min-w-0 flex-1 text-left">
           <div className="flex min-w-0 items-center gap-2">
             <span className="truncate text-xs text-[var(--rb-text-secondary)]">

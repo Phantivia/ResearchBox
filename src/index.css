@@ -44,6 +44,10 @@
 }
 
 @layer components {
+  .rb-card-surface {
+    background-color: color-mix(in srgb, var(--rb-card-bg) 80%, transparent);
+  }
+
   .rb-logo-emboss {
     opacity: 0.05;
     filter:

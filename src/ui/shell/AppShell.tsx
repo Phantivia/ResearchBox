@@ -17,7 +17,7 @@ export function AppShell() {
   }, [loaded, load]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--rb-page-bg)]">
+    <div className="flex min-h-dvh flex-col bg-[var(--rb-page-bg)]">
       <LocaleSync />
       <PaletteSync />
       <PwaOverlays />

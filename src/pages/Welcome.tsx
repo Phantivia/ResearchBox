@@ -107,7 +107,7 @@ export function Welcome() {
         </form>
 
         {loaded && projects.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-[var(--rb-border)] bg-[var(--rb-card-bg)] px-6 py-12 text-center">
+          <div className="rb-card-surface rounded-lg border border-dashed border-[var(--rb-border)] px-6 py-12 text-center">
             <h2 className="text-lg font-semibold text-[var(--rb-text-primary)]">
               {t("noProject.title")}
             </h2>
@@ -181,7 +181,7 @@ function ProjectCard({
 
   return (
     <li>
-      <div className="group flex items-start gap-4 rounded-lg border border-[var(--rb-border)] bg-[var(--rb-card-bg)] p-4 shadow-sm transition-colors hover:border-blue-300">
+      <div className="rb-card-surface group flex items-start gap-4 rounded-lg border border-[var(--rb-border)] p-4 shadow-sm transition-colors hover:border-blue-300">
         {editing ? (
           <input
             type="text"

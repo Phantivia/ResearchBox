@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { NoHtmlVersionError } from "@/core/fetcher";
 import type { MessageKey } from "@/core/i18n";
@@ -9,10 +9,13 @@ import {
   type LoadPaperWithTranslationProgress,
 } from "@/core/pipeline/loadPaper";
 import { resolvePaperEntryStatus } from "@/core/paper";
+import { readerRightPanelWidth } from "@/core/reader";
+import { extractToc } from "@/core/toc";
 import { useTranslation } from "@/i18n";
 import {
   usePaperStore,
   useReaderStore,
+  useReaderTocStore,
   useSettingsStore,
   useTranslationJobStore,
 } from "@/store";
@@ -22,6 +25,13 @@ import { AbstractSection } from "@/ui/reader/AbstractSection";
 import { AnnotationLayer } from "@/ui/reader/AnnotationLayer";
 import { TranslationProgressRing } from "@/ui/reader/TranslationProgressRing";
 import { ViewModeSwitcher } from "@/ui/reader/ViewModeSwitcher";
+import {
+  MobileTocPanel,
+  ReaderPanelResizeHandle,
+  TocFloatingButton,
+  TocRail,
+  useActiveHeading,
+} from "@/ui/reader/toc";
 
 function resolveErrorMessage(
   error: unknown,
@@ -298,6 +308,23 @@ export function Reader() {
     void recordError(projectId, id, translationJob.error);
   }, [translationJob?.error, projectId, id, setError, recordError]);
 
+  const tocEntries = useMemo(
+    () => (currentPaper ? extractToc(currentPaper) : []),
+    [currentPaper],
+  );
+  const setTocEntries = useReaderTocStore((state) => state.setEntries);
+  const resetToc = useReaderTocStore((state) => state.reset);
+  const annotationPanelWidth = useReaderTocStore((state) => state.annotationPanelWidth);
+  const rightPanelWidth = readerRightPanelWidth(annotationPanelWidth);
+
+  useEffect(() => {
+    setTocEntries(tocEntries);
+  }, [tocEntries, setTocEntries]);
+
+  useEffect(() => resetToc, [resetToc]);
+
+  useActiveHeading(tocEntries);
+
   const launchTranslation = useCallback(
     (forceRefresh: boolean) => {
       if (!id) {
@@ -424,8 +451,16 @@ export function Reader() {
   }
 
   return (
-    <main className="min-h-screen overflow-x-clip bg-[var(--rb-card-bg)]">
-      <div className="mx-auto min-w-0 max-w-6xl px-4 py-10">
+    <main className="relative min-h-screen overflow-x-clip bg-[var(--rb-card-bg)]">
+      <TocRail />
+      <ReaderPanelResizeHandle />
+      <TocFloatingButton />
+      <MobileTocPanel />
+      <div
+        className="min-w-0 xl:[margin-right:var(--rb-reader-right-panel)]"
+        style={{ ["--rb-reader-right-panel" as string]: `${rightPanelWidth}px` }}
+      >
+        <div className="mx-auto min-w-0 max-w-6xl px-4 py-10 xl:max-w-3xl">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <Link to={paperBoxPath} className="text-sm text-[var(--rb-primary)] hover:underline">
             {t("common.backToPaperBox")}
@@ -529,6 +564,7 @@ export function Reader() {
             debugMode={debugMode}
           />
         </AnnotationLayer>
+        </div>
       </div>
     </main>
   );

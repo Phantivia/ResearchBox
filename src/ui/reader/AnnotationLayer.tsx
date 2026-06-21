@@ -1,18 +1,14 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { makePaperId, selectionToAnchor, type TextAnchor } from "@/core/annotation";
 import type { PaperIR } from "@/core/ir";
-import { buildTocTree, flattenToc } from "@/core/reader/toc";
-import { useAnnotationStore } from "@/store";
+import { useAnnotationStore, useReaderTocStore } from "@/store";
 import { AnnotationSidebar } from "./AnnotationSidebar";
 import {
   applyAnnotationHighlights,
   clearAnnotationHighlights,
   scrollToAnnotation,
-  scrollToBlock,
 } from "./highlights";
-import { MobileSectionNav, useActiveSection } from "./MobileSectionNav";
 import { SelectionToolbar } from "./SelectionToolbar";
-import { TableOfContents } from "./TableOfContents";
 
 export interface AnnotationLayerProps {
   paper: PaperIR;
@@ -41,6 +37,7 @@ export function AnnotationLayer({
     editNote,
     reset,
   } = useAnnotationStore();
+  const annotationPanelWidth = useReaderTocStore((state) => state.annotationPanelWidth);
   const [pending, setPending] = useState<PendingSelection | null>(null);
 
   useEffect(() => {
@@ -111,25 +108,8 @@ export function AnnotationLayer({
     scrollToAnnotation(container, annotation);
   }, []);
 
-  const tocBlockIds = flattenToc(buildTocTree(paper.blocks)).map((node) => node.blockId);
-  const activeSectionId = useActiveSection(containerRef, tocBlockIds);
-
-  const handleBlockJump = useCallback((blockId: string) => {
-    const container = containerRef.current;
-    if (!container) {
-      return;
-    }
-    scrollToBlock(container, blockId);
-  }, []);
-
   return (
-    <div className="min-w-0">
-      <MobileSectionNav
-        blocks={paper.blocks}
-        containerRef={containerRef}
-        onJump={handleBlockJump}
-      />
-      <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
+    <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1fr)_280px] xl:block">
       <div
         ref={containerRef}
         className="min-w-0"
@@ -148,20 +128,14 @@ export function AnnotationLayer({
         )}
       </div>
 
-      <aside className="hidden min-w-0 space-y-4 lg:block">
-        <TableOfContents
-          blocks={paper.blocks}
-          activeBlockId={activeSectionId}
-          onJump={handleBlockJump}
-        />
-        <AnnotationSidebar
-          annotations={annotations}
-          onJump={handleJump}
-          onDelete={(id) => void removeAnnotation(id)}
-          onSaveNote={(id, note) => void editNote(id, note)}
-        />
-      </aside>
-    </div>
+      <AnnotationSidebar
+        annotations={annotations}
+        onJump={handleJump}
+        onDelete={(id) => void removeAnnotation(id)}
+        onSaveNote={(id, note) => void editNote(id, note)}
+        className="rounded-lg lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] xl:fixed xl:right-0 xl:top-0 xl:z-30 xl:h-screen xl:max-h-none xl:rounded-none xl:border-0 xl:border-l xl:border-[var(--rb-border)]"
+        style={{ width: annotationPanelWidth }}
+      />
     </div>
   );
 }

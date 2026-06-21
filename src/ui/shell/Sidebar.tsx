@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "@/i18n";
-import { useProjectStore, useSettingsStore } from "@/store";
+import { useProjectStore, useReaderTocStore, useSettingsStore } from "@/store";
 import { BrandCreditsTrigger, MiniLogo } from "@/ui/brand";
 import {
   SETTINGS_SECTION_NAV,
@@ -10,14 +10,23 @@ import {
 } from "@/ui/settings/sections";
 import { FEATURE_NAV } from "./featureNav";
 import { FeatureIcon } from "./featureIcons";
+import { useVisualViewportBox } from "./useVisualViewportBox";
 
 const PANEL_EXPAND_DELAY_MS = 180;
 const DRAWER_TRANSITION_MS = 280;
+const MOBILE_TAP_FEEDBACK_MS = 75;
 
 type DockMode = "features" | "settings";
 
 export function Sidebar() {
   const { t } = useTranslation();
+  const tocEntries = useReaderTocStore((state) => state.entries);
+  const tocActiveId = useReaderTocStore((state) => state.activeId);
+  const openToc = useReaderTocStore((state) => state.setMobileOpen);
+  const activeTocTitle =
+    tocEntries.find((entry) => entry.id === tocActiveId)?.title ??
+    tocEntries[0]?.title ??
+    "";
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMounted, setDrawerMounted] = useState(false);
   const [drawerClosing, setDrawerClosing] = useState(false);
@@ -60,30 +69,57 @@ export function Sidebar() {
   };
 
   const closeDrawer = () => setDrawerOpen(false);
+  const viewport = useVisualViewportBox();
 
   return (
     <>
-      <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 border-b border-white/5 bg-[var(--rb-sidebar-bg)] px-3 text-[var(--rb-sidebar-text)] md:hidden">
+      <header
+        className="fixed left-0 right-0 z-20 flex h-14 items-center gap-2 border-b border-white/5 bg-[var(--rb-sidebar-bg)] px-3 text-[var(--rb-sidebar-text)] md:hidden"
+        style={{ top: viewport.offsetTop }}
+      >
         <button
           type="button"
           onClick={openDrawer}
           aria-label={t("nav.openMenu")}
-          className="flex h-9 w-9 shrink-0 items-center justify-center text-gray-400 transition-colors hover:text-white"
+          className="flex h-10 w-10 shrink-0 items-center justify-center text-gray-400 transition-colors hover:text-white"
         >
           <MenuIcon />
         </button>
-        <div className="ml-auto flex min-w-0 items-center gap-2 truncate text-lg font-semibold tracking-tight">
-          <BrandCreditsTrigger className="shrink-0 rounded-sm transition-opacity hover:opacity-80">
-            <MiniLogo className="h-7 w-7" />
-          </BrandCreditsTrigger>
-          <NavLink to="/" className="truncate">
-            ResearchBox
-          </NavLink>
-        </div>
+        {tocEntries.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => openToc(true)}
+            aria-label={t("toc.openOutline")}
+            className="ml-auto flex h-10 min-w-0 items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-2 text-[var(--rb-sidebar-text)] transition-colors hover:border-white/20 hover:bg-white/10 active:bg-white/15"
+          >
+            <TriangleLeftIcon className="text-gray-400" />
+            <span className="max-w-[58vw] truncate text-sm font-medium">
+              {activeTocTitle || t("toc.title")}
+            </span>
+          </button>
+        ) : (
+          <div className="ml-auto flex min-w-0 items-center gap-2 truncate text-lg font-semibold tracking-tight">
+            <BrandCreditsTrigger className="shrink-0 rounded-sm transition-opacity hover:opacity-80">
+              <MiniLogo className="h-7 w-7" />
+            </BrandCreditsTrigger>
+            <NavLink to="/" className="truncate">
+              ResearchBox
+            </NavLink>
+          </div>
+        )}
       </header>
+      <div className="h-14 shrink-0 md:hidden" aria-hidden />
 
       {drawerMounted && (
-        <div className="fixed inset-0 z-40 md:hidden">
+        <div
+          className="fixed z-40 md:hidden"
+          style={{
+            top: viewport.offsetTop,
+            left: viewport.offsetLeft,
+            width: viewport.width,
+            height: viewport.height,
+          }}
+        >
           <div
             className={[
               "absolute inset-0 bg-black/40",
@@ -105,7 +141,7 @@ export function Sidebar() {
             ].join(" ")}
             style={drawerClosing ? { transitionDuration: `${DRAWER_TRANSITION_MS}ms` } : undefined}
           >
-            <SidebarContent onNavigate={closeDrawer} onClose={closeDrawer} />
+            <SidebarContent mobile onDismiss={closeDrawer} />
           </aside>
         </div>
       )}
@@ -118,11 +154,11 @@ export function Sidebar() {
 }
 
 interface SidebarContentProps {
-  onNavigate?: () => void;
-  onClose?: () => void;
+  mobile?: boolean;
+  onDismiss?: () => void;
 }
 
-function SidebarContent({ onNavigate, onClose }: SidebarContentProps) {
+function SidebarContent({ mobile = false, onDismiss }: SidebarContentProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -130,6 +166,9 @@ function SidebarContent({ onNavigate, onClose }: SidebarContentProps) {
   const { providers, loaded: settingsLoaded, load: loadSettings } = useSettingsStore();
   const active = getActiveProject();
   const [switcherOpen, setSwitcherOpen] = useState(false);
+  const { pressedKey, runWithDismissFeedback } = useMobileTapFeedback(
+    mobile ? onDismiss : undefined,
+  );
 
   const isSettingsRoute = location.pathname === "/settings";
   const isFeatureActive = FEATURE_NAV.some((item) => item.isActive(location.pathname));
@@ -175,31 +214,35 @@ function SidebarContent({ onNavigate, onClose }: SidebarContentProps) {
 
   function switchTo(projectId: string) {
     setSwitcherOpen(false);
-    onNavigate?.();
-    navigate(`/p/${encodeURIComponent(projectId)}/paper-box`);
+    runWithDismissFeedback(`project:${projectId}`, () => {
+      navigate(`/p/${encodeURIComponent(projectId)}/paper-box`);
+    });
   }
 
   function goHome() {
-    onNavigate?.();
-    navigate("/");
+    runWithDismissFeedback("home", () => {
+      navigate("/");
+    });
   }
 
   function goToSettingsSection(id: SettingsSectionId) {
-    onNavigate?.();
-    if (isSettingsRoute) {
-      scrollToSettingsSection(id);
-      return;
-    }
-    navigate("/settings", { state: { scrollTo: id } });
+    runWithDismissFeedback(`settings:${id}`, () => {
+      if (isSettingsRoute) {
+        scrollToSettingsSection(id);
+        return;
+      }
+      navigate("/settings", { state: { scrollTo: id } });
+    });
   }
 
   function openSettings() {
-    onNavigate?.();
-    setFeaturesExpanded(false);
-    setSettingsExpanded(false);
-    setDockMode("settings");
-    navigate("/settings");
-    window.setTimeout(() => setSettingsExpanded(true), PANEL_EXPAND_DELAY_MS);
+    runWithDismissFeedback("open-settings", () => {
+      setFeaturesExpanded(false);
+      setSettingsExpanded(false);
+      setDockMode("settings");
+      navigate("/settings");
+      window.setTimeout(() => setSettingsExpanded(true), PANEL_EXPAND_DELAY_MS);
+    });
   }
 
   function handleFeaturesClick() {
@@ -209,8 +252,9 @@ function SidebarContent({ onNavigate, onClose }: SidebarContentProps) {
       window.setTimeout(() => setFeaturesExpanded(true), PANEL_EXPAND_DELAY_MS);
 
       if (!activeProjectId) {
-        onNavigate?.();
-        navigate("/");
+        runWithDismissFeedback("features-home", () => {
+          navigate("/");
+        });
       }
       return;
     }
@@ -219,8 +263,9 @@ function SidebarContent({ onNavigate, onClose }: SidebarContentProps) {
   }
 
   function goToFeature(path: string) {
-    onNavigate?.();
-    navigate(path);
+    runWithDismissFeedback(`feature:${path}`, () => {
+      navigate(path);
+    });
   }
 
   const settingsMode = dockMode === "settings";
@@ -272,18 +317,28 @@ function SidebarContent({ onNavigate, onClose }: SidebarContentProps) {
               onClick={goHome}
               aria-label={t("nav.home")}
               title={t("nav.home")}
-              className="flex h-9 w-9 items-center justify-center rounded-sm text-gray-500 transition-colors hover:bg-white/5 hover:text-white"
+              className={[
+                "flex h-9 w-9 items-center justify-center rounded-sm transition-colors",
+                pressedKey === "home"
+                  ? "bg-white/5 text-white"
+                  : "text-gray-500 hover:bg-white/5 hover:text-white",
+              ].join(" ")}
             >
               <HomeIcon />
             </button>
           </div>
 
-          {onClose && (
+          {mobile && onDismiss && (
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => runWithDismissFeedback("close", () => {})}
               aria-label={t("nav.closeMenu")}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-sm text-gray-500 transition-colors hover:bg-white/5 hover:text-white"
+              className={[
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-sm transition-colors",
+                pressedKey === "close"
+                  ? "bg-white/5 text-white"
+                  : "text-gray-500 hover:bg-white/5 hover:text-white",
+              ].join(" ")}
             >
               <CloseIcon />
             </button>
@@ -296,21 +351,29 @@ function SidebarContent({ onNavigate, onClose }: SidebarContentProps) {
               {projects.length === 0 ? (
                 <p className="px-2.5 py-2 text-xs text-gray-500">{t("project.empty")}</p>
               ) : (
-                projects.map((project) => (
+                projects.map((project) => {
+                  const projectKey = `project:${project.id}`;
+                  const isActiveProject = project.id === activeProjectId;
+                  const isPressed = pressedKey === projectKey;
+
+                  return (
                   <button
                     key={project.id}
                     type="button"
                     onClick={() => switchTo(project.id)}
                     className={[
                       "block w-full truncate border-l-2 px-2.5 py-2 text-left text-sm transition-colors",
-                      project.id === activeProjectId
+                      isActiveProject
                         ? "border-white/70 bg-white/5 font-medium text-white"
-                        : "border-transparent text-gray-400 hover:bg-white/[0.04] hover:text-gray-200",
+                        : isPressed
+                          ? "border-transparent bg-white/[0.04] text-gray-200"
+                          : "border-transparent text-gray-400 hover:bg-white/[0.04] hover:text-gray-200",
                     ].join(" ")}
                   >
                     {project.name}
                   </button>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
@@ -347,6 +410,9 @@ function SidebarContent({ onNavigate, onClose }: SidebarContentProps) {
                 );
               }
 
+              const featureKey = `feature:${path}`;
+              const isPressed = pressedKey === featureKey;
+
               return (
                 <button
                   key={item.id}
@@ -356,7 +422,9 @@ function SidebarContent({ onNavigate, onClose }: SidebarContentProps) {
                     "flex w-full items-center gap-2.5 rounded-sm px-2 py-2 text-left text-sm transition-colors",
                     active
                       ? "bg-white/5 font-medium text-white"
-                      : "text-gray-400 hover:bg-white/[0.04] hover:text-gray-200",
+                      : isPressed
+                        ? "bg-white/[0.04] text-gray-200"
+                        : "text-gray-400 hover:bg-white/[0.04] hover:text-gray-200",
                   ].join(" ")}
                 >
                   <FeatureIcon
@@ -390,22 +458,31 @@ function SidebarContent({ onNavigate, onClose }: SidebarContentProps) {
           <DockActionButton
             label={t("nav.settings")}
             icon={<GearIcon />}
+            pressed={pressedKey === "open-settings"}
             onClick={openSettings}
           />
         )}
 
         <CollapsiblePanel open={settingsMode && settingsExpanded} durationMs={300} shrink>
           <nav aria-label={t("nav.settings")} className="space-y-px pl-2 pt-0.5">
-            {visibleSettingsSections.map((section) => (
+            {visibleSettingsSections.map((section) => {
+              const sectionKey = `settings:${section.id}`;
+              const isPressed = pressedKey === sectionKey;
+
+              return (
               <button
                 key={section.id}
                 type="button"
                 onClick={() => goToSettingsSection(section.id)}
-                className="flex w-full items-center px-2 py-1.5 text-left text-xs text-gray-500 transition-colors hover:text-gray-200"
+                className={[
+                  "flex w-full items-center px-2 py-1.5 text-left text-xs transition-colors",
+                  isPressed ? "text-gray-200" : "text-gray-500 hover:text-gray-200",
+                ].join(" ")}
               >
                 <span className="truncate">{t(section.labelKey)}</span>
               </button>
-            ))}
+              );
+            })}
           </nav>
         </CollapsiblePanel>
       </div>
@@ -431,6 +508,40 @@ interface CollapsiblePanelProps {
   shrink?: boolean;
   className?: string;
   children: React.ReactNode;
+}
+
+function useMobileTapFeedback(onDismiss?: () => void) {
+  const [pressedKey, setPressedKey] = useState<string | null>(null);
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current !== null) {
+        window.clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
+
+  function runWithDismissFeedback(key: string, action: () => void) {
+    if (!onDismiss) {
+      action();
+      return;
+    }
+
+    setPressedKey(key);
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+    }
+
+    timerRef.current = window.setTimeout(() => {
+      timerRef.current = null;
+      setPressedKey(null);
+      action();
+      onDismiss();
+    }, MOBILE_TAP_FEEDBACK_MS);
+  }
+
+  return { pressedKey, runWithDismissFeedback };
 }
 
 function CollapsiblePanel({
@@ -532,15 +643,19 @@ function DockHeaderButton({
 interface DockActionButtonProps {
   label: string;
   icon: React.ReactNode;
+  pressed?: boolean;
   onClick?: () => void;
 }
 
-function DockActionButton({ label, icon, onClick }: DockActionButtonProps) {
+function DockActionButton({ label, icon, pressed = false, onClick }: DockActionButtonProps) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-2.5 px-2 py-1.5 text-sm text-gray-400 transition-colors hover:text-gray-200"
+      className={[
+        "flex w-full items-center gap-2.5 px-2 py-1.5 text-sm transition-colors",
+        pressed ? "text-gray-200" : "text-gray-400 hover:text-gray-200",
+      ].join(" ")}
     >
       <span className="flex h-5 w-5 shrink-0 items-center justify-center">{icon}</span>
       <span className="min-w-0 flex-1 truncate text-left">{label}</span>
@@ -580,6 +695,19 @@ function CloseIcon() {
     >
       <line x1="18" y1="6" x2="6" y2="18" />
       <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
+function TriangleLeftIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 8 12"
+      fill="currentColor"
+      className={["h-3 w-3 shrink-0", className].filter(Boolean).join(" ")}
+      aria-hidden
+    >
+      <path d="M8 0 L0 6 L8 12 Z" />
     </svg>
   );
 }
