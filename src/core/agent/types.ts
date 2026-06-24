@@ -18,6 +18,11 @@ export const ContentBlockSchema = z.discriminatedUnion("type", [
     data: z.string(),
   }),
   z.object({
+    type: z.literal("ocr_text"),
+    text: z.string(),
+    imageName: z.string(),
+  }),
+  z.object({
     type: z.literal("thinking"),
     text: z.string(),
   }),

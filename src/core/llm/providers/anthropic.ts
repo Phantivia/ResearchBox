@@ -114,6 +114,9 @@ function mapContentBlockToAnthropic(block: ContentBlock): unknown {
       }
       return result;
     }
+    case "artifact_card":
+    case "ocr_text":
+      return null;
   }
 }
 

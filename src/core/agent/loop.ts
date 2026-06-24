@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { AssistantMessage, StreamEvent, ToolSchema } from "@/core/llm/types";
+import { userMessageForLlm } from "./multimodal";
 import type {
   AgentDeps,
   AgentMessage,
@@ -67,7 +68,9 @@ function isToolUse(block: ContentBlock): block is ToolUseBlock {
 }
 
 function messagesForLlm(messages: AgentMessage[]): AgentMessage[] {
-  return messages.filter((message) => !message.llmHidden);
+  return messages
+    .filter((message) => !message.llmHidden)
+    .map(userMessageForLlm);
 }
 
 /**

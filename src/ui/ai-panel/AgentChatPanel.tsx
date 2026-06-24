@@ -18,7 +18,12 @@ import { StreamingPythonToolCard } from "./StreamingPythonToolCard";
 import { ThinkingBlock } from "./ThinkingBlock";
 import { ToolCallCard } from "./ToolCallCard";
 import { UserMessageInlineEditor } from "./UserMessageInlineEditor";
-import { userMessageToSendPayload } from "./userMessagePayload";
+import { UserOcrImagePreview, UserOcrResultPanel } from "./UserOcrSections";
+import {
+  parseUserMessageDisplay,
+  userMessageToSendPayload,
+  type UserMessageSendPayload,
+} from "./userMessagePayload";
 
 export interface AgentChatPanelProps {
   contextWindow: number;
@@ -27,7 +32,7 @@ export interface AgentChatPanelProps {
   onSend: (payload: ChatSendPayload) => void | Promise<void>;
   onStop?: () => void;
   stopping?: boolean;
-  onResendUserMessage: (index: number, payload: ChatSendPayload) => void | Promise<void>;
+  onResendUserMessage: (index: number, payload: UserMessageSendPayload) => void | Promise<void>;
   onRetryAssistantMessage: (index: number) => void;
 }
 
@@ -40,6 +45,7 @@ type UserMessageEditSession = {
   index: number;
   draft: string;
   images: PendingImageAttachment[];
+  ocrTexts: string[];
 };
 
 function buildToolResultMap(messages: AgentMessage[]): Map<string, ToolResultEntry> {
@@ -133,11 +139,16 @@ function renderMessage(
     edit: string;
     cancel: string;
     submitResend: string;
+    ocrResultLabel: string;
+    ocrEmpty: string;
+    removeImage: string;
   },
   editSession: UserMessageEditSession | null,
   interactionDisabled: boolean,
   onStartUserMessageEdit: (index: number, message: AgentMessage) => void,
   onEditDraftChange: (draft: string) => void,
+  onEditOcrTextChange: (index: number, text: string) => void,
+  onEditRemoveImage: (id: string) => void,
   onCancelUserMessageEdit: () => void,
   onSubmitUserMessageEdit: () => void,
   onRetryAssistantMessage: (index: number) => void,
@@ -197,11 +208,10 @@ function renderMessage(
   const textBlocks = message.content
     .filter((block): block is Extract<ContentBlock, { type: "text" }> => block.type === "text")
     .map((block) => block.text);
-  const imageBlocks = message.content.filter(
-    (block): block is Extract<ContentBlock, { type: "image" }> => block.type === "image",
-  );
-  const text = textBlocks.join("\n\n");
-  const isBoundaryMarker = text.startsWith(BOUNDARY_MARKER_PREFIX);
+  const rawText = textBlocks.join("\n\n");
+  const display = parseUserMessageDisplay(message);
+  const text = display.legacyOcrSections.length > 0 || display.ocrItems.length > 0 ? display.text : rawText;
+  const isBoundaryMarker = rawText.startsWith(BOUNDARY_MARKER_PREFIX);
 
   if (isBoundaryMarker) {
     return (
@@ -211,7 +221,11 @@ function renderMessage(
     );
   }
 
-  const hasContent = text.length > 0 || imageBlocks.length > 0;
+  const hasContent =
+    text.length > 0 ||
+    display.directImages.length > 0 ||
+    display.ocrItems.length > 0 ||
+    display.legacyOcrSections.length > 0;
   if (!hasContent) {
     return null;
   }
@@ -224,10 +238,16 @@ function renderMessage(
         <UserMessageInlineEditor
           text={editSession.draft}
           images={editSession.images}
+          ocrTexts={editSession.ocrTexts}
+          ocrResultLabel={labels.ocrResultLabel}
+          ocrEmptyLabel={labels.ocrEmpty}
+          removeImageLabel={labels.removeImage}
           cancelLabel={labels.cancel}
           submitLabel={labels.submitResend}
           submitting={interactionDisabled}
           onTextChange={onEditDraftChange}
+          onOcrTextChange={onEditOcrTextChange}
+          onRemoveImage={onEditRemoveImage}
           onCancel={onCancelUserMessageEdit}
           onSubmit={onSubmitUserMessageEdit}
         />
@@ -249,14 +269,35 @@ function renderMessage(
         onEdit={() => onStartUserMessageEdit(index, message)}
       >
         {text ? <MessageBubble>{text}</MessageBubble> : null}
-        {imageBlocks.length > 0 ? (
+        {display.ocrItems.map((item, itemIndex) => (
+          <div key={`${index}-ocr-${itemIndex}`} className="mt-2 flex w-full flex-col items-end">
+            <UserOcrImagePreview
+              src={`data:${item.image.mediaType};base64,${item.image.data}`}
+              alt={item.imageName}
+            />
+            <UserOcrResultPanel
+              label={labels.ocrResultLabel}
+              emptyLabel={labels.ocrEmpty}
+              text={item.ocrText}
+            />
+          </div>
+        ))}
+        {display.legacyOcrSections.map((section, sectionIndex) => (
+          <div key={`${index}-legacy-ocr-${sectionIndex}`} className="mt-2 flex w-full flex-col items-end">
+            <UserOcrResultPanel
+              label={`${labels.ocrResultLabel} · ${section.imageName}`}
+              emptyLabel={labels.ocrEmpty}
+              text={section.ocrText}
+            />
+          </div>
+        ))}
+        {display.directImages.length > 0 ? (
           <div className="mt-2 flex flex-wrap justify-end gap-2">
-            {imageBlocks.map((block, imageIndex) => (
-              <img
+            {display.directImages.map((block, imageIndex) => (
+              <UserOcrImagePreview
                 key={`${index}-image-${imageIndex}`}
                 src={`data:${block.mediaType};base64,${block.data}`}
                 alt=""
-                className="max-h-48 max-w-full rounded-lg border border-[var(--rb-border)] object-contain"
               />
             ))}
           </div>
@@ -306,6 +347,9 @@ export function AgentChatPanel({
       edit: t("agent.message.edit"),
       cancel: t("agent.message.cancel"),
       submitResend: t("agent.message.submitResend"),
+      ocrResultLabel: t("agent.ocrResultLabel"),
+      ocrEmpty: t("agent.ocrEmpty"),
+      removeImage: t("agent.attachRemove"),
     }),
     [t],
   );
@@ -326,6 +370,7 @@ export function AgentChatPanel({
       index,
       draft: payload.text,
       images: payload.images,
+      ocrTexts: payload.ocrTexts ?? [],
     });
   };
 
@@ -337,9 +382,13 @@ export function AgentChatPanel({
     if (trimmed.length === 0 && editSession.images.length === 0) {
       return;
     }
-    const { index, draft, images } = editSession;
+    const { index, draft, images, ocrTexts } = editSession;
     setEditSession(null);
-    void onResendUserMessage(index, { text: draft, images });
+    void onResendUserMessage(index, {
+      text: draft,
+      images,
+      ocrTexts: ocrTexts.length > 0 ? ocrTexts : undefined,
+    });
   };
 
   useEffect(() => {
@@ -375,6 +424,32 @@ export function AgentChatPanel({
                 startUserMessageEdit,
                 (draft) => {
                   setEditSession((current) => (current ? { ...current, draft } : current));
+                },
+                (ocrIndex, ocrText) => {
+                  setEditSession((current) => {
+                    if (!current) {
+                      return current;
+                    }
+                    const nextOcrTexts = [...current.ocrTexts];
+                    nextOcrTexts[ocrIndex] = ocrText;
+                    return { ...current, ocrTexts: nextOcrTexts };
+                  });
+                },
+                (imageId) => {
+                  setEditSession((current) => {
+                    if (!current) {
+                      return current;
+                    }
+                    const removeIndex = current.images.findIndex((image) => image.id === imageId);
+                    if (removeIndex < 0) {
+                      return current;
+                    }
+                    return {
+                      ...current,
+                      images: current.images.filter((image) => image.id !== imageId),
+                      ocrTexts: current.ocrTexts.filter((_, index) => index !== removeIndex),
+                    };
+                  });
                 },
                 () => setEditSession(null),
                 handleSubmitUserMessageEdit,

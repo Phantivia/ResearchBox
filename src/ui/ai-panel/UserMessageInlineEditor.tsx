@@ -1,13 +1,24 @@
 import { useEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
 import type { PendingImageAttachment } from "./imageAttachments";
+import {
+  handleEditableTextareaEnter,
+  UserOcrImagePreview,
+  UserOcrResultPanel,
+} from "./UserOcrSections";
 
 export interface UserMessageInlineEditorProps {
   text: string;
   images: PendingImageAttachment[];
+  ocrTexts: string[];
+  ocrResultLabel: string;
+  ocrEmptyLabel: string;
+  removeImageLabel: string;
   cancelLabel: string;
   submitLabel: string;
   submitting?: boolean;
   onTextChange: (text: string) => void;
+  onOcrTextChange: (index: number, text: string) => void;
+  onRemoveImage: (id: string) => void;
   onCancel: () => void;
   onSubmit: () => void;
 }
@@ -58,15 +69,22 @@ function EditorActionButton({
 export function UserMessageInlineEditor({
   text,
   images,
+  ocrTexts,
+  ocrResultLabel,
+  ocrEmptyLabel,
+  removeImageLabel,
   cancelLabel,
   submitLabel,
   submitting = false,
   onTextChange,
+  onOcrTextChange,
+  onRemoveImage,
   onCancel,
   onSubmit,
 }: UserMessageInlineEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const canSubmit = text.trim().length > 0 || images.length > 0;
+  const showOcrEditors = images.length > 0 && ocrTexts.length === images.length;
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -85,12 +103,7 @@ export function UserMessageInlineEditor({
       onCancel();
       return;
     }
-    if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
-      if (canSubmit && !submitting) {
-        onSubmit();
-      }
-    }
+    handleEditableTextareaEnter(event, canSubmit, submitting, onSubmit);
   };
 
   return (
@@ -111,18 +124,34 @@ export function UserMessageInlineEditor({
           style={{ minHeight: "1.5rem", maxHeight: "12rem" }}
         />
       </div>
+
       {images.length > 0 ? (
-        <div className="flex flex-wrap justify-end gap-2">
-          {images.map((image) => (
-            <img
-              key={image.id}
-              src={image.previewUrl}
-              alt=""
-              className="max-h-48 max-w-full rounded-lg border border-[var(--rb-border)] object-contain opacity-90"
-            />
+        <div className="flex w-full flex-col items-end gap-3">
+          {images.map((image, index) => (
+            <div key={image.id} className="flex w-full flex-col items-end">
+              <UserOcrImagePreview
+                src={image.previewUrl}
+                alt={image.name ?? ""}
+                editable
+                removeLabel={removeImageLabel}
+                disabled={submitting}
+                onRemove={() => onRemoveImage(image.id)}
+              />
+              {showOcrEditors ? (
+                <UserOcrResultPanel
+                  label={ocrResultLabel}
+                  emptyLabel={ocrEmptyLabel}
+                  text={ocrTexts[index] ?? ""}
+                  editable
+                  disabled={submitting}
+                  onTextChange={(value) => onOcrTextChange(index, value)}
+                />
+              ) : null}
+            </div>
           ))}
         </div>
       ) : null}
+
       <div className="flex items-center gap-1">
         <EditorActionButton label={cancelLabel} onClick={onCancel} disabled={submitting}>
           <CancelIcon />

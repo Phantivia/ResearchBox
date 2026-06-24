@@ -23,7 +23,7 @@ function extractSearchableText(messages: AgentMessage[]): string {
   const parts: string[] = [];
   for (const message of messages) {
     for (const block of message.content) {
-      if (block.type === "text" || block.type === "thinking") {
+      if (block.type === "text" || block.type === "thinking" || block.type === "ocr_text") {
         parts.push(block.text);
       }
     }

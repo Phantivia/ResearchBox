@@ -20,8 +20,10 @@ import {
   type KeyboardEvent,
 } from "react";
 import type { ContextTokenBreakdown } from "@/core/agent/contextSize";
+import { modelSupportsImageInput } from "@/core/agent/multimodal";
 import { useTranslation } from "@/i18n";
 import { useAgentStore } from "@/store";
+import { useSettingsStore } from "@/store/settingsStore";
 import { ApprovalSheet } from "./ApprovalSheet";
 import { BoxSwitch } from "./BoxSwitch";
 import { ContextDetailSheet, ContextMeter } from "./ContextMeter";
@@ -37,6 +39,7 @@ import {
 export type ChatSendPayload = {
   text: string;
   images: PendingImageAttachment[];
+  ocrTexts?: string[];
 };
 
 export interface ChatComposerProps {
@@ -70,6 +73,8 @@ export function ChatComposer({
   const attachmentsRef = useRef(attachments);
   attachmentsRef.current = attachments;
   const hasPendingApproval = useAgentStore((state) => state.pendingApprovals.length > 0);
+  const getActiveProvider = useSettingsStore((state) => state.getActiveProvider);
+  const imageInputSupported = modelSupportsImageInput(getActiveProvider()?.openRouterMeta);
   const attachmentInputId = useId();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -248,6 +253,10 @@ export function ChatComposer({
             </div>
           ))}
         </div>
+      ) : null}
+
+      {attachments.length > 0 && !imageInputSupported ? (
+        <p className="mb-2 text-xs text-[var(--rb-text-secondary)]">{t("agent.ocrFallbackHint")}</p>
       ) : null}
 
       {attachError ? (

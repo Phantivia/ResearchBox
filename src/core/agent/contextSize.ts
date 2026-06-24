@@ -1,3 +1,4 @@
+import { messageHasOcrFallback } from "@/core/agent/multimodal";
 import type { ToolSchema } from "@/core/llm/types";
 import type { AgentMessage, ContentBlock } from "@/core/agent/types";
 
@@ -10,6 +11,8 @@ function blockText(block: ContentBlock): string {
       return block.text;
     case "image":
       return `[image:${block.mediaType}]`;
+    case "ocr_text":
+      return block.text;
     case "tool_result":
       return block.content;
     case "tool_use":
@@ -41,7 +44,11 @@ export function estimateChars(messages: AgentMessage[]): number {
     if (message.llmHidden) {
       continue;
     }
+    const skipImages = messageHasOcrFallback(message.content);
     for (const block of message.content) {
+      if (skipImages && block.type === "image") {
+        continue;
+      }
       total += blockText(block).length;
     }
   }
@@ -100,11 +107,16 @@ export function estimateContextBreakdown(
     if (message.llmHidden) {
       continue;
     }
+    const skipImages = messageHasOcrFallback(message.content);
     for (const block of message.content) {
+      if (skipImages && block.type === "image") {
+        continue;
+      }
       const tokens = estimateTokensFromString(blockText(block));
       switch (block.type) {
         case "text":
         case "thinking":
+        case "ocr_text":
           breakdown.conversation += tokens;
           break;
         case "tool_use":
@@ -112,6 +124,7 @@ export function estimateContextBreakdown(
           breakdown.toolIO += tokens;
           break;
         case "artifact_card":
+        case "image":
           break;
       }
     }

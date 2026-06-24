@@ -475,27 +475,33 @@ export default function AgentChat() {
       const sendImagesDirectly = modelSupportsImageInput(config.openRouterMeta);
       let ocrTexts: string[] | undefined;
       if (payload.images.length > 0 && !sendImagesDirectly) {
-        setSending(true);
-        try {
-          ocrTexts = await ocrImages(
-            payload.images.map(
-              (image) => `data:${image.mediaType};base64,${image.data}`,
-            ),
-          );
-        } catch (error) {
-          append({
-            role: "assistant",
-            content: [
-              {
-                type: "text",
-                text: t("agent.error.generic", {
-                  message: errorMessage(error),
-                }),
-              },
-            ],
-          });
-          setSending(false);
-          return;
+        const hasProvidedOcr =
+          payload.ocrTexts != null && payload.ocrTexts.length === payload.images.length;
+        if (hasProvidedOcr) {
+          ocrTexts = payload.ocrTexts;
+        } else {
+          setSending(true);
+          try {
+            ocrTexts = await ocrImages(
+              payload.images.map(
+                (image) => `data:${image.mediaType};base64,${image.data}`,
+              ),
+            );
+          } catch (error) {
+            append({
+              role: "assistant",
+              content: [
+                {
+                  type: "text",
+                  text: t("agent.error.generic", {
+                    message: errorMessage(error),
+                  }),
+                },
+              ],
+            });
+            setSending(false);
+            return;
+          }
         }
       }
 
