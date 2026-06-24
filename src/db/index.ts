@@ -9,6 +9,7 @@ import {
   type AppSettings,
   type ViewMode,
 } from "@/core/settings";
+import type { Artifact } from "@/core/agent/artifact/schema";
 import { stripTranslationsFromIr } from "@/core/transformer";
 
 // ── Row types for non-IR tables (IR tables reuse core types) ──
@@ -61,6 +62,7 @@ const db = new Dexie("researchbox") as Dexie & {
   settings: EntityTable<SettingRow, "key">;
   secrets: EntityTable<SecretRow, "provider">;
   palettes: EntityTable<SavedPalette, "id">;
+  artifacts: EntityTable<Artifact, "id">;
 };
 
 db.version(1).stores({
@@ -163,6 +165,11 @@ db.version(4).stores({
   palettes: "id, createdAt",
 });
 
+// v5：新增 artifacts 表，存储 Agent 经审批后落库的产出（摘要、对比表、大纲等）。
+db.version(5).stores({
+  artifacts: "id, projectId, updatedAt, kind",
+});
+
 // ── Helpers ──
 
 export async function putPalette(palette: SavedPalette): Promise<void> {
@@ -179,6 +186,26 @@ export async function listPalettes(): Promise<SavedPalette[]> {
 
 export async function deletePalette(id: string): Promise<void> {
   await db.palettes.delete(id);
+}
+
+export async function saveArtifact(artifact: Artifact): Promise<void> {
+  await db.artifacts.put(artifact);
+}
+
+export async function getArtifact(id: string): Promise<Artifact | undefined> {
+  return db.artifacts.get(id);
+}
+
+export async function listArtifacts(projectId: string): Promise<Artifact[]> {
+  return db.artifacts
+    .where("projectId")
+    .equals(projectId)
+    .sortBy("updatedAt")
+    .then((rows) => rows.reverse());
+}
+
+export async function deleteArtifact(id: string): Promise<void> {
+  await db.artifacts.delete(id);
 }
 
 export async function savePaper(ir: PaperIR): Promise<void> {
