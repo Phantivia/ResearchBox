@@ -389,6 +389,14 @@ Conventions: [`CLAUDE.md`](./CLAUDE.md).
 
 ---
 
+## A note from the developer
+
+Vibe Coding is so good — did you know?
+
+— Phant *(Translated by Composer2.5)*
+
+---
+
 ## Author
 
 **Made by PhantAIStudio**
