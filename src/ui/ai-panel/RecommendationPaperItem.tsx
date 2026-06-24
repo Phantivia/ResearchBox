@@ -4,6 +4,10 @@ import {
   includePaperFromSearch,
   routeIdForSearchHit,
 } from "@/core/agent/inclusion";
+import {
+  truncateRecommendationTitle,
+  RECOMMENDATION_TITLE_MAX_CARD,
+} from "@/core/agent/recommendation/display";
 import type { RecommendationDecision } from "@/core/agent/recommendation/markers";
 import type { PaperRecommendation } from "@/core/agent/recommendation/types";
 import { useTranslation } from "@/i18n";
@@ -90,6 +94,10 @@ export function RecommendationPaperItem({
 
   const includeActive = effectiveDecision === "included";
   const ignoreActive = effectiveDecision === "ignored";
+  const displayTitle = truncateRecommendationTitle(
+    recommendation.title,
+    RECOMMENDATION_TITLE_MAX_CARD,
+  );
 
   return (
     <article
@@ -118,10 +126,16 @@ export function RecommendationPaperItem({
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <ProvenanceBadge provenance="academic" />
-              <span className="truncate text-xs font-medium text-[var(--rb-text-primary)]">
+              <span className="truncate text-xs text-[var(--rb-text-secondary)]">
                 {recommendation.arxivId}
               </span>
             </div>
+            <h3
+              className="mt-1 text-sm font-semibold leading-snug text-[var(--rb-text-primary)]"
+              title={recommendation.title}
+            >
+              {displayTitle}
+            </h3>
 
             {compact && !expanded ? (
               <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[var(--rb-text-secondary)]">

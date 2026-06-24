@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { AgentMessage, ContentBlock } from "@/core/agent/types";
 import { BOUNDARY_MARKER_PREFIX } from "@/core/agent/boundary";
 import { parseRecommendationMarker, isRecommendationMarker } from "@/core/agent/recommendation/markers";
+import { recommendationNoticeLabel } from "@/core/agent/recommendation/display";
 import { parsePaperRecommendations } from "@/core/agent/recommendation/types";
 import { extractCopyableText } from "@/core/agent/messageText";
 import { extractStreamingPythonCode } from "@/core/agent/streamingToolInput";
@@ -139,8 +140,8 @@ function renderMessage(
   projectId: string,
   boundaryLabel: string,
   recommendationLabels: {
-    included: (arxivId: string) => string;
-    ignored: (arxivId: string) => string;
+    included: (label: string) => string;
+    ignored: (label: string) => string;
   },
   actionsDisabled: boolean,
   labels: {
@@ -227,13 +228,17 @@ function renderMessage(
     : null;
 
   if (recommendationMarker) {
-    const label =
+    const label = recommendationNoticeLabel(
+      recommendationMarker.title,
+      recommendationMarker.arxivId,
+    );
+    const notice =
       recommendationMarker.decision === "included"
-        ? recommendationLabels.included(recommendationMarker.arxivId)
-        : recommendationLabels.ignored(recommendationMarker.arxivId);
+        ? recommendationLabels.included(label)
+        : recommendationLabels.ignored(label);
     return (
       <div key={index}>
-        <RecommendationNotice label={label} />
+        <RecommendationNotice label={notice} />
       </div>
     );
   }
@@ -479,8 +484,8 @@ export function AgentChatPanel({
                 projectId,
                 t("agent.box.boundaryLabel"),
                 {
-                  included: (arxivId) => t("agent.recommend.noticeIncluded", { arxivId }),
-                  ignored: (arxivId) => t("agent.recommend.noticeIgnored", { arxivId }),
+                  included: (label) => t("agent.recommend.noticeIncluded", { label }),
+                  ignored: (label) => t("agent.recommend.noticeIgnored", { label }),
                 },
                 actionsDisabled,
                 actionLabels,

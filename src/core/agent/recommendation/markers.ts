@@ -1,46 +1,80 @@
 import { isBoundaryMarker } from "../boundary";
 import type { AgentMessage } from "../types";
+import {
+  recommendationPrefixEntry,
+  truncateRecommendationTitle,
+  RECOMMENDATION_TITLE_MAX_MARKER,
+} from "./display";
+import type { PaperRecommendation } from "./types";
 
 export const RECOMMEND_INCLUDE_PREFIX = "【已纳入推荐】";
 export const RECOMMEND_IGNORE_PREFIX = "【已忽略推荐】";
 export const RECOMMEND_COMPOSER_PREFIX = "【论文选择备忘】";
 
+const MARKER_TITLE_SEPARATOR = " — ";
+
 export type RecommendationDecision = "included" | "ignored";
 
-export function buildIncludeMarker(arxivId: string): AgentMessage {
+export type ParsedRecommendationMarker = {
+  decision: RecommendationDecision;
+  arxivId: string;
+  title: string;
+};
+
+function markerBody(arxivId: string, title: string): string {
+  const trimmedTitle = title.trim();
+  if (!trimmedTitle) {
+    return arxivId;
+  }
+  return `${arxivId}${MARKER_TITLE_SEPARATOR}${truncateRecommendationTitle(
+    trimmedTitle,
+    RECOMMENDATION_TITLE_MAX_MARKER,
+  )}`;
+}
+
+function parseMarkerBody(body: string): { arxivId: string; title: string } {
+  const separatorIndex = body.indexOf(MARKER_TITLE_SEPARATOR);
+  if (separatorIndex === -1) {
+    return { arxivId: body.trim(), title: "" };
+  }
+  return {
+    arxivId: body.slice(0, separatorIndex).trim(),
+    title: body.slice(separatorIndex + MARKER_TITLE_SEPARATOR.length).trim(),
+  };
+}
+
+export function buildIncludeMarker(arxivId: string, title: string): AgentMessage {
   return {
     role: "user",
     content: [
       {
         type: "text",
-        text: `${RECOMMEND_INCLUDE_PREFIX}${arxivId}`,
+        text: `${RECOMMEND_INCLUDE_PREFIX}${markerBody(arxivId, title)}`,
       },
     ],
   };
 }
 
-export function buildIgnoreMarker(arxivId: string): AgentMessage {
+export function buildIgnoreMarker(arxivId: string, title: string): AgentMessage {
   return {
     role: "user",
     content: [
       {
         type: "text",
-        text: `${RECOMMEND_IGNORE_PREFIX}${arxivId}`,
+        text: `${RECOMMEND_IGNORE_PREFIX}${markerBody(arxivId, title)}`,
       },
     ],
   };
 }
 
-export function parseRecommendationMarker(
-  text: string,
-): { decision: RecommendationDecision; arxivId: string } | null {
+export function parseRecommendationMarker(text: string): ParsedRecommendationMarker | null {
   if (text.startsWith(RECOMMEND_INCLUDE_PREFIX)) {
-    const arxivId = text.slice(RECOMMEND_INCLUDE_PREFIX.length).trim();
-    return arxivId ? { decision: "included", arxivId } : null;
+    const parsed = parseMarkerBody(text.slice(RECOMMEND_INCLUDE_PREFIX.length).trim());
+    return parsed.arxivId ? { decision: "included", ...parsed } : null;
   }
   if (text.startsWith(RECOMMEND_IGNORE_PREFIX)) {
-    const arxivId = text.slice(RECOMMEND_IGNORE_PREFIX.length).trim();
-    return arxivId ? { decision: "ignored", arxivId } : null;
+    const parsed = parseMarkerBody(text.slice(RECOMMEND_IGNORE_PREFIX.length).trim());
+    return parsed.arxivId ? { decision: "ignored", ...parsed } : null;
   }
   return null;
 }
@@ -113,7 +147,9 @@ export function removeEditableMarkersForArxiv(
 
 export function buildComposerPrefix(
   decisions: Record<string, RecommendationDecision>,
+  papers: PaperRecommendation[],
 ): string {
+  const titleByArxivId = new Map(papers.map((paper) => [paper.arxivId, paper.title]));
   const included = Object.entries(decisions)
     .filter(([, decision]) => decision === "included")
     .map(([arxivId]) => arxivId);
@@ -125,12 +161,19 @@ export function buildComposerPrefix(
     return "";
   }
 
+  const formatEntry = (arxivId: string) => {
+    const title = titleByArxivId.get(arxivId) ?? "";
+    return title.trim()
+      ? recommendationPrefixEntry(title, arxivId)
+      : arxivId;
+  };
+
   const parts: string[] = [];
   if (included.length > 0) {
-    parts.push(`已纳入：${included.join("、")}`);
+    parts.push(`已纳入：${included.map(formatEntry).join("、")}`);
   }
   if (ignored.length > 0) {
-    parts.push(`已忽略：${ignored.join("、")}`);
+    parts.push(`已忽略：${ignored.map(formatEntry).join("、")}`);
   }
   return `${RECOMMEND_COMPOSER_PREFIX}${parts.join("；")}。 `;
 }

@@ -28,6 +28,7 @@ function formatRecommendationsMessage(papers: PaperRecommendation[]): string {
   for (const [index, paper] of papers.entries()) {
     lines.push(
       `${index + 1}. arxivId: ${paper.arxivId}`,
+      `   Title: ${paper.title}`,
       `   Reason: ${paper.reason}`,
       `   Abstract: ${paper.abstract || "(empty)"}`,
       "",
@@ -52,7 +53,7 @@ export const recommendPapersTool: Tool<
   name: "recommend_papers",
   description: `Present curated external paper recommendations to the user as interactive inclusion cards.
 
-Use after academic_search or websearch when you have selected relevant papers worth importing. Provide arxivId, abstract, and a concise reason per paper. Supports batch input. Results are NOT automatically added to the Paper Box — the user decides via Include on each card.
+Use after academic_search or websearch when you have selected relevant papers worth importing. Provide arxivId, title, abstract, and a concise reason per paper. Supports batch input. Results are NOT automatically added to the Paper Box — the user decides via Include on each card.
 
 Do NOT use this tool to dump raw search results; curate first. Only arXiv papers with arXiv HTML are importable today.`,
   inputSchema: recommendPapersInputSchema,

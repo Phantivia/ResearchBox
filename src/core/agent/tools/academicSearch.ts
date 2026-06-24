@@ -14,7 +14,7 @@ export type AcademicSearchInput = z.infer<typeof academicSearchInputSchema>;
 
 function formatHitCatalog(hits: AcademicHit[], query: string): string {
   const agentNotice =
-    "These results are for your analysis only — they are NOT shown to the user as cards. After curating relevant hits, call recommend_papers with arxivId, abstract, and reason so the user can choose which papers to include.";
+    "These results are for your analysis only — they are NOT shown to the user as cards. After curating relevant hits, call recommend_papers with arxivId, title, abstract, and reason so the user can choose which papers to include.";
 
   if (hits.length === 0) {
     return [`Academic search for "${query}" returned no hits.`, "", agentNotice].join("\n");
@@ -60,7 +60,7 @@ export const academicSearchTool: Tool<
   name: "academic_search",
   description: `Search external academic literature (Semantic Scholar / OpenAlex, arXiv-centric). Returns arxivId, title, authors, and abstract for each hit. Read-only, network access; results are for agent analysis only — NOT shown to the user as inclusion cards.
 
-After curating relevant hits, call recommend_papers with arxivId, abstract, and reason so the user can review and click Include on each paper. Inclusion is the only legitimate entry for external literature into the Paper Box.
+After curating relevant hits, call recommend_papers with arxivId, title, abstract, and reason so the user can review and click Include on each paper. Inclusion is the only legitimate entry for external literature into the Paper Box.
 
 Note (implementation): import currently supports arXiv papers with arXiv HTML only.`,
   inputSchema: academicSearchInputSchema,

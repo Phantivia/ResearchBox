@@ -283,11 +283,15 @@ export const useAgentStore = create<AgentStoreState & AgentStoreActions>()((set)
         delete decisions[arxivId];
       } else {
         decisions[arxivId] = decision;
+        const paper = state.recommendationSession.papers.find(
+          (entry) => entry.arxivId === arxivId,
+        );
+        const title = paper?.title ?? "";
         messages = [
           ...messages,
           decision === "included"
-            ? buildIncludeMarker(arxivId)
-            : buildIgnoreMarker(arxivId),
+            ? buildIncludeMarker(arxivId, title)
+            : buildIgnoreMarker(arxivId, title),
         ];
       }
 
@@ -297,7 +301,10 @@ export const useAgentStore = create<AgentStoreState & AgentStoreActions>()((set)
           ...state.recommendationSession,
           decisions,
         },
-        composerInputPrefix: buildComposerPrefix(decisions),
+        composerInputPrefix: buildComposerPrefix(
+          decisions,
+          state.recommendationSession.papers,
+        ),
       };
     }),
 

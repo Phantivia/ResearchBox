@@ -243,8 +243,8 @@ describe("useAgentStore", () => {
 
   it("tracks recommendation decisions with editable markers and composer prefix", () => {
     useAgentStore.getState().openRecommendationSession("tool-1", [
-      { arxivId: "2401.1", abstract: "a", reason: "r1" },
-      { arxivId: "2401.2", abstract: "b", reason: "r2" },
+      { arxivId: "2401.1", title: "Paper One", abstract: "a", reason: "r1" },
+      { arxivId: "2401.2", title: "Paper Two", abstract: "b", reason: "r2" },
     ]);
 
     useAgentStore.getState().setRecommendationDecision("2401.1", "included");
@@ -258,9 +258,9 @@ describe("useAgentStore", () => {
     expect(state.messages).toHaveLength(1);
     expect(state.messages[0]?.content[0]).toEqual({
       type: "text",
-      text: "【已忽略推荐】2401.1",
+      text: "【已忽略推荐】2401.1 — Paper One",
     });
-    expect(state.composerInputPrefix).toContain("已忽略：2401.1");
+    expect(state.composerInputPrefix).toContain("Paper One");
 
     useAgentStore.getState().setRecommendationDecision("2401.1", null);
     state = useAgentStore.getState();
@@ -270,8 +270,8 @@ describe("useAgentStore", () => {
 
   it("commitRecommendationOnSend removes ignored papers from the session", () => {
     useAgentStore.getState().openRecommendationSession("tool-1", [
-      { arxivId: "2401.1", abstract: "a", reason: "r1" },
-      { arxivId: "2401.2", abstract: "b", reason: "r2" },
+      { arxivId: "2401.1", title: "Paper One", abstract: "a", reason: "r1" },
+      { arxivId: "2401.2", title: "Paper Two", abstract: "b", reason: "r2" },
     ]);
     useAgentStore.getState().setRecommendationDecision("2401.1", "included");
     useAgentStore.getState().setRecommendationDecision("2401.2", "ignored");

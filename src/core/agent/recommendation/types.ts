@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const paperRecommendationSchema = z.strictObject({
   arxivId: z.string(),
+  title: z.string(),
   abstract: z.string(),
   reason: z.string(),
 });

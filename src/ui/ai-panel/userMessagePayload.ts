@@ -1,5 +1,6 @@
 import type { AgentMessage, ContentBlock } from "@/core/agent/types";
 import { messageHasOcrFallback, parseLegacyOcrText } from "@/core/agent/multimodal";
+import { stripComposerPrefix } from "@/core/agent/recommendation/markers";
 import type { ChatSendPayload } from "./ChatComposer";
 import type { PendingImageAttachment } from "./imageAttachments";
 
@@ -39,7 +40,10 @@ export function parseUserMessageDisplay(message: AgentMessage): UserMessageDispl
   const textBlocks = message.content.filter(
     (block): block is Extract<ContentBlock, { type: "text" }> => block.type === "text",
   );
-  const text = textBlocks.map((block) => block.text).join("\n\n");
+  const text = textBlocks
+    .map((block) => block.text)
+    .join("\n\n");
+  const displayText = stripComposerPrefix(text);
   const imageBlocks = message.content.filter(
     (block): block is Extract<ContentBlock, { type: "image" }> => block.type === "image",
   );
@@ -49,7 +53,7 @@ export function parseUserMessageDisplay(message: AgentMessage): UserMessageDispl
 
   if (messageHasOcrFallback(message.content)) {
     return {
-      text,
+      text: displayText,
       directImages: [],
       ocrItems: imageBlocks.map((image, index) => ({
         image,
@@ -61,7 +65,7 @@ export function parseUserMessageDisplay(message: AgentMessage): UserMessageDispl
     };
   }
 
-  const legacy = parseLegacyOcrText(text);
+  const legacy = parseLegacyOcrText(displayText);
   if (legacy) {
     return {
       text: legacy.userText,
@@ -72,7 +76,7 @@ export function parseUserMessageDisplay(message: AgentMessage): UserMessageDispl
   }
 
   return {
-    text,
+    text: displayText,
     directImages: imageBlocks,
     ocrItems: [],
     legacyOcrSections: [],

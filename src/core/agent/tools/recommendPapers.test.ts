@@ -22,7 +22,9 @@ function makeDeps(): AgentDeps {
   };
 }
 
-async function callTool(papers: { arxivId: string; abstract: string; reason: string }[]) {
+async function callTool(
+  papers: { arxivId: string; title: string; abstract: string; reason: string }[],
+) {
   const parsed = recommendPapersInputSchema.parse({ papers });
   const gen = recommendPapersTool.call(parsed, makeDeps());
   let step = await gen.next();
@@ -35,7 +37,7 @@ async function callTool(papers: { arxivId: string; abstract: string; reason: str
 describe("recommendPapersTool", () => {
   it("is read-only and concurrency-safe", () => {
     const input = {
-      papers: [{ arxivId: "2401.12345", abstract: "Abs", reason: "Relevant" }],
+      papers: [{ arxivId: "2401.12345", title: "Paper", abstract: "Abs", reason: "Relevant" }],
     };
     expect(recommendPapersTool.isReadOnly(input)).toBe(true);
     expect(recommendPapersTool.isConcurrencySafe(input)).toBe(true);
@@ -45,11 +47,13 @@ describe("recommendPapersTool", () => {
     const result = await callTool([
       {
         arxivId: "https://arxiv.org/abs/2401.12345v2",
+        title: "Attention Paper",
         abstract: "Transformer architecture.",
         reason: "Foundational for the topic.",
       },
       {
         arxivId: "2401.99999",
+        title: "Follow-up",
         abstract: "Follow-up work.",
         reason: "Builds on the first paper.",
       },
@@ -58,11 +62,13 @@ describe("recommendPapersTool", () => {
     expect(result.data).toEqual([
       {
         arxivId: "2401.12345v2",
+        title: "Attention Paper",
         abstract: "Transformer architecture.",
         reason: "Foundational for the topic.",
       },
       {
         arxivId: "2401.99999",
+        title: "Follow-up",
         abstract: "Follow-up work.",
         reason: "Builds on the first paper.",
       },
@@ -79,7 +85,7 @@ describe("recommendPapersTool", () => {
 
   it("rejects invalid arxiv IDs", async () => {
     await expect(
-      callTool([{ arxivId: "not-an-id", abstract: "x", reason: "y" }]),
+      callTool([{ arxivId: "not-an-id", title: "x", abstract: "x", reason: "y" }]),
     ).rejects.toThrow(/Invalid arXiv ID/);
   });
 

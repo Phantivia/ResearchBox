@@ -6,10 +6,12 @@ describe("parsePaperRecommendations", () => {
     expect(
       parsePaperRecommendations(
         JSON.stringify([
-          { arxivId: "2401.12345", abstract: "Abs", reason: "Relevant" },
+          { arxivId: "2401.12345", title: "Paper", abstract: "Abs", reason: "Relevant" },
         ]),
       ),
-    ).toEqual([{ arxivId: "2401.12345", abstract: "Abs", reason: "Relevant" }]);
+    ).toEqual([
+      { arxivId: "2401.12345", title: "Paper", abstract: "Abs", reason: "Relevant" },
+    ]);
   });
 
   it("returns null for invalid shapes", () => {

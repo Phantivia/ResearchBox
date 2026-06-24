@@ -21,7 +21,6 @@ import {
 } from "react";
 import type { ContextTokenBreakdown } from "@/core/agent/contextSize";
 import { modelSupportsImageInput } from "@/core/agent/multimodal";
-import { stripComposerPrefix } from "@/core/agent/recommendation/markers";
 import { useTranslation } from "@/i18n";
 import { useAgentStore } from "@/store";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -79,22 +78,10 @@ export function ChatComposer({
   const attachmentsRef = useRef(attachments);
   attachmentsRef.current = attachments;
   const hasPendingApproval = useAgentStore((state) => state.pendingApprovals.length > 0);
-  const prefixRef = useRef(composerInputPrefix);
   const getActiveProvider = useSettingsStore((state) => state.getActiveProvider);
   const imageInputSupported = modelSupportsImageInput(getActiveProvider()?.openRouterMeta);
   const attachmentInputId = useId();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    if (prefixRef.current === composerInputPrefix) {
-      return;
-    }
-    prefixRef.current = composerInputPrefix;
-    setDraft((current) => {
-      const body = stripComposerPrefix(current);
-      return composerInputPrefix ? `${composerInputPrefix}${body}` : body;
-    });
-  }, [composerInputPrefix]);
 
   useEffect(() => {
     if (hasPendingApproval && contextDetailOpen) {
@@ -166,10 +153,12 @@ export function ChatComposer({
 
   const handleSend = () => {
     const trimmed = draft.trim();
-    if ((!trimmed && attachments.length === 0) || disabled) {
+    const prefix = useAgentStore.getState().composerInputPrefix;
+    const text = prefix ? `${prefix}${trimmed}` : trimmed;
+    if ((!text.trim() && attachments.length === 0) || disabled) {
       return;
     }
-    void onSend({ text: trimmed, images: attachments });
+    void onSend({ text, images: attachments });
     setDraft("");
     releaseAttachmentPreviews(attachments);
     setAttachments([]);
@@ -222,7 +211,9 @@ export function ChatComposer({
     void addAttachments(extractImageFilesFromDataTransfer(event.dataTransfer));
   };
 
-  const canSend = (draft.trim().length > 0 || attachments.length > 0) && !disabled;
+  const canSend =
+    (draft.trim().length > 0 || attachments.length > 0 || composerInputPrefix.length > 0) &&
+    !disabled;
   const showStop = Boolean(onStop) && disabled;
 
   return (
