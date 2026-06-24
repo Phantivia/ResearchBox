@@ -305,6 +305,9 @@ npm run test:e2e:install  # 安装 Playwright Chromium（首次 E2E 前执行）
 
 <img src="./logo.svg" alt="ResearchBox" width="440" />
 
+<sub>Vibe Coiding太好用了，你们知道吗？———— Phant(除了这句话之外没有写任何东西之人)</sub>
+
+
 # ResearchBox
 
 **An agent framework & paper toolbox for academic research · Frontend-only · Local-first · BYOK**
