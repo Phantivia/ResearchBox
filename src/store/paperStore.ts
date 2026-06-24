@@ -7,6 +7,7 @@ import {
   getPaperEntry,
   listPaperEntries,
   putPaperEntry,
+  savePaper,
 } from "@/db";
 
 interface PaperState {
@@ -127,6 +128,7 @@ export const usePaperStore = create<PaperState & PaperActions>()((set, get) => {
     },
 
     recordPaper: async (projectId, routeId, ir, status) => {
+      await savePaper(ir);
       const paper = await upsert(projectId, routeId, {
         arxivId: ir.arxivId,
         version: ir.version,
