@@ -23,7 +23,11 @@ const MODE_I18N = {
   { label: string; desc: string }
 >;
 
-export function PermissionModeSwitch() {
+export interface PermissionModeSwitchProps {
+  className?: string;
+}
+
+export function PermissionModeSwitch({ className = "" }: PermissionModeSwitchProps) {
   const { t } = useTranslation();
   const permissionMode = useAgentStore((state) => state.permissionMode);
   const setPermissionMode = useAgentStore((state) => state.setPermissionMode);
@@ -31,7 +35,7 @@ export function PermissionModeSwitch() {
   const activeDesc = t(MODE_I18N[permissionMode].desc);
 
   return (
-    <div className="border-b border-[var(--rb-border)] bg-[var(--rb-card-bg)] px-4 py-2">
+    <div className={`px-4 py-2 ${className}`}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <span className="text-xs font-medium text-[var(--rb-text-secondary)]">
           {t("agent.permission.label")}

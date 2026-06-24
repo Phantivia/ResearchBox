@@ -243,6 +243,7 @@ export default function AgentChat() {
       const runningLabel = t("agent.tool.running");
 
       const storeAdapter = buildAgentStoreAdapter();
+      const boxOpen = useAgentStore.getState().boxOpen;
       const deps: AgentDeps = {
         db,
         llm: createProvider(config),
@@ -260,6 +261,7 @@ export default function AgentChat() {
             system: buildAgentSystemPrompt({
               projectName,
               date: new Date().toISOString().slice(0, 10),
+              boxOpen,
             }),
             onEvent: (event) => {
               if (event.type === "thinking_delta") {

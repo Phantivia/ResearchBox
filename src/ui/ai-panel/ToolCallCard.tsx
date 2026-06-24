@@ -1,6 +1,11 @@
 import { useState } from "react";
 import type { AcademicHit } from "@/core/agent/search/types";
+import {
+  parseProvenanceFromContent,
+  provenanceForToolName,
+} from "@/core/agent/provenance";
 import { useTranslation } from "@/i18n";
+import { ProvenanceBadge } from "./ProvenanceBadge";
 import { SearchResultCard } from "./SearchResultCard";
 
 const RESULT_PREVIEW_LINES = 4;
@@ -108,6 +113,9 @@ export function ToolCallCard({
     name === "academic_search" && formattedResult && !isError
       ? parseAcademicSearchHits(formattedResult)
       : null;
+  const provenance =
+    (formattedResult ? parseProvenanceFromContent(formattedResult) : null) ??
+    provenanceForToolName(name);
 
   const borderClass = isError
     ? "border-red-300 dark:border-red-800"
@@ -122,6 +130,7 @@ export function ToolCallCard({
         <span className="shrink-0 font-medium text-[var(--rb-text-primary)]">
           {name}
         </span>
+        {provenance ? <ProvenanceBadge provenance={provenance} /> : null}
         {running ? (
           <span className="inline-flex shrink-0 items-center gap-1.5 text-[var(--rb-text-secondary)]">
             {stage ?? t("agent.tool.running")}

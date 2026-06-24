@@ -7,6 +7,7 @@ import {
 import type { AcademicHit } from "@/core/agent/search/types";
 import { useTranslation } from "@/i18n";
 import { usePaperStore } from "@/store";
+import { ProvenanceBadge } from "./ProvenanceBadge";
 
 export interface SearchResultCardProps {
   projectId: string;
@@ -70,6 +71,7 @@ export function SearchResultCard({ projectId, hit }: SearchResultCardProps) {
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
+            <ProvenanceBadge provenance="academic" />
             <span className="truncate text-xs text-[var(--rb-text-secondary)]">
               {hit.arxivId}
             </span>

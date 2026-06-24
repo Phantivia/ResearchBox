@@ -6,6 +6,7 @@ import { AssistantAvatar } from "./AssistantAvatar";
 import { ChatComposer } from "./ChatComposer";
 import { ContextMeter } from "./ContextMeter";
 import { MessageBubble } from "./MessageBubble";
+import { BoxSwitch } from "./BoxSwitch";
 import { PermissionModeSwitch } from "./PermissionModeSwitch";
 import { ThinkingBlock } from "./ThinkingBlock";
 import { ToolCallCard } from "./ToolCallCard";
@@ -123,10 +124,19 @@ function renderMessage(
     .filter((block): block is Extract<ContentBlock, { type: "text" }> => block.type === "text")
     .map((block) => block.text);
   const text = textBlocks.join("\n\n");
+  const isBoundaryMarker = text.startsWith("【盒子已关闭】");
 
   return (
     <div key={index}>
-      {text ? <MessageBubble role="user">{text}</MessageBubble> : null}
+      {text ? (
+        isBoundaryMarker ? (
+          <div className="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm leading-relaxed text-indigo-900 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200">
+            {text}
+          </div>
+        ) : (
+          <MessageBubble role="user">{text}</MessageBubble>
+        )
+      ) : null}
     </div>
   );
 }
@@ -155,7 +165,12 @@ export function AgentChatPanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--rb-page-bg)]">
-      <PermissionModeSwitch />
+      <div className="border-b border-[var(--rb-border)] bg-[var(--rb-card-bg)]">
+        <div className="flex flex-col lg:flex-row lg:divide-x lg:divide-[var(--rb-border)]">
+          <BoxSwitch className="min-w-0 flex-1" />
+          <PermissionModeSwitch className="min-w-0 flex-1" />
+        </div>
+      </div>
       <ContextMeter tokens={contextChars} contextWindow={contextWindow} />
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4">
