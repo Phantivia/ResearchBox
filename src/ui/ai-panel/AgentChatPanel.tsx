@@ -84,13 +84,23 @@ function renderAssistantContent(
   });
 }
 
+function isUiVisibleMessage(message: AgentMessage): boolean {
+  if (message.uiHidden) {
+    return false;
+  }
+  if (message.role === "tool") {
+    return false;
+  }
+  return true;
+}
+
 function renderMessage(
   message: AgentMessage,
   index: number,
   toolResults: Map<string, ToolResultEntry>,
   runningTools: Record<string, { name: string; stage: string }>,
 ) {
-  if (message.role === "tool") {
+  if (!isUiVisibleMessage(message)) {
     return null;
   }
 

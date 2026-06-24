@@ -29,6 +29,8 @@ export const ContentBlockSchema = z.discriminatedUnion("type", [
 export const AgentMessageSchema = z.object({
   role: z.enum(["user", "assistant", "tool"]),
   content: z.array(ContentBlockSchema),
+  /** 仅用于 LLM 上下文、不在聊天 UI 展示（如工具注入的证据块）。 */
+  uiHidden: z.boolean().optional(),
 });
 
 export type ContentBlock = z.infer<typeof ContentBlockSchema>;

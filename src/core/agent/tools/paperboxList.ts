@@ -47,6 +47,7 @@ function formatPaperCatalog(papers: PaperboxListItem[]): string {
 function catalogMessage(papers: PaperboxListItem[]): AgentMessage {
   return {
     role: "user",
+    uiHidden: true,
     content: [
       {
         type: "text",

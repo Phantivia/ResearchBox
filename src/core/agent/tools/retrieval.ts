@@ -135,6 +135,7 @@ function formatEvidenceMessage(
 function evidenceMessage(hits: RetrievalHit[], routeIdByPaperId: Map<string, string>): AgentMessage {
   return {
     role: "user",
+    uiHidden: true,
     content: [
       {
         type: "text",
