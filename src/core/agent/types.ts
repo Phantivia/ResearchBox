@@ -86,4 +86,6 @@ export interface AgentDeps {
   store: AgentStore;
   signal: AbortSignal;
   requestApproval: ApprovalFn;
+  /** Active workspace; injected by the page when constructing deps. */
+  projectId?: string;
 }
