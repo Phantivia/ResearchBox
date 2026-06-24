@@ -141,6 +141,7 @@ function renderMessage(
     submitResend: string;
     ocrResultLabel: string;
     ocrEmpty: string;
+    ocrRunning: string;
     removeImage: string;
   },
   editSession: UserMessageEditSession | null,
@@ -231,6 +232,7 @@ function renderMessage(
   }
 
   const isEditing = editSession?.index === index;
+  const hasPendingOcr = display.ocrItems.some((item) => item.ocrPending);
 
   if (isEditing && editSession) {
     return (
@@ -258,7 +260,7 @@ function renderMessage(
   return (
     <div key={index}>
       <UserMessageShell
-        showActions={!actionsDisabled}
+        showActions={!actionsDisabled && !hasPendingOcr}
         copyLabel={labels.copy}
         retryLabel={labels.retry}
         editLabel={labels.edit}
@@ -279,6 +281,9 @@ function renderMessage(
               label={labels.ocrResultLabel}
               emptyLabel={labels.ocrEmpty}
               text={item.ocrText}
+              pending={item.ocrPending}
+              runningLabel={labels.ocrRunning}
+              collapsible={!item.ocrPending}
             />
           </div>
         ))}
@@ -288,6 +293,7 @@ function renderMessage(
               label={`${labels.ocrResultLabel} · ${section.imageName}`}
               emptyLabel={labels.ocrEmpty}
               text={section.ocrText}
+              collapsible
             />
           </div>
         ))}
@@ -349,6 +355,7 @@ export function AgentChatPanel({
       submitResend: t("agent.message.submitResend"),
       ocrResultLabel: t("agent.ocrResultLabel"),
       ocrEmpty: t("agent.ocrEmpty"),
+      ocrRunning: t("agent.ocrRunning"),
       removeImage: t("agent.attachRemove"),
     }),
     [t],

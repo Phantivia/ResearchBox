@@ -37,6 +37,7 @@ interface AgentStoreState {
 
 interface AgentStoreActions {
   append: (m: AgentMessage) => void;
+  updateMessageAtIndex: (index: number, message: AgentMessage) => void;
   truncateMessages: (toIndex: number) => void;
   setStreaming: (partial: { text?: string; thinking?: string }) => void;
   commitStreamingToMessage: () => void;
@@ -84,6 +85,16 @@ export const useAgentStore = create<AgentStoreState & AgentStoreActions>()((set)
     set((state) => ({
       messages: [...state.messages, m],
     })),
+
+  updateMessageAtIndex: (index, message) =>
+    set((state) => {
+      if (index < 0 || index >= state.messages.length) {
+        return state;
+      }
+      const messages = [...state.messages];
+      messages[index] = message;
+      return { messages };
+    }),
 
   truncateMessages: (toIndex) =>
     set((state) => ({

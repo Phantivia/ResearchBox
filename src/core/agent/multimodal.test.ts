@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyOcrTextsToContent,
   buildUserMessageBlocks,
   formatOcrBlock,
   isSupportedImageMediaType,
   messageHasOcrFallback,
+  messageHasPendingOcr,
   modelSupportsImageInput,
   parseLegacyOcrText,
   userMessageContentForLlm,
@@ -91,6 +93,53 @@ describe("buildUserMessageBlocks", () => {
       { type: "ocr_text", text: "", imageName: "scan.png" },
     ]);
   });
+
+  it("marks OCR blocks as pending before recognition completes", () => {
+    expect(
+      buildUserMessageBlocks({
+        text: "Summarize this image",
+        images: [image],
+        sendImagesDirectly: false,
+        ocrPending: true,
+      }),
+    ).toEqual([
+      { type: "text", text: "Summarize this image" },
+      { type: "image", mediaType: "image/png", data: "abc123" },
+      { type: "ocr_text", text: "", imageName: "scan.png", pending: true },
+    ]);
+  });
+});
+
+describe("applyOcrTextsToContent", () => {
+  it("fills OCR text and clears pending flags", () => {
+    const content = buildUserMessageBlocks({
+      text: "Summarize",
+      images: [{ mediaType: "image/png", data: "abc123", name: "scan.png" }],
+      sendImagesDirectly: false,
+      ocrPending: true,
+    });
+
+    expect(applyOcrTextsToContent(content, ["Recognized text"])).toEqual([
+      { type: "text", text: "Summarize" },
+      { type: "image", mediaType: "image/png", data: "abc123" },
+      { type: "ocr_text", text: "Recognized text", imageName: "scan.png" },
+    ]);
+  });
+});
+
+describe("messageHasPendingOcr", () => {
+  it("detects pending OCR blocks", () => {
+    const pending = buildUserMessageBlocks({
+      text: "",
+      images: [{ mediaType: "image/png", data: "abc123", name: "scan.png" }],
+      sendImagesDirectly: false,
+      ocrPending: true,
+    });
+    const completed = applyOcrTextsToContent(pending, ["done"]);
+
+    expect(messageHasPendingOcr(pending)).toBe(true);
+    expect(messageHasPendingOcr(completed)).toBe(false);
+  });
 });
 
 describe("userMessageContentForLlm", () => {
@@ -105,7 +154,7 @@ describe("userMessageContentForLlm", () => {
     expect(userMessageContentForLlm(content)).toEqual([
       {
         type: "text",
-        text: "Summarize this image\n\n[Image: scan.png]\nHello OCR",
+        text: "Summarize this image\n\n[Image: scan.png]\n(OCR result; may be inaccurate)\nHello OCR",
       },
     ]);
   });
@@ -135,7 +184,7 @@ describe("userMessageForLlm", () => {
 
     expect(messageHasOcrFallback(userMessage.content)).toBe(true);
     expect(userMessageForLlm(userMessage).content).toEqual([
-      { type: "text", text: "[Image: scan.png]\nHello OCR" },
+      { type: "text", text: "[Image: scan.png]\n(OCR result; may be inaccurate)\nHello OCR" },
     ]);
   });
 });
@@ -144,6 +193,12 @@ describe("formatOcrBlock", () => {
   it("labels empty OCR output", () => {
     expect(formatOcrBlock("photo.jpg", "  ")).toBe(
       "[Image: photo.jpg]\n(OCR found no text)",
+    );
+  });
+
+  it("includes an accuracy disclaimer for non-empty OCR output", () => {
+    expect(formatOcrBlock("photo.jpg", "Hello")).toBe(
+      "[Image: photo.jpg]\n(OCR result; may be inaccurate)\nHello",
     );
   });
 });

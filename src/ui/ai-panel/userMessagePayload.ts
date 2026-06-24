@@ -11,6 +11,7 @@ export type UserMessageOcrItem = {
   image: Extract<ContentBlock, { type: "image" }>;
   ocrText: string;
   imageName: string;
+  ocrPending: boolean;
 };
 
 export type UserMessageDisplay = {
@@ -54,6 +55,7 @@ export function parseUserMessageDisplay(message: AgentMessage): UserMessageDispl
         image,
         ocrText: ocrBlocks[index]?.text ?? "",
         imageName: ocrBlocks[index]?.imageName ?? `image-${index + 1}`,
+        ocrPending: ocrBlocks[index]?.pending === true,
       })),
       legacyOcrSections: [],
     };

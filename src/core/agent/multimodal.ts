@@ -35,12 +35,14 @@ export function modelSupportsImageInput(
   );
 }
 
+export const OCR_ACCURACY_DISCLAIMER = "(OCR result; may be inaccurate)";
+
 export function formatOcrBlock(name: string, text: string): string {
   const trimmed = text.trim();
   if (!trimmed) {
     return `[Image: ${name}]\n(OCR found no text)`;
   }
-  return `[Image: ${name}]\n${trimmed}`;
+  return `[Image: ${name}]\n${OCR_ACCURACY_DISCLAIMER}\n${trimmed}`;
 }
 
 export function messageHasOcrFallback(content: ContentBlock[]): boolean {
@@ -78,6 +80,7 @@ export function buildUserMessageBlocks(input: {
   images: ImageInput[];
   sendImagesDirectly: boolean;
   ocrTexts?: string[];
+  ocrPending?: boolean;
 }): ContentBlock[] {
   const trimmedText = input.text.trim();
   const blocks: ContentBlock[] = [];
@@ -110,10 +113,31 @@ export function buildUserMessageBlocks(input: {
       type: "ocr_text",
       text: input.ocrTexts?.[index] ?? "",
       imageName: image.name ?? `image-${index + 1}`,
+      ...(input.ocrPending ? { pending: true } : {}),
     });
   }
 
   return blocks;
+}
+
+export function applyOcrTextsToContent(
+  content: ContentBlock[],
+  ocrTexts: string[],
+): ContentBlock[] {
+  let ocrIndex = 0;
+  return content.map((block) => {
+    if (block.type !== "ocr_text") {
+      return block;
+    }
+    const text = ocrTexts[ocrIndex] ?? "";
+    ocrIndex += 1;
+    const { pending: _pending, ...rest } = block;
+    return { ...rest, text };
+  });
+}
+
+export function messageHasPendingOcr(content: ContentBlock[]): boolean {
+  return content.some((block) => block.type === "ocr_text" && block.pending === true);
 }
 
 export function userMessageContentForLlm(content: ContentBlock[]): ContentBlock[] {

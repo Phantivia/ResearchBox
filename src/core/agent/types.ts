@@ -21,6 +21,7 @@ export const ContentBlockSchema = z.discriminatedUnion("type", [
     type: z.literal("ocr_text"),
     text: z.string(),
     imageName: z.string(),
+    pending: z.boolean().optional(),
   }),
   z.object({
     type: z.literal("thinking"),

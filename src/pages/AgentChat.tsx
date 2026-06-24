@@ -6,7 +6,7 @@ import { executeBatched } from "@/core/agent/orchestrate";
 import { deriveSessionTitle } from "@/core/agent/session";
 import { buildAgentSystemPrompt } from "@/core/agent/systemPrompt";
 import { buildResearchTools } from "@/core/agent/tools";
-import { buildUserMessageBlocks, modelSupportsImageInput } from "@/core/agent/multimodal";
+import { buildUserMessageBlocks, modelSupportsImageInput, applyOcrTextsToContent } from "@/core/agent/multimodal";
 import { ocrImages } from "@/ui/ai-panel/tesseractOcr";
 import type { AgentDeps, AgentMessage, AgentStore, ContentBlock, Terminal } from "@/core/agent/types";
 import { estimateContextBreakdown } from "@/core/agent/contextSize";
@@ -162,6 +162,7 @@ export default function AgentChat() {
   const streamingText = useAgentStore((state) => state.streamingText);
   const streamingThinking = useAgentStore((state) => state.streamingThinking);
   const append = useAgentStore((state) => state.append);
+  const updateMessageAtIndex = useAgentStore((state) => state.updateMessageAtIndex);
   const truncateMessages = useAgentStore((state) => state.truncateMessages);
   const setStreaming = useAgentStore((state) => state.setStreaming);
   const setContextBreakdown = useAgentStore((state) => state.setContextBreakdown);
@@ -473,48 +474,18 @@ export default function AgentChat() {
       }
 
       const sendImagesDirectly = modelSupportsImageInput(config.openRouterMeta);
-      let ocrTexts: string[] | undefined;
-      if (payload.images.length > 0 && !sendImagesDirectly) {
-        const hasProvidedOcr =
-          payload.ocrTexts != null && payload.ocrTexts.length === payload.images.length;
-        if (hasProvidedOcr) {
-          ocrTexts = payload.ocrTexts;
-        } else {
-          setSending(true);
-          try {
-            ocrTexts = await ocrImages(
-              payload.images.map(
-                (image) => `data:${image.mediaType};base64,${image.data}`,
-              ),
-            );
-          } catch (error) {
-            append({
-              role: "assistant",
-              content: [
-                {
-                  type: "text",
-                  text: t("agent.error.generic", {
-                    message: errorMessage(error),
-                  }),
-                },
-              ],
-            });
-            setSending(false);
-            return;
-          }
-        }
-      }
+      const hasProvidedOcr =
+        payload.ocrTexts != null && payload.ocrTexts.length === payload.images.length;
+      const needsOcr = payload.images.length > 0 && !sendImagesDirectly && !hasProvidedOcr;
 
       const content = buildUserMessageBlocks({
         text: payload.text,
         images: payload.images,
         sendImagesDirectly,
-        ocrTexts,
+        ocrTexts: hasProvidedOcr ? payload.ocrTexts : undefined,
+        ocrPending: needsOcr,
       });
       if (content.length === 0) {
-        if (payload.images.length > 0 && !sendImagesDirectly) {
-          setSending(false);
-        }
         return;
       }
 
@@ -523,6 +494,48 @@ export default function AgentChat() {
         content,
       };
       append(userMessage);
+      const messageIndex = useAgentStore.getState().messages.length - 1;
+
+      if (needsOcr) {
+        try {
+          const ocrTexts = await ocrImages(
+            payload.images.map(
+              (image) => `data:${image.mediaType};base64,${image.data}`,
+            ),
+          );
+          const currentMessage = useAgentStore.getState().messages[messageIndex];
+          if (currentMessage?.role === "user") {
+            updateMessageAtIndex(messageIndex, {
+              role: "user",
+              content: applyOcrTextsToContent(currentMessage.content, ocrTexts),
+            });
+          }
+        } catch (error) {
+          const currentMessage = useAgentStore.getState().messages[messageIndex];
+          if (currentMessage?.role === "user") {
+            updateMessageAtIndex(messageIndex, {
+              role: "user",
+              content: applyOcrTextsToContent(
+                currentMessage.content,
+                payload.images.map(() => ""),
+              ),
+            });
+          }
+          append({
+            role: "assistant",
+            content: [
+              {
+                type: "text",
+                text: t("agent.error.generic", {
+                  message: errorMessage(error),
+                }),
+              },
+            ],
+          });
+          return;
+        }
+      }
+
       await runAgentLoop([...useAgentStore.getState().messages]);
     },
     [
@@ -532,6 +545,7 @@ export default function AgentChat() {
       runAgentLoop,
       sending,
       t,
+      updateMessageAtIndex,
     ],
   );
 
