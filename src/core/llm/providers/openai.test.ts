@@ -92,6 +92,48 @@ describe("OpenAICompatibleProvider", () => {
     expect(chunks).toEqual(["Hel", "lo"]);
   });
 
+  it("yields reasoning_content as thinking chunks for deepseek streams", async () => {
+    const sse = [
+      'data: {"choices":[{"delta":{"reasoning_content":"think"}}]}\n\n',
+      'data: {"choices":[{"delta":{"reasoning_content":" hard"}}]}\n\n',
+      'data: {"choices":[{"delta":{"content":"9.8"}}]}\n\n',
+      "data: [DONE]\n\n",
+    ].join("");
+
+    const fetchFn = vi.fn(async () =>
+      new Response(streamFromString(sse), {
+        status: 200,
+        headers: { "Content-Type": "text/event-stream" },
+      }),
+    );
+
+    const provider = new OpenAICompatibleProvider({
+      ...CONFIG,
+      id: "deepseek",
+      baseURL: "https://api.deepseek.com/v1",
+      reasoningEffort: "medium",
+    });
+    const iterable = provider.chat(
+      {
+        system: "sys",
+        messages: [{ role: "user", content: "Hi" }],
+        stream: true,
+      },
+      { fetchFn },
+    );
+
+    const chunks: Array<string | { type: "thinking"; text: string }> = [];
+    for await (const chunk of iterable) {
+      chunks.push(chunk);
+    }
+
+    expect(chunks).toEqual([
+      { type: "thinking", text: "think" },
+      { type: "thinking", text: " hard" },
+      "9.8",
+    ]);
+  });
+
   it("throws LLMError on 4xx without retrying", async () => {
     const fetchFn = vi.fn(async () =>
       new Response("invalid key", { status: 401 }),

@@ -33,12 +33,26 @@ export type AssistantMessage = {
   stopReason: "end_turn" | "tool_use" | "max_tokens";
 };
 
+export type ChatThinkingChunk = { type: "thinking"; text: string };
+
+export type ChatStreamChunk = string | ChatThinkingChunk;
+
+export function isChatThinkingChunk(
+  chunk: ChatStreamChunk,
+): chunk is ChatThinkingChunk {
+  return typeof chunk === "object" && chunk.type === "thinking";
+}
+
+export function textFromChatStreamChunk(chunk: ChatStreamChunk): string {
+  return typeof chunk === "string" ? chunk : "";
+}
+
 export interface LLMProvider {
   id: string;
   chat(
     opts: ChatOptions,
     deps?: { fetchFn?: typeof fetch },
-  ): AsyncIterable<string> | Promise<string>;
+  ): AsyncIterable<ChatStreamChunk> | Promise<string>;
   runWithTools?(
     req: {
       messages: AgentMessage[];

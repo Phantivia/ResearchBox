@@ -1,4 +1,5 @@
 import type { LLMProvider } from "@/core/llm";
+import { textFromChatStreamChunk, type ChatStreamChunk } from "@/core/llm/types";
 import {
   buildTranslationSystemPrompt,
   buildTranslationUserPrompt,
@@ -65,7 +66,9 @@ export function buildSampleTranslationBlocks(targetChars: number): PromptBlock[]
   return blocks;
 }
 
-function isAsyncIterable(value: unknown): value is AsyncIterable<string> {
+function isAsyncIterable(
+  value: unknown,
+): value is AsyncIterable<ChatStreamChunk> {
   return (
     value !== null &&
     typeof value === "object" &&
@@ -120,12 +123,13 @@ export async function measureTranslationStreamLatency(
 
   if (isAsyncIterable(chatResult)) {
     for await (const chunk of chatResult) {
-      if (ttftContentMs === null) {
+      const textChunk = textFromChatStreamChunk(chunk);
+      if (ttftContentMs === null && textChunk.length > 0) {
         ttftContentMs = performance.now() - startedAt;
-        firstContentPreview = chunk.slice(0, 80);
+        firstContentPreview = textChunk.slice(0, 80);
       }
 
-      accumulated += chunk;
+      accumulated += textChunk;
       for (const update of extractStreamingTranslationUpdates(accumulated, streamState)) {
         if (ttftTranslationMs === null && update.translation.length > 0) {
           ttftTranslationMs = performance.now() - startedAt;

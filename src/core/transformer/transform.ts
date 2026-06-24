@@ -1,5 +1,6 @@
 import type { CleanResult } from "@/core/cleaner";
 import type { LLMProvider } from "@/core/llm";
+import { textFromChatStreamChunk, type ChatStreamChunk } from "@/core/llm/types";
 import { PaperIRSchema, type Block, type PaperIR } from "@/core/ir";
 import {
   buildFullTranslationPayload,
@@ -91,7 +92,9 @@ function buildBaseIR(cleaned: CleanResult, opts: TransformOpts): PaperIR {
   return PaperIRSchema.parse(ir);
 }
 
-function isAsyncIterable(value: unknown): value is AsyncIterable<string> {
+function isAsyncIterable(
+  value: unknown,
+): value is AsyncIterable<ChatStreamChunk> {
   return (
     value !== null &&
     typeof value === "object" &&
@@ -344,9 +347,10 @@ async function* translateBatch(
     });
 
     if (isAsyncIterable(chatResult)) {
-      for await (const textChunk of chatResult) {
+      for await (const chunk of chatResult) {
+        const textChunk = textFromChatStreamChunk(chunk);
         streamed = true;
-        if (firstContentAt === null) {
+        if (firstContentAt === null && textChunk.length > 0) {
           firstContentAt = nowMs();
         }
         accumulated += textChunk;

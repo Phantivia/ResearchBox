@@ -11,7 +11,7 @@ const userMessage: AgentMessage = {
 describe("runChat", () => {
   it("streams deltas in order and calls onDone with the full text", async () => {
     const deltas: string[] = [];
-    let doneText: string | undefined;
+    let doneResult: { text: string; thinking: string } | undefined;
     const chat = vi.fn((_opts: ChatOptions) =>
       (async function* () {
         yield "hel";
@@ -27,8 +27,8 @@ describe("runChat", () => {
       messages: [userMessage],
       signal: new AbortController().signal,
       onDelta: (text) => deltas.push(text),
-      onDone: (full) => {
-        doneText = full;
+      onDone: (result) => {
+        doneResult = result;
       },
       onError: () => {
         throw new Error("onError should not be called");
@@ -36,7 +36,7 @@ describe("runChat", () => {
     });
 
     expect(deltas).toEqual(["hel", "lo"]);
-    expect(doneText).toBe("hello");
+    expect(doneResult).toEqual({ text: "hello", thinking: "" });
     expect(chat).toHaveBeenCalledWith({
       system: "You are helpful.",
       messages: [{ role: "user", content: "hello" }],
@@ -46,7 +46,7 @@ describe("runChat", () => {
   });
 
   it("calls onDone with the resolved string for non-streaming chat results", async () => {
-    let doneText: string | undefined;
+    let doneResult: { text: string; thinking: string } | undefined;
     const provider: LLMProvider = {
       id: "mock-promise",
       chat: () => Promise.resolve("full reply"),
@@ -60,15 +60,50 @@ describe("runChat", () => {
       onDelta: () => {
         throw new Error("onDelta should not be called");
       },
-      onDone: (full) => {
-        doneText = full;
+      onDone: (result) => {
+        doneResult = result;
       },
       onError: () => {
         throw new Error("onError should not be called");
       },
     });
 
-    expect(doneText).toBe("full reply");
+    expect(doneResult).toEqual({ text: "full reply", thinking: "" });
+  });
+
+  it("streams thinking chunks separately from text", async () => {
+    const thinkingDeltas: string[] = [];
+    const textDeltas: string[] = [];
+    let doneResult: { text: string; thinking: string } | undefined;
+    const provider: LLMProvider = {
+      id: "mock-thinking",
+      chat: () =>
+        (async function* () {
+          yield { type: "thinking", text: "think" };
+          yield { type: "thinking", text: "ing" };
+          yield "ans";
+          yield "wer";
+        })(),
+    };
+
+    await runChat({
+      provider,
+      system: "sys",
+      messages: [userMessage],
+      signal: new AbortController().signal,
+      onThinkingDelta: (text) => thinkingDeltas.push(text),
+      onDelta: (text) => textDeltas.push(text),
+      onDone: (result) => {
+        doneResult = result;
+      },
+      onError: () => {
+        throw new Error("onError should not be called");
+      },
+    });
+
+    expect(thinkingDeltas).toEqual(["think", "ing"]);
+    expect(textDeltas).toEqual(["ans", "wer"]);
+    expect(doneResult).toEqual({ text: "answer", thinking: "thinking" });
   });
 
   it("returns early on abort without calling onError or onDone", async () => {

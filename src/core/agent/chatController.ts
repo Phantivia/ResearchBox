@@ -1,7 +1,10 @@
 import type { LLMProvider, Message } from "@/core/llm/types";
+import { isChatThinkingChunk, type ChatStreamChunk } from "@/core/llm/types";
 import type { AgentMessage } from "./types";
 
-function isAsyncIterable(value: unknown): value is AsyncIterable<string> {
+function isAsyncIterable(
+  value: unknown,
+): value is AsyncIterable<ChatStreamChunk> {
   return (
     value !== null &&
     typeof value === "object" &&
@@ -22,19 +25,33 @@ function projectAgentMessages(messages: AgentMessage[]): Message[] {
   }));
 }
 
+export type RunChatResult = {
+  text: string;
+  thinking: string;
+};
+
 export type RunChatParams = {
   provider: LLMProvider;
   system: string;
   messages: AgentMessage[];
   signal: AbortSignal;
   onDelta: (text: string) => void;
-  onDone: (full: string) => void;
+  onThinkingDelta?: (text: string) => void;
+  onDone: (result: RunChatResult) => void;
   onError: (e: unknown) => void;
 };
 
 export async function runChat(params: RunChatParams): Promise<void> {
-  const { provider, system, messages, signal, onDelta, onDone, onError } =
-    params;
+  const {
+    provider,
+    system,
+    messages,
+    signal,
+    onDelta,
+    onThinkingDelta,
+    onDone,
+    onError,
+  } = params;
 
   if (signal.aborted) {
     return;
@@ -49,18 +66,24 @@ export async function runChat(params: RunChatParams): Promise<void> {
     });
 
     if (isAsyncIterable(chatResult)) {
-      let accumulated = "";
+      let accumulatedText = "";
+      let accumulatedThinking = "";
       for await (const chunk of chatResult) {
         if (signal.aborted) {
           return;
         }
-        accumulated += chunk;
+        if (isChatThinkingChunk(chunk)) {
+          accumulatedThinking += chunk.text;
+          onThinkingDelta?.(chunk.text);
+          continue;
+        }
+        accumulatedText += chunk;
         onDelta(chunk);
       }
       if (signal.aborted) {
         return;
       }
-      onDone(accumulated);
+      onDone({ text: accumulatedText, thinking: accumulatedThinking });
       return;
     }
 
@@ -68,7 +91,7 @@ export async function runChat(params: RunChatParams): Promise<void> {
     if (signal.aborted) {
       return;
     }
-    onDone(full);
+    onDone({ text: full, thinking: "" });
   } catch (error) {
     if (signal.aborted) {
       return;

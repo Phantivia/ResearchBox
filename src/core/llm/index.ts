@@ -7,6 +7,8 @@ export type {
   AssistantMessage,
   AgentContentBlock,
   ChatOptions,
+  ChatStreamChunk,
+  ChatThinkingChunk,
   LLMProvider,
   Message,
   ProviderConfig,
@@ -14,7 +16,12 @@ export type {
   StreamEvent,
   ToolSchema,
 } from "./types";
-export { DEFAULT_REASONING_EFFORT, DEFAULT_TRANSLATION_REASONING_EFFORT } from "./types";
+export {
+  DEFAULT_REASONING_EFFORT,
+  DEFAULT_TRANSLATION_REASONING_EFFORT,
+  isChatThinkingChunk,
+  textFromChatStreamChunk,
+} from "./types";
 export { LLMError } from "./http";
 export { parseSSEStream } from "./sse";
 export { createProvider } from "./createProvider";

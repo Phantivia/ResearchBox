@@ -119,7 +119,8 @@ export default function AgentChat() {
       setSending(true);
 
       const chatMessages = [...useAgentStore.getState().messages];
-      let accumulated = "";
+      let accumulatedText = "";
+      let accumulatedThinking = "";
 
       try {
         await runChat({
@@ -127,14 +128,16 @@ export default function AgentChat() {
           system: AGENT_SYSTEM_PROMPT,
           messages: chatMessages,
           signal: controller.signal,
-          onDelta: (chunk) => {
-            accumulated += chunk;
-            setStreaming({ text: accumulated });
+          onThinkingDelta: (chunk) => {
+            accumulatedThinking += chunk;
+            setStreaming({ thinking: accumulatedThinking });
           },
-          onDone: (full) => {
-            if (full) {
-              setStreaming({ text: full });
-            }
+          onDelta: (chunk) => {
+            accumulatedText += chunk;
+            setStreaming({ text: accumulatedText });
+          },
+          onDone: (result) => {
+            setStreaming({ text: result.text, thinking: result.thinking });
             commitStreamingToMessage();
             setSending(false);
           },

@@ -2,6 +2,7 @@ import { fetchWithRetry } from "../http";
 import { resolveDefaultReasoningEffort } from "../providerReasoning";
 import {
   type ChatOptions,
+  type ChatStreamChunk,
   type LLMProvider,
   type ProviderConfig,
 } from "../types";
@@ -14,8 +15,8 @@ type OpenAIChatMessage = {
 
 type OpenAIChatCompletionResponse = {
   choices?: Array<{
-    message?: { content?: string };
-    delta?: { content?: string };
+    message?: { content?: string; reasoning_content?: string };
+    delta?: { content?: string; reasoning_content?: string };
   }>;
 };
 
@@ -48,7 +49,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
   chat(
     opts: ChatOptions,
     deps?: { fetchFn?: typeof fetch },
-  ): AsyncIterable<string> | Promise<string> {
+  ): AsyncIterable<ChatStreamChunk> | Promise<string> {
     if (opts.stream) {
       return this.streamChat(opts, deps);
     }
@@ -106,7 +107,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
   private async *streamChat(
     opts: ChatOptions,
     deps?: { fetchFn?: typeof fetch },
-  ): AsyncIterable<string> {
+  ): AsyncIterable<ChatStreamChunk> {
     const fetchFn = deps?.fetchFn ?? globalThis.fetch;
     const body = this.buildBody(opts, true);
 
@@ -126,9 +127,14 @@ export class OpenAICompatibleProvider implements LLMProvider {
 
     for await (const data of parseSSEStream(response.body)) {
       const parsed = JSON.parse(data) as OpenAIChatCompletionResponse;
-      const delta = parsed.choices?.[0]?.delta?.content;
-      if (delta) {
-        yield delta;
+      const delta = parsed.choices?.[0]?.delta;
+      const reasoning = delta?.reasoning_content;
+      if (reasoning) {
+        yield { type: "thinking", text: reasoning };
+      }
+      const content = delta?.content;
+      if (content) {
+        yield content;
       }
     }
   }
