@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { createProvider, type ProviderConfig } from "@/core/llm";
+import { createProvider, providerConfigForTranslation, type ProviderConfig } from "@/core/llm";
 import {
   loadPaperWithTranslation,
   type LoadPaperWithTranslationProgress,
@@ -139,7 +139,7 @@ async function runTranslationJob(
   });
 
   try {
-    const provider = createProvider(opts.providerConfig);
+    const provider = createProvider(providerConfigForTranslation(opts.providerConfig));
 
     for await (const event of loadPaperWithTranslation(routeId, provider, {
       targetLang: opts.targetLang,

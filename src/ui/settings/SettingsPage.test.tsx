@@ -11,6 +11,24 @@ vi.mock("@/pwa", () => ({
   InstallButton: () => null,
 }));
 
+vi.mock("@/core/llm", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/core/llm")>();
+  return {
+    ...actual,
+    listAvailableModels: vi.fn().mockResolvedValue(["deepseek-chat"]),
+    resolveOpenRouterModelMetadata: vi.fn().mockResolvedValue({
+      source: "openrouter",
+      fetchedAt: 1_700_000_000_000,
+      openRouterId: "deepseek/deepseek-chat",
+      name: "DeepSeek: DeepSeek Chat",
+      contextLength: 163840,
+      inputModalities: ["text"],
+      outputModalities: ["text"],
+      supportedParameters: ["temperature"],
+    }),
+  };
+});
+
 beforeEach(async () => {
   await db.secrets.clear();
   await db.settings.clear();
@@ -78,5 +96,32 @@ describe("SettingsPage", () => {
     expect(screen.getByLabelText("API Key")).toHaveValue("sk-deepseek-test");
     expect(screen.getByLabelText("Base URL")).toHaveValue("https://api.deepseek.com/v1");
     expect(screen.getByLabelText("Model")).toHaveValue("deepseek-chat");
+  });
+
+  it("shows OpenRouter metadata after api key and model are filled", async () => {
+    render(
+      <HashRouter>
+        <SettingsPage />
+      </HashRouter>,
+    );
+
+    await waitFor(() => {
+      expect(useSettingsStore.getState().loaded).toBe(true);
+    });
+
+    fireEvent.change(screen.getByLabelText("Provider 类型"), {
+      target: { value: "deepseek" },
+    });
+    fireEvent.change(screen.getByLabelText("API Key"), {
+      target: { value: "sk-deepseek-test" },
+    });
+    fireEvent.change(screen.getByLabelText("Model"), {
+      target: { value: "deepseek-chat" },
+    });
+
+    expect(
+      await screen.findByText("模型元数据（来自 OpenRouter）"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("DeepSeek: DeepSeek Chat")).toBeInTheDocument();
   });
 });

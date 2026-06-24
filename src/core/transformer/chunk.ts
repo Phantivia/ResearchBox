@@ -1,4 +1,6 @@
 import type { CleanBlock } from "@/core/cleaner";
+import type { PaperIR } from "@/core/ir";
+import type { CompletedBlock, PromptBlock } from "./prompts";
 
 export const DEFAULT_MAX_CHUNK_CHARS = 4000;
 
@@ -249,4 +251,73 @@ export function chunkPaperBlocksForTranslation(
     ...chunkAbstractBlocksForTranslation(abstractBlocks),
     ...chunkBlocksForTranslation(bodyBlocks, DEFAULT_MAX_CHUNK_CHARS, abstractBlocks),
   ];
+}
+
+export type FullTranslationPayload = {
+  units: TranslationUnit[];
+  promptBlocks: PromptBlock[];
+};
+
+export type ResumeTranslationPayload = {
+  units: TranslationUnit[];
+  promptBlocks: PromptBlock[];
+  completedBlocks: CompletedBlock[];
+};
+
+/**
+ * Collects all translatable blocks in document order into a single payload
+ * for a fresh single-request translation. Very long paragraphs are still
+ * split into multi-part units, but all units go into one LLM call.
+ */
+export function buildFullTranslationPayload(
+  abstractBlocks: CleanBlock[],
+  bodyBlocks: CleanBlock[],
+): FullTranslationPayload {
+  const allBlocks = [
+    ...abstractBlocks.filter(isTranslatableBlock),
+    ...bodyBlocks.filter(isTranslatableBlock),
+  ];
+  const units = allBlocks.flatMap((block) =>
+    buildUnitsForBlock(block, DEFAULT_MAX_CHUNK_CHARS),
+  );
+  const promptBlocks = units.map((unit) => ({
+    id: unitPromptId(unit),
+    content: unit.content,
+  }));
+  return { units, promptBlocks };
+}
+
+/**
+ * Splits an IR with partially completed translations into a payload for
+ * resume translation. Already-translated blocks go into `completedBlocks`
+ * (for LLM context) and pending blocks go into `promptBlocks`.
+ */
+export function buildResumeTranslationPayload(ir: PaperIR): ResumeTranslationPayload {
+  const allBlocks = [...ir.abstractBlocks, ...ir.blocks];
+  const completedBlocks: CompletedBlock[] = [];
+  const pendingUnits: TranslationUnit[] = [];
+
+  for (const block of allBlocks) {
+    if (!isTranslatableBlock(block as CleanBlock)) continue;
+
+    const isComplete =
+      Boolean(block.translation?.trim()) && block.meta?.translationMissing !== true;
+
+    if (isComplete) {
+      completedBlocks.push({
+        id: block.id,
+        source: translatableContent(block as CleanBlock),
+        translation: block.translation!,
+      });
+    } else {
+      pendingUnits.push(...buildUnitsForBlock(block as CleanBlock, DEFAULT_MAX_CHUNK_CHARS));
+    }
+  }
+
+  const promptBlocks = pendingUnits.map((unit) => ({
+    id: unitPromptId(unit),
+    content: unit.content,
+  }));
+
+  return { units: pendingUnits, promptBlocks, completedBlocks };
 }

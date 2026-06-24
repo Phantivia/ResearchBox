@@ -1,5 +1,5 @@
 import DOMPurify from "dompurify";
-import { memo, useMemo, useState, type JSX, type KeyboardEvent, type MouseEvent } from "react";
+import { createContext, memo, useContext, useMemo, useState, type JSX, type KeyboardEvent, type MouseEvent } from "react";
 import type { Block, PaperIR, Reference } from "@/core/ir";
 import { buildArxivPaperPageUrl, resolveImageUrlsInHtml } from "@/core/media";
 import { breakDisplayEquation, mathDisplayMode } from "@/core/math/layout";
@@ -17,6 +17,7 @@ import { MathBlock } from "./MathBlock";
 import { MathSpotlight } from "./MathSpotlight";
 import { OverflowContainer } from "./OverflowContainer";
 import { TableContainer } from "./TableContainer";
+import { TranslationWaitingIndicator } from "./TranslationWaitingIndicator";
 
 const FRAGMENT_SANITIZE_OPTIONS = {
   USE_PROFILES: { html: true, mathMl: true, svg: true },
@@ -32,6 +33,14 @@ const TRANSLATABLE_TYPES = new Set<Block["type"]>(["heading", "paragraph", "list
 function isTranslatable(block: Block): boolean {
   return TRANSLATABLE_TYPES.has(block.type);
 }
+
+/**
+ * Provides the partial/streaming display text for in-flight blocks.
+ * Populated by PaperRenderer/PaperBlockContent during active translation.
+ * Blocks present here are shown in primary color (streaming); absent blocks
+ * fall back to block.translation shown in translation color (complete).
+ */
+const StreamingDisplaysContext = createContext<Record<string, string>>({});
 
 const SANITIZE_CACHE_LIMIT = 2000;
 const sanitizeCache = new Map<string, string>();
@@ -91,23 +100,11 @@ function UntranslatedMarker() {
 }
 
 function TranslationPlaceholder({ className }: { className?: string }) {
-  return (
-    <div
-      className={`h-4 animate-pulse rounded bg-gray-100 ${className ?? ""}`}
-      aria-label="译文加载中"
-      data-testid="translation-placeholder"
-    />
-  );
+  return <TranslationWaitingIndicator variant="block" className={className} />;
 }
 
 function InlineTranslationPlaceholder() {
-  return (
-    <span
-      className="mx-0.5 inline-block h-[1em] w-12 animate-pulse rounded bg-gray-100 align-middle"
-      aria-label="译文加载中"
-      data-testid="translation-placeholder"
-    />
-  );
+  return <TranslationWaitingIndicator variant="inline" />;
 }
 
 function InlineMath({
@@ -370,6 +367,7 @@ function renderTranslationSlot({
   viewMode,
   translationPending,
   translationStarted,
+  streamingDisplay,
   renderOriginal,
   renderTranslation,
 }: {
@@ -377,11 +375,17 @@ function renderTranslationSlot({
   viewMode: ViewMode;
   translationPending: boolean;
   translationStarted: boolean;
+  /** Partial text being streamed for this block. When set, renders in primary color. */
+  streamingDisplay?: string;
   renderOriginal: () => React.ReactNode;
-  renderTranslation: (text: string) => React.ReactNode;
+  /** Receives (text, isStreaming) — caller should use primary color when isStreaming=true. */
+  renderTranslation: (text: string, isStreaming: boolean) => React.ReactNode;
 }) {
-  if (block.translation) {
-    return renderTranslation(block.translation);
+  const effectiveText = streamingDisplay ?? block.translation;
+  const isStreaming = Boolean(streamingDisplay);
+
+  if (effectiveText) {
+    return renderTranslation(effectiveText, isStreaming);
   }
 
   if (translationPending) {
@@ -430,6 +434,8 @@ const BlockRenderer = memo(function BlockRenderer({
   debugMode: boolean;
   pageUrl: string;
 }) {
+  const streamingDisplays = useContext(StreamingDisplaysContext);
+  const streamingDisplay = streamingDisplays[block.id];
   const translatable = isTranslatable(block);
   const showOriginal =
     viewMode === "original" ||
@@ -451,9 +457,14 @@ const BlockRenderer = memo(function BlockRenderer({
               viewMode,
               translationPending,
               translationStarted,
+              streamingDisplay,
               renderOriginal: () => original,
-              renderTranslation: (text) => (
-                <Tag className={viewMode === "bilingual" ? "mt-1 text-[var(--rb-translation)]" : "text-[var(--rb-translation)]"}>
+              renderTranslation: (text, isStreaming) => (
+                <Tag className={
+                  viewMode === "bilingual"
+                    ? `mt-1 ${isStreaming ? "text-[var(--rb-primary)]" : "text-[var(--rb-translation)]"}`
+                    : isStreaming ? "text-[var(--rb-primary)]" : "text-[var(--rb-translation)]"
+                }>
                   {text}
                 </Tag>
               ),
@@ -477,16 +488,17 @@ const BlockRenderer = memo(function BlockRenderer({
               viewMode,
               translationPending,
               translationStarted,
+              streamingDisplay,
               renderOriginal: () => original,
-              renderTranslation: (text) => (
+              renderTranslation: (text, isStreaming) => (
                 <HtmlFragment
                   html={text}
                   tag="p"
                   pageUrl={pageUrl}
                   className={
                     viewMode === "bilingual"
-                      ? "mt-2 leading-relaxed text-[var(--rb-translation)]"
-                      : "leading-relaxed text-[var(--rb-translation)]"
+                      ? `mt-2 leading-relaxed ${isStreaming ? "text-[var(--rb-primary)]" : "text-[var(--rb-translation)]"}`
+                      : `leading-relaxed ${isStreaming ? "text-[var(--rb-primary)]" : "text-[var(--rb-translation)]"}`
                   }
                 />
               ),
@@ -508,13 +520,18 @@ const BlockRenderer = memo(function BlockRenderer({
               viewMode,
               translationPending,
               translationStarted,
+              streamingDisplay,
               renderOriginal: () => original,
-              renderTranslation: (text) => (
+              renderTranslation: (text, isStreaming) => (
                 <HtmlFragment
                   html={text}
                   tag="div"
                   pageUrl={pageUrl}
-                  className={viewMode === "bilingual" ? "mt-2 text-[var(--rb-translation)]" : "text-[var(--rb-translation)]"}
+                  className={
+                    viewMode === "bilingual"
+                      ? `mt-2 ${isStreaming ? "text-[var(--rb-primary)]" : "text-[var(--rb-translation)]"}`
+                      : isStreaming ? "text-[var(--rb-primary)]" : "text-[var(--rb-translation)]"
+                  }
                 />
               ),
             })}
@@ -535,11 +552,16 @@ const BlockRenderer = memo(function BlockRenderer({
               viewMode,
               translationPending,
               translationStarted,
+              streamingDisplay,
               renderOriginal: () => original,
-              renderTranslation: (text) => (
+              renderTranslation: (text, isStreaming) => (
                 <TranslationText
                   text={text}
-                  className={viewMode === "bilingual" ? "mt-2 text-[var(--rb-translation)]" : "text-[var(--rb-translation)]"}
+                  className={
+                    viewMode === "bilingual"
+                      ? `mt-2 ${isStreaming ? "text-[var(--rb-primary)]" : "text-[var(--rb-translation)]"}`
+                      : isStreaming ? "text-[var(--rb-primary)]" : "text-[var(--rb-translation)]"
+                  }
                 />
               ),
             })}
@@ -604,13 +626,14 @@ const BlockRenderer = memo(function BlockRenderer({
               viewMode,
               translationPending,
               translationStarted,
+              streamingDisplay,
               renderOriginal: () => null,
-              renderTranslation: (text) => (
+              renderTranslation: (text, isStreaming) => (
                 <HtmlFragment
                   html={text}
                   tag="figcaption"
                   pageUrl={pageUrl}
-                  className="mt-2 text-sm leading-relaxed text-[var(--rb-translation)]"
+                  className={`mt-2 text-sm leading-relaxed ${isStreaming ? "text-[var(--rb-primary)]" : "text-[var(--rb-translation)]"}`}
                 />
               ),
             })}
@@ -694,6 +717,9 @@ const FlowTranslationPart = memo(function FlowTranslationPart({
   showFlowMathInTranslation: boolean;
   pageUrl: string;
 }) {
+  const streamingDisplays = useContext(StreamingDisplaysContext);
+  const streamingDisplay = block.type === "paragraph" ? streamingDisplays[block.id] : undefined;
+
   if (block.type === "math" && block.math) {
     if (!showFlowMathInTranslation) return null;
     return <InlineMath tex={block.math.tex} display={block.math.display} />;
@@ -701,11 +727,13 @@ const FlowTranslationPart = memo(function FlowTranslationPart({
 
   if (block.type !== "paragraph") return null;
 
-  if (block.translation) {
+  const effectiveText = streamingDisplay ?? block.translation;
+
+  if (effectiveText) {
     return (
       <span
-        className="inline"
-        dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.translation, pageUrl) }}
+        className={streamingDisplay ? "inline text-[var(--rb-primary)]" : "inline"}
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(effectiveText, pageUrl) }}
       />
     );
   }
@@ -929,6 +957,8 @@ export interface PaperBlockContentProps {
   translationStarted?: boolean;
   debugMode?: boolean;
   className?: string;
+  /** Partial streaming text keyed by block id. Shown in primary color. */
+  streamingDisplays?: Record<string, string>;
 }
 
 export function PaperBlockContent({
@@ -939,23 +969,26 @@ export function PaperBlockContent({
   translationStarted = false,
   debugMode = false,
   className,
+  streamingDisplays,
 }: PaperBlockContentProps) {
   const renderUnits = useMemo(() => groupPaperBlocks(blocks), [blocks]);
 
   return (
-    <div className={className}>
-      {renderUnits.map((unit) => (
-        <RenderUnit
-          key={unit.kind === "flow" ? unit.blocks.map((block) => block.id).join("-") : unit.block.id}
-          unit={unit}
-          viewMode={viewMode}
-          translationPending={translationPending}
-          translationStarted={translationStarted}
-          debugMode={debugMode}
-          pageUrl={pageUrl}
-        />
-      ))}
-    </div>
+    <StreamingDisplaysContext.Provider value={streamingDisplays ?? {}}>
+      <div className={className}>
+        {renderUnits.map((unit) => (
+          <RenderUnit
+            key={unit.kind === "flow" ? unit.blocks.map((block) => block.id).join("-") : unit.block.id}
+            unit={unit}
+            viewMode={viewMode}
+            translationPending={translationPending}
+            translationStarted={translationStarted}
+            debugMode={debugMode}
+            pageUrl={pageUrl}
+          />
+        ))}
+      </div>
+    </StreamingDisplaysContext.Provider>
   );
 }
 
@@ -965,6 +998,8 @@ export interface PaperRendererProps {
   translationPending?: boolean;
   translationStarted?: boolean;
   debugMode?: boolean;
+  /** Partial streaming text keyed by block id. Shown in primary color. */
+  streamingDisplays?: Record<string, string>;
 }
 
 export function PaperRenderer({
@@ -973,6 +1008,7 @@ export function PaperRenderer({
   translationPending = false,
   translationStarted = false,
   debugMode = false,
+  streamingDisplays,
 }: PaperRendererProps) {
   const renderUnits = useMemo(() => groupPaperBlocks(paper.blocks), [paper.blocks]);
   const pageUrl = useMemo(
@@ -982,6 +1018,7 @@ export function PaperRenderer({
 
   return (
     <CitationInteractionLayer references={paper.references}>
+      <StreamingDisplaysContext.Provider value={streamingDisplays ?? {}}>
       <article className="paper-content prose prose-gray max-w-none">
         {renderUnits.map((unit) => (
           <RenderUnit
@@ -1003,6 +1040,7 @@ export function PaperRenderer({
           </section>
         )}
       </article>
+      </StreamingDisplaysContext.Provider>
     </CitationInteractionLayer>
   );
 }

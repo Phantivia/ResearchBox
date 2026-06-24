@@ -16,6 +16,16 @@ const OPENAI_CONFIG: ProviderConfig = {
   apiKey: "sk-test-openai",
   baseURL: "https://api.openai.com/v1",
   model: "gpt-4o",
+  openRouterMeta: {
+    source: "openrouter",
+    fetchedAt: 1_700_000_000_000,
+    openRouterId: "openai/gpt-4o",
+    name: "OpenAI: GPT-4o",
+    contextLength: 128000,
+    inputModalities: ["text"],
+    outputModalities: ["text"],
+    supportedParameters: ["response_format"],
+  },
 };
 
 const ANTHROPIC_CONFIG: ProviderConfig = {

@@ -23,6 +23,9 @@ interface ReaderState {
   translationStatus: TranslationStatus;
   degradedReason?: string;
   error?: string;
+  /** Smoothly-revealed partial text for each in-flight block. Shown in primary color. */
+  streamingDisplays: Record<string, string>;
+  /** The target text the smoothing is advancing toward for each block. */
   streamingTargets: Record<string, string>;
   streamingCompleteBlocks: Record<string, boolean>;
 }
@@ -45,14 +48,19 @@ interface ReaderActions {
   reset: () => void;
 }
 
+const EMPTY_STREAMING: Pick<ReaderState, "streamingDisplays" | "streamingTargets" | "streamingCompleteBlocks"> = {
+  streamingDisplays: {},
+  streamingTargets: {},
+  streamingCompleteBlocks: {},
+};
+
 const initialState: ReaderState = {
   currentPaper: null,
   status: "idle",
   translationStatus: "none",
   degradedReason: undefined,
   error: undefined,
-  streamingTargets: {},
-  streamingCompleteBlocks: {},
+  ...EMPTY_STREAMING,
 };
 
 export const useReaderStore = create<ReaderState & ReaderActions>()((set) => ({
@@ -65,8 +73,7 @@ export const useReaderStore = create<ReaderState & ReaderActions>()((set) => ({
       translationStatus: "none",
       degradedReason: undefined,
       error: undefined,
-      streamingTargets: {},
-      streamingCompleteBlocks: {},
+      ...EMPTY_STREAMING,
     });
   },
 
@@ -76,8 +83,7 @@ export const useReaderStore = create<ReaderState & ReaderActions>()((set) => ({
       status: "error",
       error: msg,
       translationStatus: "none",
-      streamingTargets: {},
-      streamingCompleteBlocks: {},
+      ...EMPTY_STREAMING,
     });
   },
 
@@ -89,8 +95,7 @@ export const useReaderStore = create<ReaderState & ReaderActions>()((set) => ({
       translationStatus: "none",
       error: undefined,
       degradedReason: undefined,
-      streamingTargets: {},
-      streamingCompleteBlocks: {},
+      ...EMPTY_STREAMING,
     });
   },
 
@@ -112,8 +117,7 @@ export const useReaderStore = create<ReaderState & ReaderActions>()((set) => ({
       translationStatus,
       error: undefined,
       degradedReason: undefined,
-      streamingTargets: {},
-      streamingCompleteBlocks: {},
+      ...EMPTY_STREAMING,
     });
   },
 
@@ -125,8 +129,7 @@ export const useReaderStore = create<ReaderState & ReaderActions>()((set) => ({
       translationStatus: "translating",
       error: undefined,
       degradedReason: undefined,
-      streamingTargets: {},
-      streamingCompleteBlocks: {},
+      ...EMPTY_STREAMING,
     });
   },
 
@@ -134,22 +137,35 @@ export const useReaderStore = create<ReaderState & ReaderActions>()((set) => ({
 
   setStreamingTarget: (blockId, target, complete = false, debugMetrics) =>
     set((state) => {
-      const nextComplete = complete
-        ? true
-        : (state.streamingCompleteBlocks[blockId] ?? false);
-      const currentPaper =
-        debugMetrics && state.currentPaper
-          ? applyDebugMetrics(state.currentPaper, blockId, debugMetrics)
+      if (complete) {
+        // Block fully translated: persist into currentPaper.translation,
+        // clear its streaming state so render switches to translation color.
+        const nextPaper = state.currentPaper
+          ? applyBlockTranslation(state.currentPaper, blockId, target, debugMetrics)
           : state.currentPaper;
 
+        const { [blockId]: _sd, ...remainingDisplays } = state.streamingDisplays;
+        const { [blockId]: _st, ...remainingTargets } = state.streamingTargets;
+        const { [blockId]: _sc, ...remainingComplete } = state.streamingCompleteBlocks;
+
+        return {
+          currentPaper: nextPaper,
+          streamingDisplays: remainingDisplays,
+          streamingTargets: remainingTargets,
+          streamingCompleteBlocks: remainingComplete,
+          translationStatus: "translating",
+        };
+      }
+
+      // Partial update: advance the smoothing target; smoothing will reveal
+      // text into streamingDisplays at its own pace.
       scheduleTranslationSmoothing();
 
       return {
-        currentPaper,
         streamingTargets: { ...state.streamingTargets, [blockId]: target },
         streamingCompleteBlocks: {
           ...state.streamingCompleteBlocks,
-          [blockId]: nextComplete,
+          [blockId]: false,
         },
         translationStatus: "translating",
       };
@@ -163,8 +179,7 @@ export const useReaderStore = create<ReaderState & ReaderActions>()((set) => ({
       translationStatus: "done",
       error: undefined,
       degradedReason: undefined,
-      streamingTargets: {},
-      streamingCompleteBlocks: {},
+      ...EMPTY_STREAMING,
     });
   },
 
@@ -176,8 +191,7 @@ export const useReaderStore = create<ReaderState & ReaderActions>()((set) => ({
       translationStatus: "degraded",
       degradedReason: reason,
       error: undefined,
-      streamingTargets: {},
-      streamingCompleteBlocks: {},
+      ...EMPTY_STREAMING,
     });
   },
 
@@ -187,19 +201,22 @@ export const useReaderStore = create<ReaderState & ReaderActions>()((set) => ({
   },
 }));
 
-function applyDebugMetrics(
+function applyBlockTranslation(
   paper: PaperIR,
   blockId: string,
-  debugMetrics: TranslationDebugMetrics,
+  translation: string,
+  debugMetrics?: TranslationDebugMetrics,
 ): PaperIR {
   const applyToBlocks = (blocks: PaperIR["blocks"]) => {
     let changed = false;
     const next = blocks.map((block) => {
-      if (block.id !== blockId) {
-        return block;
-      }
+      if (block.id !== blockId) return block;
       changed = true;
-      return withTranslationDebugMetrics(block, debugMetrics);
+      let updated = { ...block, translation };
+      if (debugMetrics) {
+        updated = withTranslationDebugMetrics(updated, debugMetrics) as typeof updated;
+      }
+      return updated;
     });
     return changed ? next : blocks;
   };
@@ -214,19 +231,6 @@ function applyDebugMetrics(
   return { ...paper, abstractBlocks, blocks };
 }
 
-function getDisplayTranslation(
-  paper: PaperIR | null,
-  blockId: string,
-): string | undefined {
-  if (!paper) {
-    return undefined;
-  }
-  const block =
-    paper.abstractBlocks.find((item) => item.id === blockId) ??
-    paper.blocks.find((item) => item.id === blockId);
-  return block?.translation;
-}
-
 registerTranslationSmoothingHost({
   getSnapshot: () => {
     const state = useReaderStore.getState();
@@ -234,52 +238,24 @@ registerTranslationSmoothingHost({
       translationStatus: state.translationStatus,
       streamingTargets: state.streamingTargets,
       streamingCompleteBlocks: state.streamingCompleteBlocks,
-      getDisplayTranslation: (blockId) =>
-        getDisplayTranslation(state.currentPaper, blockId),
+      streamingDisplays: state.streamingDisplays,
+      getDisplayTranslation: (blockId) => state.streamingDisplays[blockId],
     };
   },
   applyDisplays: (updates) => {
     useReaderStore.setState((state) => {
-      if (!state.currentPaper) {
-        return state;
-      }
-
-      const applyToBlocks = (blocks: PaperIR["blocks"]) => {
-        let changed = false;
-        const next = blocks.map((block) => {
-          const translation = updates[block.id];
-          if (translation === undefined || translation === block.translation) {
-            return block;
-          }
+      let changed = false;
+      const next = { ...state.streamingDisplays };
+      for (const [blockId, text] of Object.entries(updates)) {
+        if (next[blockId] !== text) {
+          next[blockId] = text;
           changed = true;
-          return { ...block, translation };
-        });
-        return changed ? next : blocks;
-      };
-
-      const abstractBlocks = applyToBlocks(state.currentPaper.abstractBlocks);
-      const blocks = applyToBlocks(state.currentPaper.blocks);
-
-      if (
-        abstractBlocks === state.currentPaper.abstractBlocks &&
-        blocks === state.currentPaper.blocks
-      ) {
-        return state;
+        }
       }
-
-      return {
-        currentPaper: {
-          ...state.currentPaper,
-          abstractBlocks,
-          blocks,
-        },
-      };
+      return changed ? { streamingDisplays: next } : state;
     });
   },
   clearStreamingState: () => {
-    useReaderStore.setState({
-      streamingTargets: {},
-      streamingCompleteBlocks: {},
-    });
+    useReaderStore.setState({ ...EMPTY_STREAMING });
   },
 });

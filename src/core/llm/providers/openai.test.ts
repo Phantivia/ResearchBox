@@ -214,6 +214,75 @@ describe("OpenAICompatibleProvider", () => {
     const body = JSON.parse(init.body as string) as { reasoning_effort?: string };
     expect(body.reasoning_effort).toBeUndefined();
   });
+
+  it("sends thinking disabled for deepseek when reasoning is off", async () => {
+    const fetchFn = vi.fn(async () =>
+      Response.json({ choices: [{ message: { content: "ok" } }] }),
+    );
+
+    const provider = new OpenAICompatibleProvider({
+      ...CONFIG,
+      id: "deepseek",
+      baseURL: "https://api.deepseek.com/v1",
+      reasoningEffort: "off",
+    });
+    await provider.chat(
+      { system: "sys", messages: [{ role: "user", content: "Hi" }] },
+      { fetchFn },
+    );
+
+    const [, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as {
+      reasoning_effort?: string;
+      thinking?: { type: string };
+    };
+    expect(body.reasoning_effort).toBeUndefined();
+    expect(body.thinking).toEqual({ type: "disabled" });
+  });
+
+  it("sends thinking enabled for deepseek when reasoning is on", async () => {
+    const fetchFn = vi.fn(async () =>
+      Response.json({ choices: [{ message: { content: "ok" } }] }),
+    );
+
+    const provider = new OpenAICompatibleProvider({
+      ...CONFIG,
+      id: "deepseek",
+      baseURL: "https://api.deepseek.com/v1",
+      reasoningEffort: "high",
+    });
+    await provider.chat(
+      { system: "sys", messages: [{ role: "user", content: "Hi" }] },
+      { fetchFn },
+    );
+
+    const [, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as {
+      reasoning_effort?: string;
+      thinking?: { type: string };
+    };
+    expect(body.reasoning_effort).toBe("high");
+    expect(body.thinking).toEqual({ type: "enabled" });
+  });
+
+  it("does not send thinking for non-deepseek providers", async () => {
+    const fetchFn = vi.fn(async () =>
+      Response.json({ choices: [{ message: { content: "ok" } }] }),
+    );
+
+    const provider = new OpenAICompatibleProvider({
+      ...CONFIG,
+      reasoningEffort: "off",
+    });
+    await provider.chat(
+      { system: "sys", messages: [{ role: "user", content: "Hi" }] },
+      { fetchFn },
+    );
+
+    const [, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as { thinking?: unknown };
+    expect(body.thinking).toBeUndefined();
+  });
 });
 
 describe("listOpenAICompatibleModels", () => {

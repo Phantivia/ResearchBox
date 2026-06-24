@@ -14,4 +14,5 @@ export {
   type TranslationJobStatus,
 } from "./translationJobStore";
 export { useStorageStore } from "./storageStore";
+export { useAgentStore } from "./agentStore";
 export type { AppSettings, ViewMode } from "./settingsStore";

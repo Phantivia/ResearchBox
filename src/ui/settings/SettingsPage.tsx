@@ -2,12 +2,18 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   DEFAULT_REASONING_EFFORT,
+  DEFAULT_TRANSLATION_REASONING_EFFORT,
   listAvailableModels,
+  resolveDefaultReasoningEffort,
+  resolveOpenRouterModelMetadata,
+  resolveTranslationReasoningEffort,
   supportsModelListing,
+  supportsOpenRouterMetaLookup,
   testProviderConnection,
   type ConnectionTestHintCode,
   type ProviderConfig,
   type ReasoningEffort,
+  type StoredOpenRouterModelMeta,
 } from "@/core/llm";
 import { LanguageSwitcher, useTranslation } from "@/i18n";
 import type { MessageKey } from "@/core/i18n";
@@ -18,6 +24,7 @@ import { useSettingsStore, useStorageStore, useTranslationJobStore } from "@/sto
 import { AboutSection } from "./AboutSection";
 import { DataManagementSection } from "./DataManagementSection";
 import { ColorPaletteSection } from "./ColorPaletteSection";
+import { OpenRouterMetaPanel } from "./OpenRouterMetaPanel";
 import {
   SETTINGS_SECTION_IDS,
   scrollToSettingsSection,
@@ -69,6 +76,13 @@ type ModelListStatus =
   | { state: "success" }
   | { state: "error"; message: string };
 
+type OpenRouterMetaPanelStatus =
+  | "idle"
+  | "loading"
+  | "success"
+  | "not_found"
+  | "error";
+
 function maskApiKey(key: string): string {
   const trimmed = key.trim();
   if (!trimmed) {
@@ -87,6 +101,7 @@ function emptyDraft(id: ProviderId): ProviderConfig {
     baseURL: DEFAULT_BASE_URLS[id] ?? "",
     model: "",
     reasoningEffort: DEFAULT_REASONING_EFFORT,
+    translationReasoningEffort: DEFAULT_TRANSLATION_REASONING_EFFORT,
   };
 }
 
@@ -129,10 +144,17 @@ export function SettingsPage() {
   const [modelListStatus, setModelListStatus] = useState<ModelListStatus>({
     state: "idle",
   });
+  const [openRouterMetaStatus, setOpenRouterMetaStatus] =
+    useState<OpenRouterMetaPanelStatus>("idle");
+  const [openRouterMetaError, setOpenRouterMetaError] = useState<string>("");
+  const [draftOpenRouterMeta, setDraftOpenRouterMeta] = useState<
+    StoredOpenRouterModelMeta | null | undefined
+  >(undefined);
   const [expandedProviderIds, setExpandedProviderIds] = useState<Set<string>>(
     () => new Set(),
   );
   const fetchRequestId = useRef(0);
+  const openRouterMetaRequestId = useRef(0);
   const cancelAllTranslations = useTranslationJobStore(
     (state) => state.cancelAllTranslations,
   );
@@ -170,6 +192,10 @@ export function SettingsPage() {
       const active = providers.find((provider) => provider.id === activeProviderId);
       if (active) {
         setDraft(active);
+        setDraftOpenRouterMeta(active.openRouterMeta);
+        setOpenRouterMetaStatus(
+          active.openRouterMeta ? "success" : "idle",
+        );
         return;
       }
     }
@@ -177,8 +203,35 @@ export function SettingsPage() {
     const existing = providers.find((provider) => provider.id === draft.id);
     if (existing) {
       setDraft(existing);
+      setDraftOpenRouterMeta(existing.openRouterMeta);
+      setOpenRouterMetaStatus(
+        existing.openRouterMeta ? "success" : "idle",
+      );
     }
   }, [loaded]);
+
+  useEffect(() => {
+    if (
+      !supportsOpenRouterMetaLookup(draft.id) ||
+      !draft.apiKey.trim() ||
+      !draft.model.trim()
+    ) {
+      setOpenRouterMetaStatus("idle");
+      setOpenRouterMetaError("");
+      setDraftOpenRouterMeta(undefined);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      void fetchOpenRouterMeta({
+        id: draft.id,
+        apiKey: draft.apiKey.trim(),
+        model: draft.model.trim(),
+      });
+    }, 500);
+
+    return () => window.clearTimeout(timer);
+  }, [draft.id, draft.apiKey, draft.model]);
 
   useEffect(() => {
     if (!supportsModelListing(draft.id) || !draft.apiKey.trim()) {
@@ -197,6 +250,44 @@ export function SettingsPage() {
 
     return () => window.clearTimeout(timer);
   }, [draft.id, draft.apiKey, draft.baseURL]);
+
+  async function fetchOpenRouterMeta(input: {
+    id: string;
+    apiKey: string;
+    model: string;
+  }) {
+    if (!supportsOpenRouterMetaLookup(input.id)) {
+      return;
+    }
+
+    const requestId = ++openRouterMetaRequestId.current;
+    setOpenRouterMetaStatus("loading");
+    setOpenRouterMetaError("");
+
+    try {
+      const meta = await resolveOpenRouterModelMetadata({
+        providerId: input.id,
+        model: input.model,
+        apiKey: input.id === "openrouter" ? input.apiKey : undefined,
+      });
+
+      if (requestId !== openRouterMetaRequestId.current) {
+        return;
+      }
+
+      setDraftOpenRouterMeta(meta);
+      setOpenRouterMetaStatus(meta ? "success" : "not_found");
+    } catch (error) {
+      if (requestId !== openRouterMetaRequestId.current) {
+        return;
+      }
+
+      setDraftOpenRouterMeta(null);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      setOpenRouterMetaError(message);
+      setOpenRouterMetaStatus("error");
+    }
+  }
 
   async function fetchModelOptions(config: ProviderConfig) {
     if (!supportsModelListing(config.id) || !config.apiKey.trim()) {
@@ -242,11 +333,15 @@ export function SettingsPage() {
     const existing = providers.find((provider) => provider.id === id);
     const next = existing ?? emptyDraft(id);
     fetchRequestId.current += 1;
+    openRouterMetaRequestId.current += 1;
     setDraft(next);
     setSaveMessage(null);
     setTestStatus({ state: "idle" });
     setModelOptions([]);
     setModelListStatus({ state: "idle" });
+    setDraftOpenRouterMeta(next.openRouterMeta);
+    setOpenRouterMetaStatus(next.openRouterMeta ? "success" : "idle");
+    setOpenRouterMetaError("");
   }
 
   async function handleDeleteProvider(id: string) {
@@ -261,6 +356,9 @@ export function SettingsPage() {
       setDraft(emptyDraft("openai"));
       setModelOptions([]);
       setModelListStatus({ state: "idle" });
+      setDraftOpenRouterMeta(undefined);
+      setOpenRouterMetaStatus("idle");
+      setOpenRouterMetaError("");
     }
   }
 
@@ -285,12 +383,24 @@ export function SettingsPage() {
       return;
     }
 
+    const openRouterMeta = supportsOpenRouterMetaLookup(draft.id)
+      ? await resolveOpenRouterModelMetadata({
+          providerId: draft.id,
+          model: draft.model.trim(),
+          apiKey: draft.id === "openrouter" ? draft.apiKey.trim() : undefined,
+        })
+      : null;
+
     await saveProvider({
       ...draft,
       apiKey: draft.apiKey.trim(),
       baseURL: draft.baseURL.trim(),
       model: draft.model.trim(),
+      openRouterMeta,
     });
+
+    setDraftOpenRouterMeta(openRouterMeta);
+    setOpenRouterMetaStatus(openRouterMeta ? "success" : "not_found");
 
     if (!activeProviderId) {
       await setActiveProviderId(draft.id);
@@ -500,6 +610,13 @@ export function SettingsPage() {
                   {t("settings.fetchModelsEmpty")}
                 </p>
               )}
+              {supportsOpenRouterMetaLookup(draft.id) && (
+                <OpenRouterMetaPanel
+                  meta={draftOpenRouterMeta}
+                  status={openRouterMetaStatus}
+                  errorMessage={openRouterMetaError}
+                />
+              )}
             </label>
 
             <label className="block">
@@ -525,6 +642,34 @@ export function SettingsPage() {
               </select>
               <span className="mt-1 block text-xs text-gray-500">
                 {t("settings.reasoningEffortHint")}
+              </span>
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-sm font-medium text-gray-700">
+                {t("settings.translationReasoningEffort")}
+              </span>
+              <select
+                value={
+                  draft.translationReasoningEffort ?? DEFAULT_TRANSLATION_REASONING_EFFORT
+                }
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    translationReasoningEffort: event.target.value as ReasoningEffort,
+                  }))
+                }
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                {...NO_AUTOFILL_INPUT_PROPS}
+              >
+                {REASONING_EFFORT_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {t(`reasoning.${value}`)}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-xs text-gray-500">
+                {t("settings.translationReasoningEffortHint")}
               </span>
             </label>
 
@@ -587,7 +732,9 @@ export function SettingsPage() {
               <legend className="sr-only">{t("settings.selectActiveProvider")}</legend>
               {providers.map((provider) => {
                 const expanded = expandedProviderIds.has(provider.id);
-                const reasoningEffort = provider.reasoningEffort ?? DEFAULT_REASONING_EFFORT;
+                const reasoningEffort = resolveDefaultReasoningEffort(provider);
+                const translationReasoningEffort =
+                  resolveTranslationReasoningEffort(provider);
 
                 return (
                   <div
@@ -654,11 +801,33 @@ export function SettingsPage() {
                           </dd>
                         </div>
                         <div>
+                          <dt className="font-medium text-gray-700">
+                            {t("settings.translationReasoningEffort")}
+                          </dt>
+                          <dd className="mt-0.5 text-gray-600">
+                            {t(`reasoning.${translationReasoningEffort}`)}
+                          </dd>
+                        </div>
+                        <div>
                           <dt className="font-medium text-gray-700">{t("settings.apiKey")}</dt>
                           <dd className="mt-0.5 font-mono text-xs text-gray-600">
                             {maskApiKey(provider.apiKey)}
                           </dd>
                         </div>
+                        {supportsOpenRouterMetaLookup(provider.id) && (
+                          <div>
+                            <OpenRouterMetaPanel
+                              meta={provider.openRouterMeta}
+                              status={
+                                provider.openRouterMeta
+                                  ? "success"
+                                  : provider.model.trim()
+                                    ? "not_found"
+                                    : "idle"
+                              }
+                            />
+                          </div>
+                        )}
                       </dl>
                     )}
                   </div>

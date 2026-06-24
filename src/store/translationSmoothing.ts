@@ -9,6 +9,7 @@ export type TranslationSmoothingSnapshot = {
   translationStatus: TranslationStatus;
   streamingTargets: Record<string, string>;
   streamingCompleteBlocks: Record<string, boolean>;
+  streamingDisplays: Record<string, string>;
   getDisplayTranslation: (blockId: string) => string | undefined;
 };
 

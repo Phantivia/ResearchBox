@@ -1,9 +1,9 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import type { CleanResult } from "@/core/cleaner";
 import type { ChatOptions, LLMProvider } from "@/core/llm";
 import { PaperIRSchema } from "@/core/ir";
 import { getTranslationDebugMetrics } from "./debugMetrics";
-import { transformToIR } from "./transform";
+import { resumeTranslation, transformToIR } from "./transform";
 
 function makeCleaned(overrides: Partial<CleanResult> = {}): CleanResult {
   return {
@@ -60,14 +60,6 @@ async function* streamText(text: string, chunkSize = 3): AsyncIterable<string> {
   for (let index = 0; index < text.length; index += chunkSize) {
     yield text.slice(index, index + chunkSize);
   }
-}
-
-function deferred<T = void>() {
-  let resolve!: (value: T | PromiseLike<T>) => void;
-  const promise = new Promise<T>((next) => {
-    resolve = next;
-  });
-  return { promise, resolve };
 }
 
 async function collectProgress(
@@ -305,163 +297,130 @@ describe("transformToIR", () => {
     }
   });
 
-  it("starts body translation after abstract stream begins and a 1s delay", async () => {
-    vi.useFakeTimers();
-    try {
-      const startedBatches: string[][] = [];
-      const releaseAbstract = deferred();
-      const releaseBody = deferred();
+  it("sends all abstract and body blocks in a single LLM request", async () => {
+    let callCount = 0;
+    const seenBlockIds: string[][] = [];
 
-      const provider = makeMockProvider((_i, opts) => {
-        const parsed = JSON.parse(opts.messages[0]?.content ?? "{}") as {
-          blocks?: { id: string }[];
-        };
-        const ids = (parsed.blocks ?? []).map((block) => block.id);
-        startedBatches.push(ids);
-
-        async function* delayedBatch() {
-          yield '{"translations":';
-          if (ids.includes("abs-1")) {
-            await releaseAbstract.promise;
-          } else {
-            await releaseBody.promise;
-          }
-          yield makeBatchJson(ids.map((id) => ({ id, translation: `[译] ${id}` })));
-        }
-
-        return delayedBatch();
-      });
-
-      const iterator = transformToIR(makeCleaned(), provider, {
-        targetLang: "zh-CN",
-        modelLabel: "test-model",
-      });
-
-      const first = await iterator.next();
-      expect(first.value?.type).toBe("structure");
-
-      const nextEvent = iterator.next();
-      await Promise.resolve();
-      await Promise.resolve();
-
-      expect(startedBatches).toEqual([["abs-1"]]);
-
-      await vi.advanceTimersByTimeAsync(999);
-      await Promise.resolve();
-      expect(startedBatches).toEqual([["abs-1"]]);
-
-      await vi.advanceTimersByTimeAsync(1);
-      await Promise.resolve();
-      expect(startedBatches).toEqual([
-        ["abs-1"],
-        ["h1", "p1", "p2"],
-      ]);
-
-      releaseAbstract.resolve();
-      const abstractEvent = await nextEvent;
-      expect(abstractEvent.value?.type).toBe("block-translated");
-      if (abstractEvent.value?.type === "block-translated") {
-        expect(abstractEvent.value.blockId).toBe("abs-1");
-      }
-
-      releaseBody.resolve();
-      for await (const event of iterator) {
-        if (event.type === "done") {
-          expect(event.ir.abstractBlocks[0]?.translation).toBe("[译] abs-1");
-          expect(event.ir.blocks.find((block) => block.id === "p1")?.translation).toBe(
-            "[译] p1",
-          );
-        }
-      }
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("includes preceding abstract blocks as context for the first body batch", async () => {
-    const seenContextIds: string[][] = [];
     const provider = makeMockProvider((_i, opts) => {
+      callCount += 1;
       const parsed = JSON.parse(opts.messages[0]?.content ?? "{}") as {
-        context?: { id: string }[];
         blocks?: { id: string }[];
       };
-      if ((parsed.blocks ?? []).some((block) => block.id === "h1")) {
-        seenContextIds.push((parsed.context ?? []).map((block) => block.id));
-      }
-
-      const ids = (parsed.blocks ?? []).map((block) => block.id);
-      const json = makeBatchJson(
-        ids.map((id) => ({ id, translation: `[译] ${id}` })),
-      );
+      seenBlockIds.push((parsed.blocks ?? []).map((b) => b.id));
+      const ids = (parsed.blocks ?? []).map((b) => b.id);
+      const json = makeBatchJson(ids.map((id) => ({ id, translation: `[译] ${id}` })));
       return opts.stream ? streamText(json) : json;
     });
 
-    await collectProgress(makeCleaned(), provider);
-    expect(seenContextIds).toEqual([["abs-1"]]);
+    const events = await collectProgress(makeCleaned(), provider);
+    const done = events[events.length - 1];
+
+    expect(callCount).toBe(1);
+    // All translatable blocks (abs-1 + h1 + p1 + p2) arrive in one call
+    expect(seenBlockIds[0]).toEqual(["abs-1", "h1", "p1", "p2"]);
+    expect(done?.type).toBe("done");
+    if (done?.type === "done") {
+      expect(done.ir.abstractBlocks[0]?.translation).toBe("[译] abs-1");
+      expect(done.ir.blocks.find((b) => b.id === "p1")?.translation).toBe("[译] p1");
+    }
   });
 
-  it("launches multiple body batches concurrently after abstract starts", async () => {
-    vi.useFakeTimers();
-    try {
-      const startedBodyBatches: string[][] = [];
-      const releaseBody = deferred();
-      const cleaned = makeCleaned({
-        blocks: [
-          { id: "p1", type: "paragraph", content: `${"x".repeat(3500)}.` },
-          { id: "p2", type: "paragraph", content: `${"y".repeat(3500)}.` },
-        ],
-      });
-
-      const provider = makeMockProvider((_i, opts) => {
-        const parsed = JSON.parse(opts.messages[0]?.content ?? "{}") as {
-          blocks?: { id: string }[];
-        };
-        const ids = (parsed.blocks ?? []).map((block) => block.id);
-
-        async function* delayedBatch() {
-          if (ids.includes("abs-1")) {
-            yield makeBatchJson([{ id: "abs-1", translation: "[译] abs-1" }]);
-            return;
-          }
-
-          startedBodyBatches.push(ids);
-          yield '{"translations":';
-          await releaseBody.promise;
-          yield makeBatchJson(ids.map((id) => ({ id, translation: `[译] ${id}` })));
-        }
-
-        return delayedBatch();
-      });
-
-      const iterator = transformToIR(cleaned, provider, {
-        targetLang: "zh-CN",
-        modelLabel: "test-model",
-      });
-
-      await iterator.next();
-      const nextEvent = iterator.next();
-      await Promise.resolve();
-      await Promise.resolve();
-      await vi.advanceTimersByTimeAsync(1000);
-      await Promise.resolve();
-
-      expect(startedBodyBatches.length).toBe(2);
-      expect(startedBodyBatches.flat().sort()).toEqual(["p1", "p2"]);
-
-      releaseBody.resolve();
-      await nextEvent;
-      for await (const event of iterator) {
-        if (event.type === "done") {
-          expect(event.ir.blocks.find((block) => block.id === "p1")?.translation).toBe(
-            "[译] p1",
-          );
-          expect(event.ir.blocks.find((block) => block.id === "p2")?.translation).toBe(
-            "[译] p2",
-          );
-        }
+  it("does not write partial text to IR — only complete events update IR", async () => {
+    const provider = makeMockProvider((_i, opts) => {
+      if (!opts.stream) {
+        return makeBatchJson([{ id: "p1", translation: "完整译文。" }]);
       }
-    } finally {
-      vi.useRealTimers();
+      return streamText(
+        '{"translations":[{"id":"p1","translation":"完整译文。"}]}',
+        2,
+      );
+    });
+
+    const cleaned = makeCleaned({
+      abstractBlocks: [],
+      blocks: [{ id: "p1", type: "paragraph", content: "Some paragraph." }],
+    });
+
+    const events = await collectProgress(cleaned, provider);
+
+    // Partial events must have partial=true and must NOT have set IR translation
+    const partials = events.filter(
+      (e) => e.type === "block-translated" && e.partial === true,
+    );
+    expect(partials.length).toBeGreaterThan(0);
+
+    // The complete event has partial=false and sets translation in IR
+    const complete = events.find(
+      (e) => e.type === "block-translated" && e.partial !== true,
+    );
+    expect(complete?.type).toBe("block-translated");
+    if (complete?.type === "block-translated") {
+      expect(complete.blockId).toBe("p1");
+      expect(complete.translation).toBe("完整译文。");
+    }
+
+    const done = events[events.length - 1];
+    expect(done?.type).toBe("done");
+    if (done?.type === "done") {
+      expect(done.ir.blocks[0]?.translation).toBe("完整译文。");
+    }
+  });
+
+  it("resume translation uses continue prompt with completed blocks in context", async () => {
+    const seenMessages: { completed?: { id: string }[]; blocks?: { id: string }[] }[] = [];
+
+    const provider = makeMockProvider((_i, opts) => {
+      const parsed = JSON.parse(opts.messages[0]?.content ?? "{}") as {
+        completed?: { id: string }[];
+        blocks?: { id: string }[];
+      };
+      seenMessages.push(parsed);
+      const ids = (parsed.blocks ?? []).map((b) => b.id);
+      const json = makeBatchJson(ids.map((id) => ({ id, translation: `[译] ${id}` })));
+      return opts.stream ? streamText(json) : json;
+    });
+
+    const cachedIr = {
+      arxivId: "2401.00001",
+      version: "v1",
+      title: "Test Paper",
+      authors: ["Alice"],
+      abstract: "An abstract.",
+      abstractBlocks: [
+        { id: "abs-1", type: "paragraph" as const, content: "An abstract.", translation: "已译摘要。" },
+      ],
+      blocks: [
+        { id: "h1", type: "heading" as const, level: 2, content: "Introduction", translation: "引言" },
+        { id: "p1", type: "paragraph" as const, content: "First paragraph." },
+        { id: "p2", type: "paragraph" as const, content: "Second paragraph." },
+      ],
+      references: [],
+      createdAt: 0,
+      modelUsed: "old-model",
+    };
+
+    const events = [];
+    for await (const event of resumeTranslation(cachedIr as Parameters<typeof resumeTranslation>[0], provider, {
+      targetLang: "zh-CN",
+      modelLabel: "test-model",
+    })) {
+      events.push(event);
+    }
+
+    // Only pending blocks (p1, p2) should be in `blocks`; completed go in `completed`
+    const msg = seenMessages[0];
+    expect(msg?.blocks?.map((b) => b.id)).toEqual(["p1", "p2"]);
+    expect(msg?.completed?.map((b) => b.id)).toEqual(["abs-1", "h1"]);
+
+    const done = events[events.length - 1];
+    expect(done?.type).toBe("done");
+    if (done?.type === "done") {
+      // Already-translated blocks preserved
+      expect(done.ir.abstractBlocks[0]?.translation).toBe("已译摘要。");
+      expect(done.ir.blocks.find((b) => b.id === "h1")?.translation).toBe("引言");
+      // Newly translated
+      expect(done.ir.blocks.find((b) => b.id === "p1")?.translation).toBe("[译] p1");
+      expect(done.ir.blocks.find((b) => b.id === "p2")?.translation).toBe("[译] p2");
     }
   });
 });

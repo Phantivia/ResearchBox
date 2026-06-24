@@ -25,11 +25,21 @@ export {
   type TranslationUnit,
 } from "./chunk";
 export {
+  buildContinueRetryUserPrompt,
+  buildContinueTranslationSystemPrompt,
+  buildContinueTranslationUserPrompt,
   buildRetryUserPrompt,
   buildTranslationSystemPrompt,
   buildTranslationUserPrompt,
+  type CompletedBlock,
   type PromptBlock,
 } from "./prompts";
+export {
+  buildFullTranslationPayload,
+  buildResumeTranslationPayload,
+  type FullTranslationPayload,
+  type ResumeTranslationPayload,
+} from "./chunk";
 export {
   getTranslationDebugMetrics,
   TRANSLATION_DEBUG_META_KEY,

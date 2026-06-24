@@ -145,6 +145,7 @@ export function Reader() {
     translationStatus,
     degradedReason,
     error,
+    streamingDisplays,
     setLoading,
     setError,
     setPaper,
@@ -557,6 +558,7 @@ export function Reader() {
             translationPending={isTranslating}
             translationStarted={translationStarted}
             debugMode={debugMode}
+            streamingDisplays={streamingDisplays}
           />
         </header>
 
@@ -571,6 +573,7 @@ export function Reader() {
             translationPending={isTranslating}
             translationStarted={translationStarted}
             debugMode={debugMode}
+            streamingDisplays={streamingDisplays}
           />
         </AnnotationLayer>
         </div>

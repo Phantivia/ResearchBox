@@ -27,7 +27,7 @@ Translate the given content blocks into zh.
 Rules:
 - Output ONLY valid JSON. No Markdown code fences, no preamble, no trailing commentary.
 - Schema: { "translations": [ { "id": "<block id>", "translation": "<translated text>" } ] }
-- Preserve technical terminology; do not translate proper nouns unless a standard localized form exists.
+- For domain-specific technical terms, provide the localized translation followed immediately by the original term in parentheses — e.g. 注意力机制（attention mechanism）. Keep proper nouns unchanged unless a well-established localized form exists.
 - Do NOT translate math or code blocks (they are not included in input).
 - Content may contain inline HTML (e.g. <cite>, <a>, <em>). Keep every tag and ALL its attributes (href, data-ref, class, id) byte-for-byte unchanged; only translate the human-readable text between tags.
 - Do not add, drop, or reorder any HTML tags.

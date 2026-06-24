@@ -182,6 +182,47 @@ describe("PaperRenderer view modes", () => {
     }
   });
 
+  it("streamingDisplays shows partial text in primary color for in-flight blocks", () => {
+    const paper = createFixturePaper();
+    // p-untranslated has no block.translation, but has a streaming partial
+    const streamingDisplays: Record<string, string> = { "p-untranslated": "流式中..." };
+    render(
+      <PaperRenderer
+        paper={paper}
+        viewMode="translation"
+        translationStarted
+        streamingDisplays={streamingDisplays}
+      />,
+    );
+
+    // The partial text is visible
+    const streamingEl = screen.getByText("流式中...");
+    expect(streamingEl).toBeInTheDocument();
+
+    // The streaming element itself (or its direct parent) carries the primary color class
+    const hasPrimaryColor =
+      (streamingEl as HTMLElement).className.includes("rb-primary") ||
+      (streamingEl.parentElement?.className ?? "").includes("rb-primary");
+    expect(hasPrimaryColor).toBe(true);
+  });
+
+  it("streamingDisplays: complete block.translation renders without primary color", () => {
+    const paper = createFixturePaper();
+    // p-translated already has block.translation set — no streaming display
+    render(
+      <PaperRenderer paper={paper} viewMode="translation" translationStarted />,
+    );
+
+    const completedEl = screen.getByText("译文段落。");
+    expect(completedEl).toBeInTheDocument();
+
+    // Complete translation must NOT carry primary color on the span or its parent
+    const hasPrimaryColor =
+      (completedEl as HTMLElement).className.includes("rb-primary") ||
+      (completedEl.parentElement?.className ?? "").includes("rb-primary");
+    expect(hasPrimaryColor).toBe(false);
+  });
+
   it("shows collapsed debug details after translated blocks in debug mode", () => {
     const paper = createFixturePaper();
     paper.blocks[2] = {

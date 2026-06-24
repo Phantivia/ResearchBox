@@ -10,6 +10,7 @@ export interface AbstractSectionProps {
   translationPending: boolean;
   translationStarted?: boolean;
   debugMode?: boolean;
+  streamingDisplays?: Record<string, string>;
 }
 
 export function AbstractSection({
@@ -20,6 +21,7 @@ export function AbstractSection({
   translationPending,
   translationStarted = false,
   debugMode = false,
+  streamingDisplays,
 }: AbstractSectionProps) {
   if (blocks.length === 0 && !abstract) {
     return null;
@@ -38,6 +40,7 @@ export function AbstractSection({
           translationPending={translationPending}
           translationStarted={translationStarted}
           debugMode={debugMode}
+          streamingDisplays={streamingDisplays}
           className="paper-content mt-2 leading-relaxed text-[var(--rb-text-primary)]"
         />
       ) : (

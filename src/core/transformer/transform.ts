@@ -1,19 +1,24 @@
-import type { CleanBlock, CleanResult } from "@/core/cleaner";
+import type { CleanResult } from "@/core/cleaner";
 import type { LLMProvider } from "@/core/llm";
 import { PaperIRSchema, type Block, type PaperIR } from "@/core/ir";
 import {
-  chunkAbstractBlocksForTranslation,
-  chunkBlocksForTranslation,
-  DEFAULT_MAX_CHUNK_CHARS,
+  buildFullTranslationPayload,
+  buildResumeTranslationPayload,
   isTranslatableBlock,
   unitPromptId,
-  type TranslationChunk,
+  type FullTranslationPayload,
+  type ResumeTranslationPayload,
   type TranslationUnit,
 } from "./chunk";
 import {
+  buildContinueRetryUserPrompt,
+  buildContinueTranslationSystemPrompt,
+  buildContinueTranslationUserPrompt,
   buildRetryUserPrompt,
   buildTranslationSystemPrompt,
   buildTranslationUserPrompt,
+  type CompletedBlock,
+  type PromptBlock,
 } from "./prompts";
 import {
   extractStreamingTranslationUpdates,
@@ -25,7 +30,7 @@ import {
   withTranslationDebugMetrics,
   type TranslationDebugMetrics,
 } from "./debugMetrics";
-import { hasCompleteTranslation, isPaperTranslationComplete } from "./completion";
+import { isPaperTranslationComplete } from "./completion";
 
 export type CleanedResult = CleanResult;
 
@@ -36,7 +41,7 @@ export type TransformProgress =
       blockId: string;
       translation: string;
       partial?: boolean;
-    debugMetrics?: TranslationDebugMetrics;
+      debugMetrics?: TranslationDebugMetrics;
     }
   | { type: "done"; ir: PaperIR }
   | { type: "degraded"; ir: PaperIR; reason: string };
@@ -51,37 +56,11 @@ export type TransformOpts = {
 };
 
 const MAX_RETRIES = 2;
-const BODY_DELAY_AFTER_ABSTRACT_STREAM_MS = 1000;
 
 function assertNotAborted(signal?: AbortSignal): void {
   if (signal?.aborted) {
     throw new DOMException("Transform aborted", "AbortError");
   }
-}
-
-function delay(ms: number, signal?: AbortSignal): Promise<void> {
-  if (ms <= 0) {
-    return Promise.resolve();
-  }
-
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      signal?.removeEventListener("abort", onAbort);
-      resolve();
-    }, ms);
-
-    const onAbort = () => {
-      clearTimeout(timer);
-      reject(new DOMException("Transform aborted", "AbortError"));
-    };
-
-    if (signal?.aborted) {
-      onAbort();
-      return;
-    }
-
-    signal?.addEventListener("abort", onAbort, { once: true });
-  });
 }
 
 function cleanedToBlocks(cleaned: CleanResult): Block[] {
@@ -154,31 +133,6 @@ function cloneIr(ir: PaperIR): PaperIR {
   return PaperIRSchema.parse(structuredClone(ir));
 }
 
-function chunkBlocksNeedingTranslation(
-  blocks: Block[],
-  precedingBlocks: Block[] = [],
-): TranslationChunk[] {
-  const pending = blocks.filter(
-    (block) =>
-      isTranslatableBlock(block as CleanBlock) &&
-      !hasCompleteTranslation(block),
-  );
-  return chunkBlocksForTranslation(
-    pending as CleanBlock[],
-    DEFAULT_MAX_CHUNK_CHARS,
-    precedingBlocks as CleanBlock[],
-  );
-}
-
-function chunkAbstractBlocksNeedingTranslation(blocks: Block[]): TranslationChunk[] {
-  const pending = blocks.filter(
-    (block) =>
-      isTranslatableBlock(block as CleanBlock) &&
-      !hasCompleteTranslation(block),
-  );
-  return chunkAbstractBlocksForTranslation(pending as CleanBlock[]);
-}
-
 type TranslationStreamUpdate = {
   blockId: string;
   promptId: string;
@@ -189,28 +143,11 @@ type TranslationStreamUpdate = {
   debugMetrics?: TranslationDebugMetrics;
 };
 
-type TranslationBatchEvent =
-  | {
-      type: "update";
-      update: TranslationStreamUpdate;
-    }
-  | {
-      type: "settled";
-      chunk: TranslationChunk;
-      translatedPromptIds: Set<string>;
-      error?: unknown;
-    };
-
-type TranslateBatchHooks = {
-  onStreamStart?: () => void;
-};
-
 type DebugBatchContext = {
   enabled: boolean;
   providerId: string;
   modelLabel: string;
   targetLang: string;
-  batchIndex: number;
 };
 
 function nowMs(): number {
@@ -255,7 +192,7 @@ function buildDebugMetrics(
     providerId: context.providerId,
     modelLabel: context.modelLabel,
     targetLang: context.targetLang,
-    batchIndex: context.batchIndex,
+    batchIndex: 0,
     blockId: block.id,
     inputChars: blockInputChars,
     outputChars: translation.length,
@@ -345,35 +282,45 @@ function mapPromptTranslationUpdate(
   };
 }
 
+type TranslateMode = "fresh" | "resume";
+
+type SingleBatchPayload = {
+  mode: TranslateMode;
+  units: TranslationUnit[];
+  promptBlocks: PromptBlock[];
+  completedBlocks?: CompletedBlock[];
+};
+
 async function* translateBatch(
   provider: LLMProvider,
-  translationChunk: TranslationChunk,
+  payload: SingleBatchPayload,
   targetLang: string,
   debugContext: DebugBatchContext,
   signal?: AbortSignal,
-  hooks?: TranslateBatchHooks,
 ): AsyncGenerator<TranslationStreamUpdate> {
-  const promptBlocks = translationChunk.units.map((unit) => ({
-    id: unitPromptId(unit),
-    content: unit.content,
-  }));
-  const system = buildTranslationSystemPrompt(targetLang);
-  const unitByPromptId = new Map(
-    translationChunk.units.map((unit) => [unitPromptId(unit), unit]),
-  );
+  const { mode, units, promptBlocks, completedBlocks = [] } = payload;
+  const system =
+    mode === "resume"
+      ? buildContinueTranslationSystemPrompt(targetLang)
+      : buildTranslationSystemPrompt(targetLang);
+  const unitByPromptId = new Map(units.map((unit) => [unitPromptId(unit), unit]));
   let lastOutput = "";
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     assertNotAborted(signal);
 
-    const userContent =
-      attempt === 0
-        ? buildTranslationUserPrompt(promptBlocks, translationChunk.contextBlocks)
-        : buildRetryUserPrompt(
-            promptBlocks,
-            lastOutput,
-            translationChunk.contextBlocks,
-          );
+    let userContent: string;
+    if (attempt === 0) {
+      userContent =
+        mode === "resume"
+          ? buildContinueTranslationUserPrompt(completedBlocks, promptBlocks)
+          : buildTranslationUserPrompt(promptBlocks);
+    } else {
+      userContent =
+        mode === "resume"
+          ? buildContinueRetryUserPrompt(completedBlocks, promptBlocks, lastOutput)
+          : buildRetryUserPrompt(promptBlocks, lastOutput);
+    }
 
     const streamState: StreamingTranslationState = {
       completedIds: new Set(),
@@ -396,16 +343,8 @@ async function* translateBatch(
       signal,
     });
 
-    let streamStarted = false;
-    const markStreamStarted = () => {
-      if (streamStarted) return;
-      streamStarted = true;
-      hooks?.onStreamStart?.();
-    };
-
     if (isAsyncIterable(chatResult)) {
       for await (const textChunk of chatResult) {
-        markStreamStarted();
         streamed = true;
         if (firstContentAt === null) {
           firstContentAt = nowMs();
@@ -413,44 +352,8 @@ async function* translateBatch(
         accumulated += textChunk;
         const updates = extractStreamingTranslationUpdates(accumulated, streamState);
         for (const update of updates) {
-          const firstTranslationAt = recordFirstTranslationAt(
-            firstTranslationAtById,
-            update,
-          );
-          const mapped = mapPromptTranslationUpdate(
-            update,
-            unitByPromptId,
-            debugContext,
-            {
-              attempt: attempt + 1,
-              inputUserChars,
-              inputSystemChars,
-              batchInputTokens,
-              requestStartedAt,
-              firstContentAt,
-              firstTranslationAt,
-              completedAt: nowMs(),
-              streamed,
-            },
-          );
-          if (mapped) {
-            yield mapped;
-          }
-        }
-      }
-    } else {
-      const raw = await chatResult;
-      markStreamStarted();
-      firstContentAt = nowMs();
-      accumulated = raw;
-      for (const update of extractStreamingTranslationUpdates(raw, streamState)) {
-        const firstTranslationAt =
-          recordFirstTranslationAt(firstTranslationAtById, update);
-        const mapped = mapPromptTranslationUpdate(
-          update,
-          unitByPromptId,
-          debugContext,
-          {
+          const firstTranslationAt = recordFirstTranslationAt(firstTranslationAtById, update);
+          const mapped = mapPromptTranslationUpdate(update, unitByPromptId, debugContext, {
             attempt: attempt + 1,
             inputUserChars,
             inputSystemChars,
@@ -460,8 +363,29 @@ async function* translateBatch(
             firstTranslationAt,
             completedAt: nowMs(),
             streamed,
-          },
-        );
+          });
+          if (mapped) {
+            yield mapped;
+          }
+        }
+      }
+    } else {
+      const raw = await chatResult;
+      firstContentAt = nowMs();
+      accumulated = raw;
+      for (const update of extractStreamingTranslationUpdates(raw, streamState)) {
+        const firstTranslationAt = recordFirstTranslationAt(firstTranslationAtById, update);
+        const mapped = mapPromptTranslationUpdate(update, unitByPromptId, debugContext, {
+          attempt: attempt + 1,
+          inputUserChars,
+          inputSystemChars,
+          batchInputTokens,
+          requestStartedAt,
+          firstContentAt,
+          firstTranslationAt,
+          completedAt: nowMs(),
+          streamed,
+        });
         if (mapped) {
           yield mapped;
         }
@@ -481,11 +405,7 @@ async function* translateBatch(
               translation: item.translation,
             }) ?? completedAt;
           const mapped = mapPromptTranslationUpdate(
-            {
-              blockId: item.id,
-              translation: item.translation,
-              complete: true,
-            },
+            { blockId: item.id, translation: item.translation, complete: true },
             unitByPromptId,
             debugContext,
             {
@@ -516,161 +436,41 @@ async function* translateBatch(
   throw new Error("Translation batch failed");
 }
 
-async function* translateChunksStaged(
-  provider: LLMProvider,
-  abstractChunks: TranslationChunk[],
-  bodyChunks: TranslationChunk[],
-  targetLang: string,
-  debugContextBase: Omit<DebugBatchContext, "batchIndex">,
-  signal?: AbortSignal,
-): AsyncGenerator<TranslationBatchEvent> {
-  const queue: TranslationBatchEvent[] = [];
-  let activeCount = 0;
-  let bodyLaunchScheduled = false;
-  let pendingLaunches = 0;
-  let nextBatchIndex = 0;
-  let wake: (() => void) | undefined;
-
-  const notify = () => {
-    wake?.();
-    wake = undefined;
-  };
-
-  const enqueue = (event: TranslationBatchEvent) => {
-    queue.push(event);
-    notify();
-  };
-
-  const runChunk = async (
-    chunk: TranslationChunk,
-    hooks?: TranslateBatchHooks,
-  ): Promise<void> => {
-    activeCount += 1;
-    const batchIndex = nextBatchIndex;
-    nextBatchIndex += 1;
-    const translatedPromptIds = new Set<string>();
-    try {
-      for await (const update of translateBatch(
-        provider,
-        chunk,
-        targetLang,
-        { ...debugContextBase, batchIndex },
-        signal,
-        hooks,
-      )) {
-        translatedPromptIds.add(update.promptId);
-        enqueue({ type: "update", update });
-      }
-      enqueue({ type: "settled", chunk, translatedPromptIds });
-    } catch (error) {
-      enqueue({ type: "settled", chunk, translatedPromptIds, error });
-    } finally {
-      activeCount -= 1;
-      notify();
-    }
-  };
-
-  const launchBodyBatches = async (delayMs: number) => {
-    try {
-      await delay(delayMs, signal);
-      await Promise.all(bodyChunks.map((chunk) => runChunk(chunk)));
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") {
-        throw error;
-      }
-    }
-  };
-
-  const scheduleBodyLaunch = (delayMs: number) => {
-    if (bodyLaunchScheduled || bodyChunks.length === 0) {
-      return;
-    }
-    bodyLaunchScheduled = true;
-    pendingLaunches += 1;
-    void launchBodyBatches(delayMs).catch((error) => {
-      if (error instanceof DOMException && error.name === "AbortError") {
-        return;
-      }
-      throw error;
-    }).finally(() => {
-      pendingLaunches -= 1;
-      notify();
-    });
-  };
-
-  if (abstractChunks.length > 0) {
-    void (async () => {
-      for (const chunk of abstractChunks) {
-        try {
-          await runChunk(chunk, {
-            onStreamStart: () =>
-              scheduleBodyLaunch(BODY_DELAY_AFTER_ABSTRACT_STREAM_MS),
-          });
-        } finally {
-          if (!bodyLaunchScheduled && bodyChunks.length > 0) {
-            scheduleBodyLaunch(0);
-          }
-        }
-      }
-    })();
-  } else if (bodyChunks.length > 0) {
-    scheduleBodyLaunch(0);
-  }
-
-  while (activeCount > 0 || pendingLaunches > 0 || queue.length > 0) {
-    while (queue.length > 0) {
-      const event = queue.shift();
-      if (event) {
-        yield event;
-      }
-    }
-
-    if (activeCount === 0 && pendingLaunches === 0) {
-      break;
-    }
-
-    await new Promise<void>((resolve) => {
-      wake = resolve;
-    });
-  }
-}
-
-async function* translateIrBlocks(
+async function* translateIrBlocksOnce(
   ir: PaperIR,
   provider: LLMProvider,
   opts: TransformOpts,
-  abstractChunks: TranslationChunk[],
-  bodyChunks: TranslationChunk[],
+  batchPayload: FullTranslationPayload | ResumeTranslationPayload,
+  mode: TranslateMode,
 ): AsyncGenerator<TransformProgress> {
-  if (abstractChunks.length === 0 && bodyChunks.length === 0) {
+  const { units, promptBlocks } = batchPayload;
+  const completedBlocks = "completedBlocks" in batchPayload ? batchPayload.completedBlocks : [];
+
+  if (units.length === 0) {
     yield { type: "done", ir: PaperIRSchema.parse(ir) };
     return;
   }
 
-  let successfulBatches = 0;
-  let firstFailureReason = "";
   const partTranslations = new Map<string, Map<number, string>>();
 
-  const applyTranslationUpdate = (
+  const applyUpdate = (
     update: TranslationStreamUpdate,
   ): { applied: boolean; translation: string; complete: boolean } => {
+    if (!update.complete) {
+      // Partial: don't write to IR — UI shows streaming display only
+      if (update.partCount === 1) {
+        return { applied: false, translation: update.translation, complete: false };
+      }
+      return { applied: false, translation: "", complete: false };
+    }
+
+    // Complete single-part
     if (update.partCount === 1) {
       applyTranslation(ir, update.blockId, update.translation);
-      return {
-        applied: true,
-        translation: update.translation,
-        complete: update.complete,
-      };
+      return { applied: true, translation: update.translation, complete: true };
     }
 
-    if (!update.complete) {
-      return {
-        applied: false,
-        translation: update.translation,
-        complete: false,
-      };
-    }
-
+    // Complete multi-part: accumulate parts, apply when all arrive
     let parts = partTranslations.get(update.blockId);
     if (!parts) {
       parts = new Map();
@@ -690,109 +490,88 @@ async function* translateIrBlocks(
     return { applied: true, translation: merged, complete: true };
   };
 
-  const markChunkBlocksMissing = (chunk: TranslationChunk): void => {
-    const blockIds = new Set(chunk.units.map((unit) => unit.blockId));
-    for (const blockId of blockIds) {
-      const target = findBlock(ir, blockId);
-      if (target) {
-        replaceBlock(ir, blockId, markTranslationMissing(target));
-      }
-    }
-  };
+  let succeeded = false;
 
-  for await (const event of translateChunksStaged(
-    provider,
-    abstractChunks,
-    bodyChunks,
-    opts.targetLang,
-    {
-      enabled: opts.debugMode === true,
-      providerId: provider.id,
-      modelLabel: opts.modelLabel,
-      targetLang: opts.targetLang,
-    },
-    opts.signal,
-  )) {
-    assertNotAborted(opts.signal);
+  try {
+    for await (const update of translateBatch(
+      provider,
+      { mode, units, promptBlocks, completedBlocks },
+      opts.targetLang,
+      {
+        enabled: opts.debugMode === true,
+        providerId: provider.id,
+        modelLabel: opts.modelLabel,
+        targetLang: opts.targetLang,
+      },
+      opts.signal,
+    )) {
+      assertNotAborted(opts.signal);
 
-    if (event.type === "update") {
-      const applied = applyTranslationUpdate(event.update);
-      if (applied.applied && event.update.debugMetrics) {
-        const block = findBlock(ir, event.update.blockId);
-        if (block) {
-          replaceBlock(
-            ir,
-            event.update.blockId,
-            withTranslationDebugMetrics(block, event.update.debugMetrics),
-          );
+      const result = applyUpdate(update);
+
+      if (result.complete && result.applied) {
+        if (update.debugMetrics) {
+          const block = findBlock(ir, update.blockId);
+          if (block) {
+            replaceBlock(ir, update.blockId, withTranslationDebugMetrics(block, update.debugMetrics));
+          }
         }
-      }
-      if (applied.applied) {
         yield {
           type: "block-translated",
-          blockId: event.update.blockId,
-          translation: applied.translation,
-          partial: !applied.complete,
-          debugMetrics: event.update.debugMetrics,
+          blockId: update.blockId,
+          translation: result.translation,
+          partial: false,
+          debugMetrics: update.debugMetrics,
         };
-      } else if (event.update.partCount === 1) {
+      } else if (!result.complete && update.partCount === 1) {
+        // Partial single-part: surface for streaming UI display
         yield {
           type: "block-translated",
-          blockId: event.update.blockId,
-          translation: event.update.translation,
+          blockId: update.blockId,
+          translation: update.translation,
           partial: true,
-          debugMetrics: event.update.debugMetrics,
         };
       }
-      continue;
     }
 
-    if (event.error) {
-      if (event.error instanceof DOMException && event.error.name === "AbortError") {
-        throw event.error;
-      }
-
-      firstFailureReason ||= event.error instanceof Error
-        ? event.error.message
-        : "LLM provider failed";
-
-      markChunkBlocksMissing(event.chunk);
-      continue;
+    succeeded = true;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw error;
     }
 
-    successfulBatches += 1;
-
-    for (const unit of event.chunk.units) {
-      if (!event.translatedPromptIds.has(unitPromptId(unit))) {
-        const target = findBlock(ir, unit.blockId);
-        if (target) {
-          replaceBlock(ir, unit.blockId, markTranslationMissing(target));
-        }
+    // Mark any untranslated blocks as missing
+    const unitBlockIds = new Set(units.map((u) => u.blockId));
+    for (const blockId of unitBlockIds) {
+      const block = findBlock(ir, blockId);
+      if (block && !block.translation) {
+        replaceBlock(ir, blockId, markTranslationMissing(block));
       }
     }
+
+    const reason = error instanceof Error ? error.message : "LLM provider failed";
+    yield { type: "degraded", ir: PaperIRSchema.parse(ir), reason };
+    return;
   }
 
-  const finalIr = PaperIRSchema.parse(ir);
-
-  if (firstFailureReason && successfulBatches === 0) {
+  if (!succeeded) {
     yield {
       type: "degraded",
-      ir: finalIr,
-      reason: firstFailureReason,
+      ir: PaperIRSchema.parse(ir),
+      reason: "Translation failed",
     };
     return;
   }
 
-  if (successfulBatches === 0) {
-    yield {
-      type: "degraded",
-      ir: finalIr,
-      reason: "All translation batches failed",
-    };
-    return;
+  // Mark any blocks that the LLM silently omitted
+  for (const unit of units) {
+    const block = findBlock(ir, unit.blockId);
+    if (block && !block.translation) {
+      replaceBlock(ir, unit.blockId, markTranslationMissing(block));
+    }
   }
 
-  yield { type: "done", ir: finalIr };
+  yield { type: "done", ir: PaperIRSchema.parse(ir) };
 }
 
 export function applyTranslationToIr(
@@ -820,14 +599,6 @@ export async function* transformToIR(
     },
   };
 
-  const abstractChunks = chunkAbstractBlocksForTranslation(
-    cleaned.abstractBlocks,
-  );
-  const bodyChunks = chunkBlocksForTranslation(
-    cleaned.blocks,
-    DEFAULT_MAX_CHUNK_CHARS,
-    cleaned.abstractBlocks,
-  );
   const translatableCount =
     cleaned.abstractBlocks.filter(isTranslatableBlock).length +
     cleaned.blocks.filter(isTranslatableBlock).length;
@@ -837,7 +608,12 @@ export async function* transformToIR(
     return;
   }
 
-  yield* translateIrBlocks(ir, provider, opts, abstractChunks, bodyChunks);
+  const payload = buildFullTranslationPayload(
+    cleaned.abstractBlocks,
+    cleaned.blocks,
+  );
+
+  yield* translateIrBlocksOnce(ir, provider, opts, payload, "fresh");
 }
 
 export async function* resumeTranslation(
@@ -855,10 +631,6 @@ export async function* resumeTranslation(
     return;
   }
 
-  const abstractChunks = chunkAbstractBlocksNeedingTranslation(ir.abstractBlocks);
-  const bodyChunks = chunkBlocksNeedingTranslation(
-    ir.blocks,
-    ir.abstractBlocks,
-  );
-  yield* translateIrBlocks(ir, provider, opts, abstractChunks, bodyChunks);
+  const payload = buildResumeTranslationPayload(ir);
+  yield* translateIrBlocksOnce(ir, provider, opts, payload, "resume");
 }

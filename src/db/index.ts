@@ -284,6 +284,7 @@ export async function saveSettings(
 }
 
 export { db };
+export type PaperIRDatabase = typeof db;
 export {
   addAnnotation,
   deleteAnnotation,

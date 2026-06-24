@@ -1,6 +1,6 @@
 import { fetchWithRetry } from "../http";
+import { resolveDefaultReasoningEffort } from "../providerReasoning";
 import {
-  DEFAULT_REASONING_EFFORT,
   type ChatOptions,
   type LLMProvider,
   type ProviderConfig,
@@ -66,9 +66,13 @@ export class OpenAICompatibleProvider implements LLMProvider {
       body.response_format = { type: "json_object" };
     }
 
-    const effort = this.config.reasoningEffort ?? DEFAULT_REASONING_EFFORT;
+    const effort = resolveDefaultReasoningEffort(this.config);
     if (effort !== "off") {
       body.reasoning_effort = effort;
+    }
+
+    if (this.config.id === "deepseek") {
+      body.thinking = { type: effort === "off" ? "disabled" : "enabled" };
     }
 
     return body;

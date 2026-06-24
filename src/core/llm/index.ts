@@ -4,22 +4,42 @@ import { listOpenAICompatibleModels } from "./providers/openai";
 import type { ProviderConfig } from "./types";
 
 export type {
+  AssistantMessage,
+  AgentContentBlock,
   ChatOptions,
   LLMProvider,
   Message,
   ProviderConfig,
   ReasoningEffort,
+  StreamEvent,
+  ToolSchema,
 } from "./types";
-export { DEFAULT_REASONING_EFFORT } from "./types";
+export { DEFAULT_REASONING_EFFORT, DEFAULT_TRANSLATION_REASONING_EFFORT } from "./types";
 export { LLMError } from "./http";
 export { parseSSEStream } from "./sse";
 export { createProvider } from "./createProvider";
+export {
+  providerConfigForTranslation,
+  resolveDefaultReasoningEffort,
+  resolveTranslationReasoningEffort,
+} from "./providerReasoning";
 export {
   diagnoseConnectionHints,
   testProviderConnection,
   type ConnectionTestHintCode,
   type ProviderConnectionTestResult,
 } from "./testConnection";
+export type { StoredOpenRouterModelMeta } from "./openrouterSchema";
+export {
+  OPENROUTER_MODELS_URL,
+  buildOpenRouterLookupIds,
+  fetchOpenRouterModelsCatalog,
+  findOpenRouterModel,
+  normalizeOpenRouterModelMeta,
+  resetOpenRouterModelsCatalogCache,
+  resolveOpenRouterModelMetadata,
+  supportsOpenRouterMetaLookup,
+} from "./openrouterModelMeta";
 
 const MODEL_LISTING_PROVIDER_IDS = new Set([
   "openai",
