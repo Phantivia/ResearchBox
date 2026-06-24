@@ -6,6 +6,7 @@ import {
 } from "@/core/agent/provenance";
 import { useTranslation } from "@/i18n";
 import { ProvenanceBadge } from "./ProvenanceBadge";
+import { PythonCodePanel } from "./PythonCodePanel";
 import { SearchResultCard } from "./SearchResultCard";
 
 const RESULT_PREVIEW_LINES = 4;
@@ -43,6 +44,20 @@ function parseAcademicSearchHits(result: string): AcademicHit[] | null {
   } catch {
     return null;
   }
+}
+
+function parsePythonInput(input: unknown): { code: string; purpose?: string } | null {
+  if (!input || typeof input !== "object") {
+    return null;
+  }
+  const record = input as Record<string, unknown>;
+  if (typeof record.code !== "string") {
+    return null;
+  }
+  return {
+    code: record.code,
+    purpose: typeof record.purpose === "string" ? record.purpose : undefined,
+  };
 }
 
 function formatJson(value: unknown): string {
@@ -107,6 +122,7 @@ export function ToolCallCard({
   const [inputExpanded, setInputExpanded] = useState(false);
   const [resultExpanded, setResultExpanded] = useState(false);
   const running = result === undefined;
+  const pythonInput = name === "python" ? parsePythonInput(input) : null;
   const inputJson = formatJson(input);
   const formattedResult = result !== undefined ? formatResultText(result) : undefined;
   const academicHits =
@@ -150,39 +166,65 @@ export function ToolCallCard({
       </div>
 
       <div className="border-t border-[var(--rb-border)] px-3 py-2">
-        <button
-          type="button"
-          onClick={() => setInputExpanded((value) => !value)}
-          className="flex w-full items-center gap-2 text-left text-xs font-medium text-[var(--rb-text-secondary)] hover:text-[var(--rb-text-primary)]"
-          aria-expanded={inputExpanded}
-        >
-          <span
-            className={`shrink-0 transition-transform duration-200 ${inputExpanded ? "rotate-90" : ""}`}
-            aria-hidden
-          >
-            ▶
-          </span>
-          {t("agent.tool.input")}
-        </button>
-        <div
-          className="grid transition-[grid-template-rows] duration-200 ease-in-out"
-          style={{ gridTemplateRows: inputExpanded ? "1fr" : "0fr" }}
-        >
-          <div className="overflow-hidden">
-            <pre
-              className={`${codeBlockClass} max-h-48 border-[var(--rb-border)] bg-[color-mix(in_srgb,var(--rb-border)_20%,var(--rb-page-bg))] text-[var(--rb-text-secondary)]`}
+        {pythonInput ? (
+          <>
+            <button
+              type="button"
+              onClick={() => setInputExpanded((value) => !value)}
+              className="mb-2 flex w-full items-center gap-2 text-left text-xs font-medium text-[var(--rb-text-secondary)] hover:text-[var(--rb-text-primary)]"
+              aria-expanded={inputExpanded}
             >
-              {inputJson}
-            </pre>
-          </div>
-        </div>
-        {!inputExpanded ? (
-          <pre
-            className={`${codeBlockClass} max-h-24 border-transparent bg-transparent px-0 py-0 text-[var(--rb-text-secondary)]`}
-          >
-            {compactPreview(inputJson, RESULT_PREVIEW_LINES, RESULT_PREVIEW_CHARS)}
-          </pre>
-        ) : null}
+              <span
+                className={`shrink-0 transition-transform duration-200 ${inputExpanded ? "rotate-90" : ""}`}
+                aria-hidden
+              >
+                ▶
+              </span>
+              {t("agent.tool.input")}
+            </button>
+            <PythonCodePanel
+              code={pythonInput.code}
+              purpose={pythonInput.purpose}
+              maxHeightClass={inputExpanded ? "max-h-80" : "max-h-24"}
+            />
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => setInputExpanded((value) => !value)}
+              className="flex w-full items-center gap-2 text-left text-xs font-medium text-[var(--rb-text-secondary)] hover:text-[var(--rb-text-primary)]"
+              aria-expanded={inputExpanded}
+            >
+              <span
+                className={`shrink-0 transition-transform duration-200 ${inputExpanded ? "rotate-90" : ""}`}
+                aria-hidden
+              >
+                ▶
+              </span>
+              {t("agent.tool.input")}
+            </button>
+            <div
+              className="grid transition-[grid-template-rows] duration-200 ease-in-out"
+              style={{ gridTemplateRows: inputExpanded ? "1fr" : "0fr" }}
+            >
+              <div className="overflow-hidden">
+                <pre
+                  className={`${codeBlockClass} max-h-48 border-[var(--rb-border)] bg-[color-mix(in_srgb,var(--rb-border)_20%,var(--rb-page-bg))] text-[var(--rb-text-secondary)]`}
+                >
+                  {inputJson}
+                </pre>
+              </div>
+            </div>
+            {!inputExpanded ? (
+              <pre
+                className={`${codeBlockClass} max-h-24 border-transparent bg-transparent px-0 py-0 text-[var(--rb-text-secondary)]`}
+              >
+                {compactPreview(inputJson, RESULT_PREVIEW_LINES, RESULT_PREVIEW_CHARS)}
+              </pre>
+            ) : null}
+          </>
+        )}
       </div>
 
       {academicHits && projectId ? (

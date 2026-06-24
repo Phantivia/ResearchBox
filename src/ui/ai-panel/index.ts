@@ -14,5 +14,7 @@ export { MarkdownContent, type MarkdownContentProps } from "./MarkdownContent";
 export { MessageBubble, type MessageBubbleProps } from "./MessageBubble";
 export { ProvenanceBadge, type ProvenanceBadgeProps } from "./ProvenanceBadge";
 export { SearchResultCard, type SearchResultCardProps } from "./SearchResultCard";
+export { PythonCodePanel, PythonHighlightedCode, type PythonCodePanelProps } from "./PythonCodePanel";
+export { StreamingPythonToolCard, type StreamingPythonToolCardProps } from "./StreamingPythonToolCard";
 export { ThinkingBlock, type ThinkingBlockProps } from "./ThinkingBlock";
 export { ToolCallCard, type ToolCallCardProps } from "./ToolCallCard";

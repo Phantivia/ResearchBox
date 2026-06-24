@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { AgentMessage, ContentBlock } from "@/core/agent/types";
+import { extractStreamingPythonCode } from "@/core/agent/streamingToolInput";
 import { useAgentStore } from "@/store";
 import { AssistantAvatar } from "./AssistantAvatar";
 import { ArtifactCard } from "./ArtifactCard";
 import { ArtifactDetailPanel } from "./ArtifactDetailPanel";
 import { ChatComposer } from "./ChatComposer";
 import { MessageBubble } from "./MessageBubble";
+import { StreamingPythonToolCard } from "./StreamingPythonToolCard";
 import { ThinkingBlock } from "./ThinkingBlock";
 import { ToolCallCard } from "./ToolCallCard";
 
@@ -168,16 +170,24 @@ export function AgentChatPanel({
   const messages = useAgentStore((state) => state.messages);
   const streamingText = useAgentStore((state) => state.streamingText);
   const streamingThinking = useAgentStore((state) => state.streamingThinking);
+  const streamingToolCalls = useAgentStore((state) => state.streamingToolCalls);
   const runningTools = useAgentStore((state) => state.runningTools);
   const contextBreakdown = useAgentStore((state) => state.contextBreakdown);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const toolResults = useMemo(() => buildToolResultMap(messages), [messages]);
-  const isStreaming = Boolean(streamingText || streamingThinking);
+  const streamingPythonCalls = useMemo(
+    () =>
+      Object.entries(streamingToolCalls).filter(([, call]) => call.name === "python"),
+    [streamingToolCalls],
+  );
+  const isStreaming = Boolean(
+    streamingText || streamingThinking || streamingPythonCalls.length > 0,
+  );
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingText, streamingThinking, runningTools]);
+  }, [messages, streamingText, streamingThinking, runningTools, streamingToolCalls]);
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--rb-page-bg)] md:flex-row">
@@ -202,6 +212,13 @@ export function AgentChatPanel({
                   {streamingText ? (
                     <MessageBubble role="assistant">{streamingText}</MessageBubble>
                   ) : null}
+                  {streamingPythonCalls.map(([id, call]) => (
+                    <StreamingPythonToolCard
+                      key={id}
+                      code={extractStreamingPythonCode(call.partialJson)}
+                      streaming
+                    />
+                  ))}
                 </div>
               </div>
             ) : null}

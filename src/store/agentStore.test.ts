@@ -90,6 +90,7 @@ describe("useAgentStore", () => {
     expect(state.messages).toEqual([]);
     expect(state.pendingApprovals).toEqual([]);
     expect(state.runningTools).toEqual({});
+    expect(state.streamingToolCalls).toEqual({});
     expect(state.boxOpen).toBe(true);
     expect(state.streamingText).toBe("");
     expect(state.streamingThinking).toBe("");
@@ -140,6 +141,10 @@ describe("useAgentStore", () => {
       content: [{ type: "text", text: "keep me" }],
     });
     useAgentStore.getState().closeBox();
+    useAgentStore.getState().append({
+      role: "user",
+      content: [{ type: "text", text: "question after close" }],
+    });
     const afterClose = useAgentStore.getState().messages;
 
     useAgentStore.getState().openBox();
@@ -147,7 +152,38 @@ describe("useAgentStore", () => {
     const state = useAgentStore.getState();
     expect(state.boxOpen).toBe(true);
     expect(state.messages).toEqual(afterClose);
-    expect(state.messages).toHaveLength(2);
+    expect(state.messages).toHaveLength(3);
+  });
+
+  it("closeBox is a no-op when the box is already closed", () => {
+    useAgentStore.getState().closeBox();
+    const afterFirstClose = useAgentStore.getState().messages;
+
+    useAgentStore.getState().closeBox();
+    useAgentStore.getState().closeBox();
+
+    const state = useAgentStore.getState();
+    expect(state.boxOpen).toBe(false);
+    expect(state.messages).toEqual(afterFirstClose);
+    expect(state.messages).toHaveLength(1);
+  });
+
+  it("openBox undoes the boundary marker when no message was sent after close", () => {
+    useAgentStore.getState().append({
+      role: "user",
+      content: [{ type: "text", text: "earlier search notes" }],
+    });
+    useAgentStore.getState().closeBox();
+
+    useAgentStore.getState().openBox();
+
+    const state = useAgentStore.getState();
+    expect(state.boxOpen).toBe(true);
+    expect(state.messages).toHaveLength(1);
+    expect(state.messages[0]?.content[0]).toEqual({
+      type: "text",
+      text: "earlier search notes",
+    });
   });
 
   it("setBoxOpen toggles boxOpen without appending boundary marker", () => {
@@ -157,5 +193,21 @@ describe("useAgentStore", () => {
 
     useAgentStore.getState().setBoxOpen(true);
     expect(useAgentStore.getState().boxOpen).toBe(true);
+  });
+
+  it("tracks streaming tool input until cleared", () => {
+    useAgentStore.getState().startStreamingTool("tool-1", "python");
+    useAgentStore.getState().appendStreamingToolInput("tool-1", '{"code":"print(');
+    useAgentStore.getState().appendStreamingToolInput("tool-1", '1)"}');
+
+    expect(useAgentStore.getState().streamingToolCalls).toEqual({
+      "tool-1": {
+        name: "python",
+        partialJson: '{"code":"print(1)"}',
+      },
+    });
+
+    useAgentStore.getState().clearStreamingTools();
+    expect(useAgentStore.getState().streamingToolCalls).toEqual({});
   });
 });

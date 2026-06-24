@@ -395,6 +395,15 @@ export default function AgentChat() {
                 accumulatedText += event.text;
                 setStreaming({ text: accumulatedText });
               }
+              if (event.type === "tool_use_start") {
+                useAgentStore.getState().startStreamingTool(event.id, event.name);
+              }
+              if (event.type === "tool_use_input_delta") {
+                useAgentStore.getState().appendStreamingToolInput(
+                  event.id,
+                  event.partialJson,
+                );
+              }
             },
           },
           deps,
@@ -406,6 +415,7 @@ export default function AgentChat() {
           const message = step.value;
           if (message.role === "assistant") {
             setStreaming({ text: "", thinking: "" });
+            useAgentStore.getState().clearStreamingTools();
             accumulatedText = "";
             accumulatedThinking = "";
           }
@@ -432,6 +442,7 @@ export default function AgentChat() {
         }
       } finally {
         setStreaming({ text: "", thinking: "" });
+        useAgentStore.getState().clearStreamingTools();
         setSending(false);
         setStopping(false);
         abortRef.current = null;

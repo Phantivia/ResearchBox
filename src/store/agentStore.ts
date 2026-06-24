@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { buildBoundaryMarker } from "@/core/agent/boundary";
+import { buildBoundaryMarker, isBoundaryMarker } from "@/core/agent/boundary";
 import type { ContextTokenBreakdown } from "@/core/agent/contextSize";
 import { EMPTY_CONTEXT_BREAKDOWN } from "@/core/agent/contextSize";
 import type { AgentSession } from "@/core/agent/session";
@@ -10,11 +10,17 @@ export type PendingApproval = ApprovalRequest & {
   resolve: (ok: boolean) => void;
 };
 
+export type StreamingToolCall = {
+  name: string;
+  partialJson: string;
+};
+
 interface AgentStoreState {
   messages: AgentMessage[];
   currentSessionId: number | null;
   pendingApprovals: PendingApproval[];
   runningTools: Record<string, { name: string; stage: string }>;
+  streamingToolCalls: Record<string, StreamingToolCall>;
   boxOpen: boolean;
   streamingText: string;
   streamingThinking: string;
@@ -32,6 +38,9 @@ interface AgentStoreActions {
   resolveApproval: (id: string, ok: boolean) => void;
   setRunningTool: (id: string, info: { name: string; stage: string }) => void;
   clearRunningTool: (id: string) => void;
+  startStreamingTool: (id: string, name: string) => void;
+  appendStreamingToolInput: (id: string, partialJson: string) => void;
+  clearStreamingTools: () => void;
   setContextBreakdown: (breakdown: ContextTokenBreakdown) => void;
   setBoxOpen: (open: boolean) => void;
   openBox: () => void;
@@ -51,6 +60,7 @@ const initialState: AgentStoreState = {
   currentSessionId: null,
   pendingApprovals: [],
   runningTools: {},
+  streamingToolCalls: {},
   boxOpen: true,
   streamingText: "",
   streamingThinking: "",
@@ -124,17 +134,60 @@ export const useAgentStore = create<AgentStoreState & AgentStoreActions>()((set)
       return { runningTools: rest };
     }),
 
+  startStreamingTool: (id, name) =>
+    set((state) => ({
+      streamingToolCalls: {
+        ...state.streamingToolCalls,
+        [id]: { name, partialJson: "" },
+      },
+    })),
+
+  appendStreamingToolInput: (id, partialJson) =>
+    set((state) => {
+      const current = state.streamingToolCalls[id];
+      if (!current) {
+        return state;
+      }
+      return {
+        streamingToolCalls: {
+          ...state.streamingToolCalls,
+          [id]: {
+            ...current,
+            partialJson: current.partialJson + partialJson,
+          },
+        },
+      };
+    }),
+
+  clearStreamingTools: () => set({ streamingToolCalls: {} }),
+
   setContextBreakdown: (breakdown) => set({ contextBreakdown: breakdown }),
 
   setBoxOpen: (open) => set({ boxOpen: open }),
 
-  openBox: () => set({ boxOpen: true }),
+  openBox: () =>
+    set((state) => {
+      if (state.boxOpen) {
+        return state;
+      }
+      const lastMessage = state.messages[state.messages.length - 1];
+      const messages =
+        lastMessage && isBoundaryMarker(lastMessage)
+          ? state.messages.slice(0, -1)
+          : state.messages;
+      return { boxOpen: true, messages };
+    }),
 
   closeBox: () =>
-    set((state) => ({
-      boxOpen: false,
-      messages: [...state.messages, buildBoundaryMarker()],
-    })),
+    set((state) => {
+      if (!state.boxOpen) {
+        return state;
+      }
+      return {
+        boxOpen: false,
+        messages: [...state.messages, buildBoundaryMarker()],
+      };
+    }),
 
   bumpArtifactsVersion: () =>
     set((state) => ({
@@ -151,6 +204,7 @@ export const useAgentStore = create<AgentStoreState & AgentStoreActions>()((set)
       currentSessionId: session.id ?? null,
       pendingApprovals: [],
       runningTools: {},
+      streamingToolCalls: {},
       streamingText: "",
       streamingThinking: "",
     }),
@@ -161,6 +215,7 @@ export const useAgentStore = create<AgentStoreState & AgentStoreActions>()((set)
       currentSessionId: null,
       pendingApprovals: [],
       runningTools: {},
+      streamingToolCalls: {},
       streamingText: "",
       streamingThinking: "",
       contextBreakdown: EMPTY_CONTEXT_BREAKDOWN,

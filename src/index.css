@@ -357,6 +357,59 @@
     color: var(--rb-text-primary);
   }
 
+  /* VS Code Dark+ token colors for streaming Python tool cards. */
+  .vscode-python-editor {
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+  }
+
+  .vscode-python-editor .vscode-py-plain {
+    color: #d4d4d4;
+  }
+
+  .vscode-python-editor .vscode-py-keyword {
+    color: #c586c0;
+  }
+
+  .vscode-python-editor .vscode-py-string {
+    color: #ce9178;
+  }
+
+  .vscode-python-editor .vscode-py-comment {
+    color: #6a9955;
+  }
+
+  .vscode-python-editor .vscode-py-number {
+    color: #b5cea8;
+  }
+
+  .vscode-python-editor .vscode-py-function {
+    color: #dcdcaa;
+  }
+
+  .vscode-python-editor .vscode-py-builtin {
+    color: #4ec9b0;
+  }
+
+  .vscode-python-editor .vscode-py-decorator {
+    color: #dcdcaa;
+  }
+
+  .vscode-python-editor .vscode-py-operator {
+    color: #d4d4d4;
+  }
+
+  .vscode-python-editor .vscode-py-cursor {
+    color: #aeafad;
+    animation: vscode-py-cursor-blink 1s step-end infinite;
+  }
+
+  @keyframes vscode-py-cursor-blink {
+    50% {
+      opacity: 0;
+    }
+  }
+
   .rb-markdown.prose pre code {
     color: var(--rb-text-primary);
     background-color: transparent;
