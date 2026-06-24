@@ -116,6 +116,8 @@ export default function AgentChat() {
     load: loadSettings,
     getActiveProvider,
     hasActiveProvider,
+    allowWeb,
+    allowCode,
   } = useSettingsStore();
   const messages = useAgentStore((state) => state.messages);
   const streamingText = useAgentStore((state) => state.streamingText);
@@ -254,7 +256,7 @@ export default function AgentChat() {
         const generator = runAgent(
           {
             messages: chatMessages,
-            tools: buildResearchTools({ allowWeb: false, allowCode: false }),
+            tools: buildResearchTools({ allowWeb, allowCode }),
             system: buildAgentSystemPrompt({
               projectName,
               date: new Date().toISOString().slice(0, 10),
@@ -312,6 +314,8 @@ export default function AgentChat() {
     },
     [
       append,
+      allowCode,
+      allowWeb,
       appendTerminalNotice,
       getActiveProvider,
       hasActiveProvider,
