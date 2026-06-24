@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { resolvePermission } from "./approval";
 import type { AgentDeps, AgentMessage, Tool } from "./types";
 
 export type ToolCall = {
@@ -45,6 +46,25 @@ function toolResultMessage(
   };
 }
 
+async function buildDenialMessage(
+  tool: Tool<z.ZodTypeAny, unknown>,
+  input: z.infer<typeof tool.inputSchema>,
+  deps: AgentDeps,
+): Promise<string> {
+  try {
+    const perm = await tool.checkPermissions(input, deps);
+    if (perm.behavior === "deny") {
+      return perm.message;
+    }
+    if (deps.store.permissionMode === "plan" && !tool.isReadOnly(input)) {
+      return "计划模式下不允许执行写操作";
+    }
+  } catch {
+    // resolvePermission already fail-closed; message stays generic.
+  }
+  return "用户拒绝了工具审批";
+}
+
 function classifyCallError(error: unknown, signal: AbortSignal): string {
   if (
     signal.aborted ||
@@ -83,18 +103,25 @@ export async function* executeTool(
     };
   }
 
-  const perm = await tool.checkPermissions(parsed.data, deps);
-  if (perm.behavior === "deny") {
+  const decision = await resolvePermission({
+    tool,
+    input: parsed.data,
+    deps,
+    mode: deps.store.permissionMode,
+  });
+  if (decision === "deny") {
     return {
-      message: toolResultMessage(call.id, perm.message, true),
+      message: toolResultMessage(
+        call.id,
+        await buildDenialMessage(tool, parsed.data, deps),
+        true,
+      ),
       newMessages: [],
       denied: tool.name,
     };
   }
 
-  const askNote =
-    perm.behavior === "ask" ? "[将来需审批] " : "";
-
+  deps.store.setRunningTool(call.id, { name: tool.name, stage: "running" });
   try {
     const gen = tool.call(parsed.data, deps);
     let step = await gen.next();
@@ -105,10 +132,7 @@ export async function* executeTool(
 
     const result = step.value;
     return {
-      message: toolResultMessage(
-        call.id,
-        `${askNote}${serializeData(result.data)}`,
-      ),
+      message: toolResultMessage(call.id, serializeData(result.data)),
       newMessages: result.newMessages ?? [],
     };
   } catch (error) {
@@ -120,5 +144,7 @@ export async function* executeTool(
       ),
       newMessages: [],
     };
+  } finally {
+    deps.store.clearRunningTool(call.id);
   }
 }

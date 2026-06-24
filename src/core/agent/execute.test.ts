@@ -1,21 +1,45 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { z } from "zod";
+import { executeBatched } from "./orchestrate";
 import { executeTool } from "./execute";
-import type { AgentDeps, AgentMessage, Tool } from "./types";
+import type { AgentDeps, AgentMessage, AgentStore, Tool } from "./types";
 import type { LLMProvider } from "@/core/llm/types";
 
 const inputSchema = z.object({ text: z.string() });
 
-function makeDeps(signal?: AbortSignal): AgentDeps {
+function makeStore(overrides: Partial<AgentStore> = {}): AgentStore {
+  return {
+    messages: [],
+    pendingApprovals: [],
+    runningTools: {},
+    permissionMode: "default",
+    append: () => {},
+    enqueueApproval: () => {},
+    setRunningTool: vi.fn(),
+    clearRunningTool: vi.fn(),
+    ...overrides,
+  };
+}
+
+function makeDeps(overrides: Partial<Omit<AgentDeps, "store">> & {
+  permissionMode?: AgentStore["permissionMode"];
+  store?: Partial<AgentStore>;
+} = {}): AgentDeps {
+  const { permissionMode, store: storeOverrides, ...rest } = overrides;
+  const store = makeStore({
+    ...(permissionMode !== undefined ? { permissionMode } : {}),
+    ...storeOverrides,
+  });
   return {
     db: {} as AgentDeps["db"],
     llm: {
       id: "fake",
       chat: () => Promise.resolve(""),
     } as LLMProvider,
-    store: {} as AgentDeps["store"],
-    signal: signal ?? new AbortController().signal,
+    store,
+    signal: new AbortController().signal,
     requestApproval: async () => true,
+    ...rest,
   };
 }
 
@@ -130,10 +154,11 @@ describe("executeTool", () => {
         };
       },
     });
+    const deps = makeDeps();
     const { result, progress } = await drainExecuteTool(
       { id: "t1", name: "echo", input: { text: "hi" } },
       [tool],
-      makeDeps(),
+      deps,
     );
 
     expect(progress).toEqual([{ stage: "running" }]);
@@ -143,9 +168,15 @@ describe("executeTool", () => {
       content: JSON.stringify({ echoed: "hi" }),
     });
     expect(result.newMessages).toEqual([evidence]);
+    expect(deps.store.setRunningTool).toHaveBeenCalledWith("t1", {
+      name: "echo",
+      stage: "running",
+    });
+    expect(deps.store.clearRunningTool).toHaveBeenCalledWith("t1");
   });
 
   it("returns isError tool_result when call throws", async () => {
+    const deps = makeDeps();
     const tool = makeTool({
       name: "echo",
       call: async function* () {
@@ -155,7 +186,7 @@ describe("executeTool", () => {
     const { result } = await drainExecuteTool(
       { id: "t1", name: "echo", input: { text: "hi" } },
       [tool],
-      makeDeps(),
+      deps,
     );
 
     expect(result.message.content[0]).toEqual({
@@ -164,6 +195,7 @@ describe("executeTool", () => {
       content: "工具执行失败: boom",
       isError: true,
     });
+    expect(deps.store.clearRunningTool).toHaveBeenCalledWith("t1");
   });
 
   it("classifies abort errors when signal is aborted", async () => {
@@ -178,7 +210,7 @@ describe("executeTool", () => {
     const { result } = await drainExecuteTool(
       { id: "t1", name: "echo", input: { text: "hi" } },
       [tool],
-      makeDeps(controller.signal),
+      makeDeps({ signal: controller.signal }),
     );
 
     expect(result.message.content[0]).toEqual({
@@ -189,9 +221,40 @@ describe("executeTool", () => {
     });
   });
 
-  it("continues execution for ask permission and annotates result content", async () => {
+  it("returns deny when checkPermissions asks and requestApproval rejects", async () => {
     const tool = makeTool({
       name: "echo",
+      isReadOnly: () => false,
+      checkPermissions: async () => ({
+        behavior: "ask",
+        reason: "需要审批",
+        risk: "low",
+      }),
+      call: async function* () {
+        return { data: "should not run" };
+      },
+    });
+    const deps = makeDeps({ requestApproval: async () => false });
+    const { result } = await drainExecuteTool(
+      { id: "t1", name: "echo", input: { text: "hi" } },
+      [tool],
+      deps,
+    );
+
+    expect(result.message.content[0]).toEqual({
+      type: "tool_result",
+      toolUseId: "t1",
+      content: "用户拒绝了工具审批",
+      isError: true,
+    });
+    expect(result.denied).toBe("echo");
+    expect(deps.store.setRunningTool).not.toHaveBeenCalled();
+  });
+
+  it("executes normally when checkPermissions asks and requestApproval approves", async () => {
+    const tool = makeTool({
+      name: "echo",
+      isReadOnly: () => false,
       checkPermissions: async () => ({
         behavior: "ask",
         reason: "需要审批",
@@ -201,17 +264,92 @@ describe("executeTool", () => {
         return { data: "ok" };
       },
     });
+    const requestApproval = vi.fn(async () => true);
+    const deps = makeDeps({ requestApproval });
     const { result } = await drainExecuteTool(
       { id: "t1", name: "echo", input: { text: "hi" } },
       [tool],
-      makeDeps(),
+      deps,
+    );
+
+    expect(requestApproval).toHaveBeenCalledWith({
+      tool: "echo",
+      input: { text: "hi" },
+      reason: "需要审批",
+      risk: "low",
+    });
+    expect(result.message.content[0]).toEqual({
+      type: "tool_result",
+      toolUseId: "t1",
+      content: "ok",
+    });
+    expect(result.denied).toBeUndefined();
+  });
+
+  it("denies write tools in plan mode when checkPermissions asks", async () => {
+    const tool = makeTool({
+      name: "writer",
+      isReadOnly: () => false,
+      checkPermissions: async () => ({
+        behavior: "ask",
+        reason: "write",
+        risk: "high",
+      }),
+      call: async function* () {
+        return { data: "should not run" };
+      },
+    });
+    const requestApproval = vi.fn(async () => true);
+    const deps = makeDeps({
+      requestApproval,
+      permissionMode: "plan",
+    });
+    const { result } = await drainExecuteTool(
+      { id: "t1", name: "writer", input: { text: "hi" } },
+      [tool],
+      deps,
     );
 
     expect(result.message.content[0]).toEqual({
       type: "tool_result",
       toolUseId: "t1",
-      content: "[将来需审批] ok",
+      content: "计划模式下不允许执行写操作",
+      isError: true,
     });
-    expect(result.denied).toBeUndefined();
+    expect(result.denied).toBe("writer");
+    expect(requestApproval).not.toHaveBeenCalled();
+  });
+
+  it("propagates denied through executeBatched when approval is rejected", async () => {
+    const tool = makeTool({
+      name: "echo",
+      isReadOnly: () => false,
+      checkPermissions: async () => ({
+        behavior: "ask",
+        reason: "需要审批",
+        risk: "low",
+      }),
+      call: async function* () {
+        return { data: "ok" };
+      },
+    });
+    const deps = makeDeps({ requestApproval: async () => false });
+    const gen = executeBatched(
+      [{ id: "t1", name: "echo", input: { text: "hi" } }],
+      [tool],
+      deps,
+    );
+    let step = await gen.next();
+    while (!step.done) {
+      step = await gen.next();
+    }
+
+    expect(step.value.denied).toBe("echo");
+    expect(step.value.messages[0]?.content[0]).toEqual({
+      type: "tool_result",
+      toolUseId: "t1",
+      content: "用户拒绝了工具审批",
+      isError: true,
+    });
   });
 });

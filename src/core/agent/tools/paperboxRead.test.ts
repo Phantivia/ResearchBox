@@ -74,6 +74,8 @@ function makeDeps(projectId?: string): AgentDeps {
       permissionMode: "default",
       append: () => {},
       enqueueApproval: () => {},
+      setRunningTool: () => {},
+      clearRunningTool: () => {},
     },
     signal: new AbortController().signal,
     requestApproval: async () => true,

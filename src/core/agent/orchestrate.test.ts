@@ -13,7 +13,16 @@ function makeDeps(): AgentDeps {
       id: "fake",
       chat: () => Promise.resolve(""),
     } as LLMProvider,
-    store: {} as AgentDeps["store"],
+    store: {
+      messages: [],
+      pendingApprovals: [],
+      runningTools: {},
+      permissionMode: "default",
+      append: () => {},
+      enqueueApproval: () => {},
+      setRunningTool: () => {},
+      clearRunningTool: () => {},
+    },
     signal: new AbortController().signal,
     requestApproval: async () => true,
   };

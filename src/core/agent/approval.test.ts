@@ -22,6 +22,8 @@ function makeMockStore(): AgentStore & {
     enqueueApproval: (req) => {
       queue.push(req);
     },
+    setRunningTool: () => {},
+    clearRunningTool: () => {},
     queue,
   };
 }

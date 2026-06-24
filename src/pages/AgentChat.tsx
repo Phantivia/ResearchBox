@@ -75,6 +75,8 @@ function buildAgentStoreAdapter(): AgentDeps["store"] {
         resolve: () => {},
       });
     },
+    setRunningTool: (id, info) => useAgentStore.getState().setRunningTool(id, info),
+    clearRunningTool: (id) => useAgentStore.getState().clearRunningTool(id),
   };
 }
 
