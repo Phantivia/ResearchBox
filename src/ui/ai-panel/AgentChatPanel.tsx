@@ -9,6 +9,7 @@ import { AssistantText } from "./AssistantText";
 import { ArtifactCard } from "./ArtifactCard";
 import { ArtifactDetailPanel } from "./ArtifactDetailPanel";
 import { ChatComposer, type ChatSendPayload } from "./ChatComposer";
+import { BoundaryNotice } from "./BoundaryNotice";
 import { MessageBubble } from "./MessageBubble";
 import { StreamingPythonToolCard } from "./StreamingPythonToolCard";
 import { ThinkingBlock } from "./ThinkingBlock";
@@ -151,13 +152,7 @@ function renderMessage(
     <div key={index}>
       {text ? (
         isBoundaryMarker ? (
-          <div className="my-4 flex items-center gap-3 px-2">
-            <div className="h-px flex-1 bg-[var(--rb-border)]" aria-hidden />
-            <span className="max-w-md shrink-0 text-center text-xs leading-snug text-[var(--rb-text-secondary)]">
-              {boundaryLabel}
-            </span>
-            <div className="h-px flex-1 bg-[var(--rb-border)]" aria-hidden />
-          </div>
+          <BoundaryNotice label={boundaryLabel} />
         ) : (
           <MessageBubble>{text}</MessageBubble>
         )
@@ -188,7 +183,6 @@ export function AgentChatPanel({
 }: AgentChatPanelProps) {
   const { t } = useTranslation();
   const messages = useAgentStore((state) => state.messages);
-  const boxOpen = useAgentStore((state) => state.boxOpen);
   const streamingText = useAgentStore((state) => state.streamingText);
   const streamingThinking = useAgentStore((state) => state.streamingThinking);
   const streamingToolCalls = useAgentStore((state) => state.streamingToolCalls);
@@ -205,7 +199,6 @@ export function AgentChatPanel({
   const isStreaming = Boolean(
     streamingText || streamingThinking || streamingPythonCalls.length > 0,
   );
-  const isEmptyChat = messages.length === 0 && !isStreaming;
 
   useEffect(() => {
     const scroll = () => {
@@ -220,19 +213,8 @@ export function AgentChatPanel({
   }, [messages, streamingText, streamingThinking, runningTools, streamingToolCalls, isStreaming]);
 
   return (
-    <div
-      className={[
-        "flex h-full min-h-0 flex-col md:flex-row",
-        isEmptyChat ? "rb-chat-panel-empty" : "bg-[var(--rb-page-bg)]",
-      ].join(" ")}
-    >
-      <div
-        className={[
-          "rb-chat-box-surface relative isolate flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
-          boxOpen ? "rb-chat-box-open" : "rb-chat-box-closed",
-          isEmptyChat ? "rb-chat-box-empty" : "",
-        ].join(" ")}
-      >
+    <div className="flex h-full min-h-0 flex-col md:flex-row bg-[var(--rb-page-bg)]">
+      <div className="relative isolate flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <div className="relative z-1 flex min-h-0 flex-1 flex-col">
         <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4">
           <div className="mx-auto flex max-w-3xl flex-col gap-4">

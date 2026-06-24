@@ -149,6 +149,8 @@ export const UI_MESSAGES = {
     "agent.box.collectingDesc": "可搜索外部文献并逐篇纳入盒子；纳入后可用于检索与研究。",
     "agent.box.researchingDesc": "回答优先盒内论文；需要补搜时可随时重新开盒，会话历史保持连续。",
     "agent.box.boundaryLabel": "盒子关闭：优先使用 PaperBox 内的论文信息",
+    "agent.reasoningEffortLabel": "推理强度",
+    "agent.reasoningEffortHint": "控制当前对话的推理深度",
     "agent.provenance.paperbox": "paperbox",
     "agent.provenance.academic": "academic",
     "agent.provenance.web": "web",
@@ -558,6 +560,8 @@ export const UI_MESSAGES = {
     "agent.box.researchingDesc":
       "Answers prioritize in-box papers; reopen the box anytime to search again without clearing history.",
     "agent.box.boundaryLabel": "Box closed: prioritize papers in PaperBox",
+    "agent.reasoningEffortLabel": "Reasoning",
+    "agent.reasoningEffortHint": "Controls reasoning depth for this chat",
     "agent.provenance.paperbox": "paperbox",
     "agent.provenance.academic": "academic",
     "agent.provenance.web": "web",

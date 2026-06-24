@@ -33,58 +33,48 @@ export function BoxSwitch() {
 }
 
 function BoxIcon({ open }: { open: boolean }) {
+  const sw = 1.45;
+  const cap = "round" as const;
+  const join = "round" as const;
+
+  const boxTop = "M16 8 L7 13 L16 18 L25 13 Z";
+  const leftFace = "M7 13 L7 24 L16 29 L16 18 Z";
+  const rightFace = "M16 18 L25 13 L25 24 L16 29 Z";
+
   return (
     <svg
       viewBox="0 0 32 32"
       fill="none"
+      stroke="currentColor"
       className="h-7 w-7"
       aria-hidden
     >
+      <path d={leftFace} strokeWidth={sw} strokeLinecap={cap} strokeLinejoin={join} />
+      <path d={rightFace} strokeWidth={sw} strokeLinecap={cap} strokeLinejoin={join} />
       <path
-        d="M7 15 L16 20 L16 27 L7 22 Z"
-        fill="#f3ead6"
-        stroke="#4a3728"
-        strokeWidth="1.1"
-        strokeLinejoin="round"
+        d={boxTop}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={sw}
+        strokeLinecap={cap}
+        strokeLinejoin={join}
       />
-      <path
-        d="M16 20 L25 15 L25 22 L16 27 Z"
-        fill="#e8dcc4"
-        stroke="#4a3728"
-        strokeWidth="1.1"
-        strokeLinejoin="round"
-      />
-      {open ? (
-        <path
-          d="M7 15 L16 20 L25 15 L16 10 Z"
-          fill="#f3ead6"
-          stroke="#4a3728"
-          strokeWidth="1.1"
-          strokeLinejoin="round"
-        />
-      ) : null}
       <g
         className="transition-transform duration-500 ease-[cubic-bezier(0.34,1.2,0.64,1)]"
         style={{
-          transformOrigin: "16px 15px",
+          transformOrigin: "16px 13px",
           transform: open
-            ? "translate(5px, 3px) rotate(28deg)"
+            ? "translate(5px, 4px) rotate(26deg)"
             : "translate(0, 0) rotate(0deg)",
         }}
       >
         <path
-          d="M7 11 L16 15 L25 11 L16 7 Z"
-          fill="#8b6914"
-          stroke="#4a3728"
-          strokeWidth="1.1"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M16 7 L25 11 L16 15"
-          fill="#6b4f2a"
-          stroke="#4a3728"
-          strokeWidth="0.8"
-          strokeLinejoin="round"
+          d={boxTop}
+          className="fill-[var(--rb-page-bg)]"
+          stroke="currentColor"
+          strokeWidth={sw}
+          strokeLinecap={cap}
+          strokeLinejoin={join}
         />
       </g>
     </svg>

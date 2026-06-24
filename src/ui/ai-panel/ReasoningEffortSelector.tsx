@@ -54,15 +54,21 @@ export function ReasoningEffortSelector() {
   };
 
   return (
-    <>
+    <div className="flex min-w-0 items-center gap-1">
+      <span
+        className="shrink-0 text-xs text-[var(--rb-text-secondary)]"
+        title={t("agent.reasoningEffortHint")}
+      >
+        {t("agent.reasoningEffortLabel")}
+      </span>
       <button
         ref={buttonRef}
         type="button"
         disabled={!provider}
-        aria-label={t("settings.reasoningEffort")}
+        aria-label={t("agent.reasoningEffortLabel")}
         aria-expanded={open}
         aria-haspopup="menu"
-        title={t("settings.reasoningEffort")}
+        title={t("agent.reasoningEffortHint")}
         onClick={() => setOpen((current) => !current)}
         className="inline-flex h-8 shrink-0 items-center gap-1 rounded-md px-2 text-xs text-[var(--rb-text-secondary)] transition-colors hover:bg-[color-mix(in_srgb,var(--rb-text-primary)_6%,transparent)] hover:text-[var(--rb-text-primary)] focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--rb-primary)_35%,transparent)] disabled:cursor-not-allowed disabled:opacity-40"
       >
@@ -101,7 +107,7 @@ export function ReasoningEffortSelector() {
           </div>
         </FloatingPortal>
       ) : null}
-    </>
+    </div>
   );
 }
 

@@ -481,31 +481,6 @@
     vertical-align: -0.15em;
   }
 
-  .rb-chat-box-surface {
-    transition: background-color 400ms cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .rb-chat-panel-empty {
-    background-color: transparent;
-  }
-
-  .rb-chat-box-closed {
-    --rb-page-bg: #1a2230;
-    --rb-card-bg: #2d3748;
-    --rb-text-primary: #f3f4f6;
-    --rb-text-secondary: #9ca3af;
-    --rb-border: #3d4d63;
-    color-scheme: dark;
-    background-color: var(--rb-page-bg);
-  }
-
-  .rb-chat-box-surface.rb-chat-box-open:not(.rb-chat-box-empty) {
-    background-color: #f9fafb;
-  }
-
-  .rb-chat-box-surface.rb-chat-box-empty {
-    background-color: transparent;
-  }
 }
 
 ::highlight(researchbox-annotation) {
