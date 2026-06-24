@@ -20,6 +20,8 @@ export const AppSettingsSchema = z.object({
   // .default() 让旧备份（无这两字段）仍可通过 AppSettingsSchema 解析；输出类型仍为必填。
   activePaletteId: z.string().nullable().default("default"),
   customPalette: ColorPaletteSchema.nullable().default(null),
+  semanticScholarApiKey: z.string().default(""),
+  openAlexApiKey: z.string().default(""),
 });
 
 export type AppSettings = z.infer<typeof AppSettingsSchema>;
@@ -33,4 +35,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   lastProjectId: null,
   activePaletteId: "default",
   customPalette: null,
+  semanticScholarApiKey: "",
+  openAlexApiKey: "",
 };

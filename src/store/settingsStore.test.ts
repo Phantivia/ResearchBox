@@ -21,6 +21,8 @@ beforeEach(async () => {
     debugMode: false,
     uiLocale: "en",
     loaded: false,
+    semanticScholarApiKey: "",
+    openAlexApiKey: "",
   });
 });
 
@@ -67,6 +69,21 @@ describe("useSettingsStore", () => {
     expect(state.targetLang).toBe("en");
     expect(state.debugMode).toBe(true);
     expect(state.loaded).toBe(true);
+  });
+
+  it("persists academic search api keys", async () => {
+    const store = useSettingsStore.getState();
+    await store.setSemanticScholarApiKey("ss-test-key");
+    await store.setOpenAlexApiKey("oa-test-key");
+
+    useSettingsStore.setState({ loaded: false });
+    await useSettingsStore.getState().load();
+
+    const state = useSettingsStore.getState();
+    expect(state.semanticScholarApiKey).toBe("ss-test-key");
+    expect(state.openAlexApiKey).toBe("oa-test-key");
+    expect((await getSettings()).semanticScholarApiKey).toBe("ss-test-key");
+    expect((await getSettings()).openAlexApiKey).toBe("oa-test-key");
   });
 
   it("reports whether an active provider is configured", async () => {

@@ -44,6 +44,8 @@ beforeEach(async () => {
     debugMode: false,
     uiLocale: "zh",
     loaded: false,
+    semanticScholarApiKey: "",
+    openAlexApiKey: "",
   });
 });
 
@@ -123,5 +125,33 @@ describe("SettingsPage", () => {
       await screen.findByText("模型元数据（来自 OpenRouter）"),
     ).toBeInTheDocument();
     expect(screen.getByText("DeepSeek: DeepSeek Chat")).toBeInTheDocument();
+  });
+
+  it("renders the academic search section and persists api keys", async () => {
+    render(
+      <HashRouter>
+        <SettingsPage />
+      </HashRouter>,
+    );
+
+    await waitFor(() => {
+      expect(useSettingsStore.getState().loaded).toBe(true);
+    });
+
+    expect(screen.getByRole("heading", { name: "学术检索" })).toBeInTheDocument();
+
+    const ssInput = screen.getByLabelText("Semantic Scholar API Key");
+    fireEvent.change(ssInput, { target: { value: "ss-user-key" } });
+
+    await waitFor(() => {
+      expect(useSettingsStore.getState().semanticScholarApiKey).toBe("ss-user-key");
+    });
+
+    const oaInput = screen.getByLabelText("OpenAlex API Key");
+    fireEvent.change(oaInput, { target: { value: "oa-user-key" } });
+
+    await waitFor(() => {
+      expect(useSettingsStore.getState().openAlexApiKey).toBe("oa-user-key");
+    });
   });
 });

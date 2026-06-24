@@ -93,6 +93,8 @@ describe("settings helpers", () => {
       lastProjectId: null,
       activePaletteId: "default",
       customPalette: null,
+      semanticScholarApiKey: "",
+      openAlexApiKey: "",
     });
 
     const reloaded = await getSettings();

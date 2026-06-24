@@ -188,6 +188,13 @@ export const UI_MESSAGES = {
     "settings.openRouterMeta.supportedParameters": "支持的参数",
     "settings.openRouterMeta.reasoning": "推理能力",
     "settings.openRouterMeta.fetchedAt": "获取时间",
+    "settings.academicSearch": "学术检索",
+    "settings.semanticScholarApiKey": "Semantic Scholar API Key",
+    "settings.semanticScholarApiKeyHint":
+      "可选。不填也可使用共享额度进行轻度检索；填写自配 Key 可获得更高、更稳定的额度。",
+    "settings.openAlexApiKey": "OpenAlex API Key",
+    "settings.openAlexApiKeyHint":
+      "OpenAlex 自 2026 年起强制要求 API Key（免费，请在 openalex.org/settings/api 注册）。未填写时 OpenAlex 不可用，学术检索将自动回落到 Semantic Scholar。",
     "settings.readingPrefs": "阅读偏好",
     "settings.targetLang": "译文目标语言",
     "settings.defaultViewMode": "默认视图模式",
@@ -514,6 +521,13 @@ export const UI_MESSAGES = {
     "settings.openRouterMeta.supportedParameters": "Supported parameters",
     "settings.openRouterMeta.reasoning": "Reasoning",
     "settings.openRouterMeta.fetchedAt": "Fetched at",
+    "settings.academicSearch": "Academic search",
+    "settings.semanticScholarApiKey": "Semantic Scholar API Key",
+    "settings.semanticScholarApiKeyHint":
+      "Optional. Shared quota works without a key for light use; add your own key for higher, more stable limits.",
+    "settings.openAlexApiKey": "OpenAlex API Key",
+    "settings.openAlexApiKeyHint":
+      "OpenAlex requires an API key since 2026 (free — register at openalex.org/settings/api). Without a key, OpenAlex is unavailable and search falls back to Semantic Scholar.",
     "settings.readingPrefs": "Reading preferences",
     "settings.targetLang": "Translation target language",
     "settings.defaultViewMode": "Default view mode",

@@ -68,6 +68,8 @@ function makeBackup(overrides: Partial<Backup> = {}): Backup {
       lastProjectId: "p1",
       activePaletteId: "default",
       customPalette: null,
+      semanticScholarApiKey: "",
+      openAlexApiKey: "",
     },
     ...overrides,
   };

@@ -37,6 +37,8 @@ interface SettingsState {
   uiLocale: UiLocale;
   activePaletteId: string | null;
   customPalette: ColorPalette | null;
+  semanticScholarApiKey: string;
+  openAlexApiKey: string;
   savedPalettes: SavedPalette[];
   loaded: boolean;
 }
@@ -52,6 +54,8 @@ interface SettingsActions {
   setUiLocale: (locale: UiLocale) => Promise<void>;
   setActivePaletteId: (id: string) => Promise<void>;
   setCustomPalette: (palette: ColorPalette) => Promise<void>;
+  setSemanticScholarApiKey: (key: string) => Promise<void>;
+  setOpenAlexApiKey: (key: string) => Promise<void>;
   savePalette: (name: string, palette: ColorPalette) => Promise<SavedPalette>;
   deleteSavedPalette: (id: string) => Promise<void>;
   loadPalettes: () => Promise<void>;
@@ -87,6 +91,8 @@ export const useSettingsStore = create<SettingsState & SettingsActions>()(
     uiLocale: DEFAULT_UI_LOCALE,
     activePaletteId: "default",
     customPalette: null,
+    semanticScholarApiKey: "",
+    openAlexApiKey: "",
     savedPalettes: [],
     loaded: false,
 
@@ -113,6 +119,8 @@ export const useSettingsStore = create<SettingsState & SettingsActions>()(
         uiLocale: settings.uiLocale,
         activePaletteId: settings.activePaletteId,
         customPalette: settings.customPalette,
+        semanticScholarApiKey: settings.semanticScholarApiKey,
+        openAlexApiKey: settings.openAlexApiKey,
         savedPalettes,
         loaded: true,
       });
@@ -178,6 +186,16 @@ export const useSettingsStore = create<SettingsState & SettingsActions>()(
         activePaletteId: settings.activePaletteId,
       });
       applyPalette(get().getEffectivePalette());
+    },
+
+    setSemanticScholarApiKey: async (key) => {
+      const settings = await saveSettings({ semanticScholarApiKey: key });
+      set({ semanticScholarApiKey: settings.semanticScholarApiKey });
+    },
+
+    setOpenAlexApiKey: async (key) => {
+      const settings = await saveSettings({ openAlexApiKey: key });
+      set({ openAlexApiKey: settings.openAlexApiKey });
     },
 
     savePalette: async (name, palette) => {
