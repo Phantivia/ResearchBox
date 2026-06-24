@@ -1,0 +1,114 @@
+import { describe, expect, it } from "vitest";
+import {
+  contextUsageRatio,
+  estimateChars,
+  estimateTokens,
+} from "./contextSize";
+import type { AgentMessage } from "./types";
+
+describe("estimateChars", () => {
+  it("returns 0 for an empty message list", () => {
+    expect(estimateChars([])).toBe(0);
+  });
+
+  it("counts text, thinking, and tool_result characters", () => {
+    const messages: AgentMessage[] = [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "hello" },
+          { type: "thinking", text: "12345" },
+        ],
+      },
+      {
+        role: "tool",
+        content: [{ type: "tool_result", toolUseId: "t1", content: "ok" }],
+      },
+    ];
+
+    expect(estimateChars(messages)).toBe(5 + 5 + 2);
+  });
+
+  it("includes tool_use input via JSON.stringify length", () => {
+    const input = { query: "paper", limit: 3 };
+    const messages: AgentMessage[] = [
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool_use",
+            id: "call_1",
+            name: "retrieval",
+            input,
+          },
+        ],
+      },
+    ];
+
+    expect(estimateChars(messages)).toBe(JSON.stringify(input).length);
+  });
+});
+
+describe("estimateTokens", () => {
+  it("returns 0 for an empty message list", () => {
+    expect(estimateTokens([])).toBe(0);
+  });
+
+  it("uses the 4-char heuristic for Latin text", () => {
+    const messages: AgentMessage[] = [
+      {
+        role: "user",
+        content: [{ type: "text", text: "abcd" }],
+      },
+    ];
+
+    expect(estimateTokens(messages)).toBe(1);
+  });
+
+  it("uses the 1.5-char heuristic for CJK text", () => {
+    const messages: AgentMessage[] = [
+      {
+        role: "user",
+        content: [{ type: "text", text: "你好" }],
+      },
+    ];
+
+    expect(estimateTokens(messages)).toBe(2);
+  });
+
+  it("counts tool_use input tokens from stringified JSON", () => {
+    const input = { q: "x" };
+    const messages: AgentMessage[] = [
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "tool_use",
+            id: "call_1",
+            name: "search",
+            input,
+          },
+        ],
+      },
+    ];
+
+    expect(estimateTokens(messages)).toBe(
+      Math.ceil(JSON.stringify(input).length / 4),
+    );
+  });
+});
+
+describe("contextUsageRatio", () => {
+  it("returns 0 when contextWindow is 0", () => {
+    expect(contextUsageRatio(100, 0)).toBe(0);
+  });
+
+  it("returns 0 when contextWindow is negative", () => {
+    expect(contextUsageRatio(100, -1)).toBe(0);
+  });
+
+  it("returns a ratio between 0 and 1", () => {
+    expect(contextUsageRatio(50_000, 200_000)).toBe(0.25);
+    expect(contextUsageRatio(300_000, 200_000)).toBe(1);
+  });
+});
