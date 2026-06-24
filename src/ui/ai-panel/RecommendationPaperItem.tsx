@@ -109,6 +109,7 @@ export function RecommendationPaperItem({
 
   return (
     <article
+      data-recommendation-paper
       className={[
         "rounded-lg border bg-[var(--rb-card-bg)] shadow-sm transition-colors duration-200",
         ignoreActive
