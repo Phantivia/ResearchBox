@@ -23,6 +23,9 @@
 </div>
 
 ---
+## 开发者寄语
+Vibe Coding 太好用了，你们知道吗？
+———— Phant (所有东西只有这一句话是我手写的)
 
 ## 这是什么
 
@@ -230,6 +233,9 @@ Chat with AI in project context: search your paper library, run external academi
 </div>
 
 ---
+## A note from the developer
+Vibe Coding is so good — did you know?
+— Phant *(Translated by Composer2.5)*
 
 ## What is this
 
@@ -386,14 +392,6 @@ Conventions: [`CLAUDE.md`](./CLAUDE.md).
 | [`ResearchBox-技术手册.md`](./ResearchBox-技术手册.md) | Product positioning, features, user-facing technical details |
 | [`PROJECT.md`](./PROJECT.md) | Developer handbook: structure, modules, agent architecture |
 | [`CLAUDE.md`](./CLAUDE.md) | Contribution conventions and stack rules |
-
----
-
-## A note from the developer
-
-Vibe Coding is so good — did you know?
-
-— Phant *(Translated by Composer2.5)*
 
 ---
 
