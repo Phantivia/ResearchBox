@@ -104,6 +104,33 @@
     animation: rb-logo-emerge 900ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
   }
 
+  @keyframes rb-copy-hint {
+    0% {
+      opacity: 0;
+      transform: translateY(3px);
+    }
+
+    12% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    78% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    100% {
+      opacity: 0;
+      transform: translateY(-2px);
+    }
+  }
+
+  .rb-copy-hint {
+    animation: rb-copy-hint 1.4s ease forwards;
+    pointer-events: none;
+  }
+
   @keyframes rb-logo-emerge {
     from {
       opacity: 0;

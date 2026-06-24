@@ -117,12 +117,13 @@ function isUiVisibleMessage(message: AgentMessage): boolean {
   return true;
 }
 
-async function copyMessageText(message: AgentMessage): Promise<void> {
+async function copyMessageText(message: AgentMessage): Promise<boolean> {
   const text = extractCopyableText(message);
   if (!text) {
-    return;
+    return false;
   }
   await navigator.clipboard.writeText(text);
+  return true;
 }
 
 function renderMessage(
@@ -135,6 +136,7 @@ function renderMessage(
   actionsDisabled: boolean,
   labels: {
     copy: string;
+    copied: string;
     retry: string;
     edit: string;
     cancel: string;
@@ -192,12 +194,9 @@ function renderMessage(
               align="start"
               variant="assistant"
               copyLabel={labels.copy}
+              copySuccessLabel={labels.copied}
               retryLabel={labels.retry}
-              onCopy={() => {
-                if (copyText) {
-                  void copyMessageText(message);
-                }
-              }}
+              onCopy={() => (copyText ? copyMessageText(message) : Promise.resolve(false))}
               onRetry={() => onRetryAssistantMessage(index)}
             />
           ) : null}
@@ -262,11 +261,10 @@ function renderMessage(
       <UserMessageShell
         showActions={!actionsDisabled && !hasPendingOcr}
         copyLabel={labels.copy}
+        copySuccessLabel={labels.copied}
         retryLabel={labels.retry}
         editLabel={labels.edit}
-        onCopy={() => {
-          void copyMessageText(message);
-        }}
+        onCopy={() => copyMessageText(message)}
         onRetry={() => onStartUserMessageEdit(index, message)}
         onEdit={() => onStartUserMessageEdit(index, message)}
       >
@@ -349,6 +347,7 @@ export function AgentChatPanel({
   const actionLabels = useMemo(
     () => ({
       copy: t("agent.message.copy"),
+      copied: t("agent.message.copied"),
       retry: t("agent.message.retry"),
       edit: t("agent.message.edit"),
       cancel: t("agent.message.cancel"),

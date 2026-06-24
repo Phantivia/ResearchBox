@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 interface ActionButtonProps {
   label: string;
@@ -47,13 +47,73 @@ function RetryIcon() {
   );
 }
 
+interface CopyActionButtonProps {
+  label: string;
+  successLabel: string;
+  hintSide: "start" | "end";
+  onCopy: () => void | Promise<boolean>;
+}
+
+function CopyActionButton({ label, successLabel, hintSide, onCopy }: CopyActionButtonProps) {
+  const [showSuccess, setShowSuccess] = useState(false);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (hideTimerRef.current) {
+        clearTimeout(hideTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleClick = () => {
+    void (async () => {
+      const copied = await onCopy();
+      if (!copied) {
+        return;
+      }
+      setShowSuccess(true);
+      if (hideTimerRef.current) {
+        clearTimeout(hideTimerRef.current);
+      }
+      hideTimerRef.current = setTimeout(() => {
+        setShowSuccess(false);
+        hideTimerRef.current = null;
+      }, 1400);
+    })();
+  };
+
+  return (
+    <div className="relative inline-flex items-center">
+      <ActionButton label={label} onClick={handleClick}>
+        <CopyIcon />
+      </ActionButton>
+      {showSuccess ? (
+        <span
+          key={Date.now()}
+          role="status"
+          aria-live="polite"
+          className={`rb-copy-hint absolute whitespace-nowrap text-[11px] leading-none text-[var(--rb-text-secondary)] ${
+            hintSide === "end"
+              ? "left-full ml-1.5"
+              : "right-full mr-1.5"
+          }`}
+        >
+          {successLabel}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 export interface ChatMessageActionsProps {
   align: "start" | "end";
   copyLabel: string;
+  copySuccessLabel: string;
   retryLabel: string;
   editLabel?: string;
   variant: "user" | "assistant";
-  onCopy: () => void;
+  onCopy: () => void | Promise<boolean>;
   onRetry: () => void;
   onEdit?: () => void;
 }
@@ -61,6 +121,7 @@ export interface ChatMessageActionsProps {
 export function ChatMessageActions({
   align,
   copyLabel,
+  copySuccessLabel,
   retryLabel,
   editLabel,
   variant,
@@ -76,9 +137,13 @@ export function ChatMessageActions({
     </ActionButton>
   );
   const copyButton = (
-    <ActionButton key="copy" label={copyLabel} onClick={onCopy}>
-      <CopyIcon />
-    </ActionButton>
+    <CopyActionButton
+      key="copy"
+      label={copyLabel}
+      successLabel={copySuccessLabel}
+      hintSide={variant === "user" ? "start" : "end"}
+      onCopy={onCopy}
+    />
   );
   const editButton =
     onEdit && editLabel ? (

@@ -3,6 +3,7 @@ import { ChatMessageActions } from "./ChatMessageActions";
 
 export interface UserMessageShellProps {
   copyLabel: string;
+  copySuccessLabel: string;
   retryLabel: string;
   editLabel: string;
   showActions?: boolean;
@@ -14,6 +15,7 @@ export interface UserMessageShellProps {
 
 export function UserMessageShell({
   copyLabel,
+  copySuccessLabel,
   retryLabel,
   editLabel,
   showActions = true,
@@ -30,6 +32,7 @@ export function UserMessageShell({
           align="end"
           variant="user"
           copyLabel={copyLabel}
+          copySuccessLabel={copySuccessLabel}
           retryLabel={retryLabel}
           editLabel={editLabel}
           onCopy={onCopy}
