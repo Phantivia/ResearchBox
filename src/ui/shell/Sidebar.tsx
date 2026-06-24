@@ -11,6 +11,7 @@ import {
 import { FEATURE_NAV } from "./featureNav";
 import { CHATBOX_NAV, isChatBoxRoute } from "./chatBoxNav";
 import { FeatureIcon } from "./featureIcons";
+import { HistorySearch } from "@/ui/ai-panel/HistorySearch";
 import { useVisualViewportBox } from "./useVisualViewportBox";
 
 const PANEL_EXPAND_DELAY_MS = 180;
@@ -327,9 +328,11 @@ function SidebarContent({ mobile = false, onDismiss }: SidebarContentProps) {
     });
   }
 
-  function goToChatBox(path: string) {
+  function goToChatBox(path: string, resetSession: boolean) {
     runWithDismissFeedback(`chatbox:${path}`, () => {
-      useAgentStore.getState().reset();
+      if (resetSession) {
+        useAgentStore.getState().startNewSession();
+      }
       navigate(path);
     });
   }
@@ -483,7 +486,7 @@ function SidebarContent({ mobile = false, onDismiss }: SidebarContentProps) {
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => goToChatBox(path)}
+                  onClick={() => goToChatBox(path, item.id === "chat-box-new")}
                   className={[
                     "flex w-full items-center gap-2.5 rounded-sm px-2 py-2 text-left text-sm transition-colors",
                     active
@@ -567,7 +570,11 @@ function SidebarContent({ mobile = false, onDismiss }: SidebarContentProps) {
             "min-h-0 transition-[flex-grow,flex-basis] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
             settingsMode ? "flex-none grow-0 basis-0" : "flex-1 grow",
           ].join(" ")}
-        />
+        >
+          {chatboxExpanded && !settingsMode && activeProjectId ? (
+            <HistorySearch projectId={activeProjectId} />
+          ) : null}
+        </div>
 
         {settingsMode ? (
           <DockHeaderButton

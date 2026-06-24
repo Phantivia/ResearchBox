@@ -12,14 +12,6 @@ export interface FeatureNavItem {
 
 export const FEATURE_NAV: readonly FeatureNavItem[] = [
   {
-    id: "chat-box-artifacts",
-    labelKey: "nav.chatBoxArtifacts",
-    icon: "chat-box-artifacts",
-    requiresProject: true,
-    path: (projectId) => `/p/${encodeURIComponent(projectId)}/chat-box/artifacts`,
-    isActive: (pathname) => /\/chat-box\/artifacts(?:\/|$)/.test(pathname),
-  },
-  {
     id: "paper-box",
     labelKey: "nav.paperBox",
     icon: "paper-box",

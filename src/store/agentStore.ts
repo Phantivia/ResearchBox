@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { buildBoundaryMarker } from "@/core/agent/boundary";
 import type { ContextTokenBreakdown } from "@/core/agent/contextSize";
 import { EMPTY_CONTEXT_BREAKDOWN } from "@/core/agent/contextSize";
+import type { AgentSession } from "@/core/agent/session";
 import type { AgentMessage, ApprovalRequest, ContentBlock } from "@/core/agent/types";
 
 export type PendingApproval = ApprovalRequest & {
@@ -11,6 +12,7 @@ export type PendingApproval = ApprovalRequest & {
 
 interface AgentStoreState {
   messages: AgentMessage[];
+  currentSessionId: number | null;
   pendingApprovals: PendingApproval[];
   runningTools: Record<string, { name: string; stage: string }>;
   boxOpen: boolean;
@@ -18,6 +20,7 @@ interface AgentStoreState {
   streamingThinking: string;
   contextBreakdown: ContextTokenBreakdown;
   artifactsVersion: number;
+  sessionsVersion: number;
   artifactPanel: { artifactId: string } | null;
 }
 
@@ -36,11 +39,16 @@ interface AgentStoreActions {
   bumpArtifactsVersion: () => void;
   openArtifactPanel: (artifactId: string) => void;
   closeArtifactPanel: () => void;
+  loadSession: (session: AgentSession) => void;
+  startNewSession: () => void;
+  setCurrentSessionId: (id: number | null) => void;
+  bumpSessionsVersion: () => void;
   reset: () => void;
 }
 
 const initialState: AgentStoreState = {
   messages: [],
+  currentSessionId: null,
   pendingApprovals: [],
   runningTools: {},
   boxOpen: true,
@@ -48,6 +56,7 @@ const initialState: AgentStoreState = {
   streamingThinking: "",
   contextBreakdown: EMPTY_CONTEXT_BREAKDOWN,
   artifactsVersion: 0,
+  sessionsVersion: 0,
   artifactPanel: null,
 };
 
@@ -135,6 +144,38 @@ export const useAgentStore = create<AgentStoreState & AgentStoreActions>()((set)
   openArtifactPanel: (artifactId) => set({ artifactPanel: { artifactId } }),
 
   closeArtifactPanel: () => set({ artifactPanel: null }),
+
+  loadSession: (session) =>
+    set({
+      messages: session.messages,
+      currentSessionId: session.id ?? null,
+      pendingApprovals: [],
+      runningTools: {},
+      streamingText: "",
+      streamingThinking: "",
+    }),
+
+  startNewSession: () =>
+    set((state) => ({
+      messages: [],
+      currentSessionId: null,
+      pendingApprovals: [],
+      runningTools: {},
+      streamingText: "",
+      streamingThinking: "",
+      contextBreakdown: EMPTY_CONTEXT_BREAKDOWN,
+      boxOpen: state.boxOpen,
+      artifactsVersion: state.artifactsVersion,
+      sessionsVersion: state.sessionsVersion,
+      artifactPanel: state.artifactPanel,
+    })),
+
+  setCurrentSessionId: (id) => set({ currentSessionId: id }),
+
+  bumpSessionsVersion: () =>
+    set((state) => ({
+      sessionsVersion: state.sessionsVersion + 1,
+    })),
 
   reset: () => set(initialState),
 }));

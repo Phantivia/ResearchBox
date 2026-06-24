@@ -95,6 +95,8 @@ describe("useAgentStore", () => {
     expect(state.streamingThinking).toBe("");
     expect(state.contextBreakdown).toEqual(EMPTY_CONTEXT_BREAKDOWN);
     expect(state.artifactsVersion).toBe(0);
+    expect(state.sessionsVersion).toBe(0);
+    expect(state.currentSessionId).toBeNull();
     expect(state.artifactPanel).toBeNull();
   });
 

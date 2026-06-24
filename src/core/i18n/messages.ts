@@ -150,6 +150,11 @@ export const UI_MESSAGES = {
     "agent.artifact.kind.compare-table": "对比表",
     "agent.artifact.kind.outline": "大纲",
     "agent.artifact.kind.note": "笔记",
+    "agent.history.loading": "加载对话历史…",
+    "agent.history.empty": "暂无历史对话",
+    "agent.history.noResults": "没有匹配的对话",
+    "agent.history.searchLabel": "搜索历史对话",
+    "agent.history.searchPlaceholder": "搜索对话…",
     "noProject.title": "当前无项目",
     "noProject.body": "请先在首页创建或选择一个项目，再使用该功能。",
     "noProject.cta": "前往项目管理",
@@ -167,6 +172,13 @@ export const UI_MESSAGES = {
     "settings.translationReasoningEffort": "翻译推理强度",
     "settings.translationReasoningEffortHint":
       "仅用于论文翻译；默认为关闭，可降低首 token 延迟。非推理模型 (如 gpt-4o) 请保持关闭。",
+    "settings.subAgentModel": "子代理 Model",
+    "settings.subAgentModelFallback": "与主 Model 相同",
+    "settings.subAgentModelHint":
+      "子代理（论文总结/核查）使用的模型；留空则与上方主 Model 相同。建议选用更便宜的模型以降低成本。",
+    "settings.subAgentReasoningEffort": "子代理推理强度",
+    "settings.subAgentReasoningEffortHint":
+      "仅用于 sub_agent 子代理调用；默认为关闭，适合 Haiku 等轻量模型。",
     "settings.apiKey": "API Key",
     "settings.saveProvider": "保存 Provider",
     "settings.testConnection": "测试连接",
@@ -530,6 +542,11 @@ export const UI_MESSAGES = {
     "agent.artifact.kind.compare-table": "Comparison table",
     "agent.artifact.kind.outline": "Outline",
     "agent.artifact.kind.note": "Note",
+    "agent.history.loading": "Loading chat history…",
+    "agent.history.empty": "No chat history yet",
+    "agent.history.noResults": "No matching chats",
+    "agent.history.searchLabel": "Search chat history",
+    "agent.history.searchPlaceholder": "Search chats…",
     "noProject.title": "No project selected",
     "noProject.body":
       "Create or select a project on the home page to use this feature.",
@@ -548,6 +565,13 @@ export const UI_MESSAGES = {
     "settings.translationReasoningEffort": "Translation reasoning effort",
     "settings.translationReasoningEffortHint":
       "Used for paper translation only. Defaults to Off for faster first tokens. Keep Off for non-reasoning models (e.g. gpt-4o).",
+    "settings.subAgentModel": "Sub-agent model",
+    "settings.subAgentModelFallback": "Same as main model",
+    "settings.subAgentModelHint":
+      "Model for sub_agent (paper summarization / review). Leave empty to use the main model above. A cheaper model is recommended.",
+    "settings.subAgentReasoningEffort": "Sub-agent reasoning effort",
+    "settings.subAgentReasoningEffortHint":
+      "Used only for sub_agent calls; defaults to off, suitable for lightweight models like Haiku.",
     "settings.apiKey": "API Key",
     "settings.saveProvider": "Save Provider",
     "settings.testConnection": "Test connection",

@@ -9,6 +9,7 @@ import {
   type AppSettings,
   type ViewMode,
 } from "@/core/settings";
+import type { AgentSession } from "@/core/agent/session";
 import type { Artifact } from "@/core/agent/artifact/schema";
 import { stripTranslationsFromIr } from "@/core/transformer";
 
@@ -50,6 +51,8 @@ export interface ToolResultRow {
   createdAt: number;
 }
 
+export type AgentSessionRow = AgentSession;
+
 export const SETTINGS_KEY = "app";
 
 export const DEFAULT_PROJECT_ID = "default";
@@ -70,6 +73,7 @@ const db = new Dexie("researchbox") as Dexie & {
   palettes: EntityTable<SavedPalette, "id">;
   artifacts: EntityTable<Artifact, "id">;
   toolResults: EntityTable<ToolResultRow, "id">;
+  agentSessions: EntityTable<AgentSessionRow, "id">;
 };
 
 db.version(1).stores({
@@ -180,6 +184,12 @@ db.version(5).stores({
 // v6：新增 toolResults 表，存储超阈值工具输出的全文（回话只保留预览 + resultId）。
 db.version(6).stores({
   toolResults: "id, createdAt",
+});
+
+// v7：新增 agentSessions 表，存储 ChatBox Agent 按项目隔离的会话历史。
+// aiSessions 保留给 legacy 划词问答（paperId 维度，无 title/updatedAt），不复用。
+db.version(7).stores({
+  agentSessions: "++id, projectId, updatedAt",
 });
 
 // ── Helpers ──
@@ -368,3 +378,9 @@ export {
   type ImportResult,
   type CachedPaperSummary,
 } from "./backup";
+export {
+  saveAgentSession,
+  getAgentSession,
+  listAgentSessions,
+  deleteAgentSession,
+} from "./agentSessions";

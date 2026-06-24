@@ -3,13 +3,14 @@ import { Link, useParams } from "react-router-dom";
 import { runAgent, type BatchExecutor } from "@/core/agent/loop";
 import { makeApprovalFn } from "@/core/agent/approval";
 import { executeBatched } from "@/core/agent/orchestrate";
+import { deriveSessionTitle } from "@/core/agent/session";
 import { buildAgentSystemPrompt } from "@/core/agent/systemPrompt";
 import { buildResearchTools } from "@/core/agent/tools";
 import type { AgentDeps, AgentMessage, AgentStore, ContentBlock, Terminal } from "@/core/agent/types";
 import { estimateContextBreakdown } from "@/core/agent/contextSize";
 import { toToolSchema } from "@/core/agent/schema";
 import { createProvider } from "@/core/llm";
-import { db } from "@/db";
+import { db, listAgentSessions, saveAgentSession } from "@/db";
 import { useTranslation } from "@/i18n";
 import { useAgentStore, usePaperStore, useProjectStore, useSettingsStore } from "@/store";
 import { AgentChatPanel } from "@/ui/ai-panel";
@@ -17,6 +18,7 @@ import { CurrentProjectLabel } from "@/ui/shell/CurrentProjectLabel";
 import { FeatureIcon } from "@/ui/shell/featureIcons";
 
 const DEFAULT_CONTEXT_WINDOW = 200_000;
+const SESSION_SAVE_DEBOUNCE_MS = 800;
 
 function resolveContextWindow(
   openRouterContextLength: number | null | undefined,
@@ -159,6 +161,8 @@ export default function AgentChat() {
   const append = useAgentStore((state) => state.append);
   const setStreaming = useAgentStore((state) => state.setStreaming);
   const setContextBreakdown = useAgentStore((state) => state.setContextBreakdown);
+  const setCurrentSessionId = useAgentStore((state) => state.setCurrentSessionId);
+  const bumpSessionsVersion = useAgentStore((state) => state.bumpSessionsVersion);
   const boxOpen = useAgentStore((state) => state.boxOpen);
   const loadForProject = usePaperStore((state) => state.loadForProject);
 
@@ -166,6 +170,32 @@ export default function AgentChat() {
   const [stopping, setStopping] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const toolNameByUseIdRef = useRef(new Map<string, string>());
+  const prevProjectIdRef = useRef("");
+
+  const persistSession = useCallback(async () => {
+    if (!projectId) {
+      return;
+    }
+
+    const { messages: currentMessages, currentSessionId } = useAgentStore.getState();
+    if (currentMessages.length === 0) {
+      return;
+    }
+
+    const id = await saveAgentSession({
+      id: currentSessionId ?? undefined,
+      projectId,
+      title: deriveSessionTitle(currentMessages),
+      messages: currentMessages,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    if (currentSessionId !== id) {
+      setCurrentSessionId(id);
+    }
+    bumpSessionsVersion();
+  }, [projectId, setCurrentSessionId, bumpSessionsVersion]);
 
   useEffect(() => {
     if (!settingsLoaded) {
@@ -178,6 +208,46 @@ export default function AgentChat() {
       void loadForProject(projectId);
     }
   }, [projectId, loadForProject]);
+
+  useEffect(() => {
+    if (!projectId) {
+      return;
+    }
+
+    if (prevProjectIdRef.current !== projectId) {
+      prevProjectIdRef.current = projectId;
+      useAgentStore.getState().startNewSession();
+    }
+
+    let cancelled = false;
+    void listAgentSessions(projectId).then((sessions) => {
+      if (!cancelled && sessions.length > 0) {
+        useAgentStore.getState().loadSession(sessions[0]!);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
+
+  useEffect(() => {
+    if (!projectId || messages.length === 0) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      void persistSession();
+    }, SESSION_SAVE_DEBOUNCE_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [messages, projectId, persistSession]);
+
+  useEffect(() => {
+    return () => {
+      void persistSession();
+    };
+  }, [persistSession]);
 
   useEffect(() => {
     return () => {
@@ -303,6 +373,7 @@ export default function AgentChat() {
         signal: controller.signal,
         requestApproval: makeApprovalFn(storeAdapter),
         projectId,
+        providerConfig: config,
       };
 
       try {
@@ -364,6 +435,7 @@ export default function AgentChat() {
         setSending(false);
         setStopping(false);
         abortRef.current = null;
+        await persistSession();
       }
     },
     [
@@ -377,6 +449,7 @@ export default function AgentChat() {
       projectName,
       sending,
       setStreaming,
+      persistSession,
       t,
     ],
   );

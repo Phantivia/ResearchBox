@@ -12,6 +12,14 @@ export interface ChatBoxNavItem {
 
 export const CHATBOX_NAV: readonly ChatBoxNavItem[] = [
   {
+    id: "chat-box-artifacts",
+    labelKey: "nav.chatBoxArtifacts",
+    icon: "chat-box-artifacts",
+    requiresProject: true,
+    path: (projectId) => `/p/${encodeURIComponent(projectId)}/chat-box/artifacts`,
+    isActive: (pathname) => /\/chat-box\/artifacts(?:\/|$)/.test(pathname),
+  },
+  {
     id: "chat-box-new",
     labelKey: "nav.chatBoxNewChat",
     icon: "chat-box-new",
@@ -23,5 +31,5 @@ export const CHATBOX_NAV: readonly ChatBoxNavItem[] = [
 ];
 
 export function isChatBoxRoute(pathname: string): boolean {
-  return /\/chat-box(?:\/|$)/.test(pathname) && !/\/artifacts(?:\/|$)/.test(pathname);
+  return /\/chat-box(?:\/|$)/.test(pathname);
 }

@@ -1,4 +1,5 @@
 export { AgentChatPanel } from "./AgentChatPanel";
+export { HistorySearch } from "./HistorySearch";
 export { ApprovalDialog, ApprovalSheet } from "./ApprovalSheet";
 export { ArtifactCard, type ArtifactCardProps } from "./ArtifactCard";
 export { ArtifactDetailPanel } from "./ArtifactDetailPanel";
