@@ -453,6 +453,31 @@
     line-height: 1;
     vertical-align: -0.15em;
   }
+
+  .rb-chat-box-closed {
+    --rb-page-bg: #1a2230;
+    --rb-card-bg: #2d3748;
+    --rb-text-primary: #f3f4f6;
+    --rb-text-secondary: #9ca3af;
+    --rb-border: #3d4d63;
+    color-scheme: dark;
+    background-color: var(--rb-page-bg);
+  }
+
+  @keyframes rb-box-ripple-expand {
+    from {
+      clip-path: circle(0% at var(--ripple-x) var(--ripple-y));
+    }
+
+    to {
+      clip-path: circle(150% at var(--ripple-x) var(--ripple-y));
+    }
+  }
+
+  .rb-box-ripple-overlay {
+    background-color: #1a2230;
+    animation: rb-box-ripple-expand 0.85s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+  }
 }
 
 ::highlight(researchbox-annotation) {

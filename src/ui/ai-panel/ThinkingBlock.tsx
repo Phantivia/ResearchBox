@@ -43,13 +43,13 @@ export function ThinkingBlock({
   const showPreview = responseStarted && !expanded;
 
   return (
-    <div className="w-full">
+    <div className="w-full min-w-0">
       <button
         type="button"
         onClick={() =>
           setExpandedOverride((value) => !(value ?? !responseStarted))
         }
-        className="flex w-full items-center gap-2 rounded-lg border border-[var(--rb-border)] bg-[color-mix(in_srgb,var(--rb-border)_35%,var(--rb-page-bg))] px-3 py-2 text-left text-sm text-[var(--rb-text-secondary)] transition-colors hover:bg-[color-mix(in_srgb,var(--rb-border)_50%,var(--rb-page-bg))]"
+        className="flex w-full items-center gap-2 px-0 py-1 text-left text-xs text-[var(--rb-text-secondary)] transition-colors hover:text-[var(--rb-text-primary)]"
         aria-expanded={expanded}
       >
         <span
@@ -76,8 +76,8 @@ export function ThinkingBlock({
         style={{ gridTemplateRows: expanded ? "1fr" : "0fr" }}
       >
         <div className="overflow-hidden">
-          <div className="mt-1 rounded-lg border border-dashed border-[var(--rb-border)] bg-[color-mix(in_srgb,var(--rb-border)_25%,var(--rb-page-bg))] px-3 py-2">
-            <div className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--rb-text-secondary)]">
+          <div className="mt-1 px-0 py-1">
+            <div className="whitespace-pre-wrap text-xs leading-relaxed text-[var(--rb-text-secondary)]">
               {text}
               {streaming && !responseStarted ? <span>▍</span> : null}
             </div>

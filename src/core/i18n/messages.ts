@@ -148,6 +148,7 @@ export const UI_MESSAGES = {
     "agent.box.researching": "研究中（优先盒内）",
     "agent.box.collectingDesc": "可搜索外部文献并逐篇纳入盒子；纳入后可用于检索与研究。",
     "agent.box.researchingDesc": "回答优先盒内论文；需要补搜时可随时重新开盒，会话历史保持连续。",
+    "agent.box.boundaryLabel": "盒子关闭：优先使用 PaperBox 内的论文信息",
     "agent.provenance.paperbox": "paperbox",
     "agent.provenance.academic": "academic",
     "agent.provenance.web": "web",
@@ -556,6 +557,7 @@ export const UI_MESSAGES = {
       "Search external literature and include papers one by one; included papers feed retrieval and research.",
     "agent.box.researchingDesc":
       "Answers prioritize in-box papers; reopen the box anytime to search again without clearing history.",
+    "agent.box.boundaryLabel": "Box closed: prioritize papers in PaperBox",
     "agent.provenance.paperbox": "paperbox",
     "agent.provenance.academic": "academic",
     "agent.provenance.web": "web",

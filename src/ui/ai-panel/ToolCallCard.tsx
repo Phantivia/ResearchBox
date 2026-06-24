@@ -115,19 +115,17 @@ export function ToolCallCard({
     (formattedResult ? parseProvenanceFromContent(formattedResult) : null) ??
     provenanceForToolName(name);
 
-  const borderClass = isError
-    ? "border-red-300 dark:border-red-800"
-    : "border-[var(--rb-border)]";
-  const headerBg = isError
-    ? "bg-[color-mix(in_srgb,red_8%,var(--rb-page-bg))]"
-    : "bg-[color-mix(in_srgb,var(--rb-border)_35%,var(--rb-page-bg))]";
+  const borderClass = isError ? "text-red-600 dark:text-red-400" : "";
+  const headerTextClass = isError
+    ? "text-red-600 dark:text-red-400"
+    : "text-[var(--rb-text-secondary)]";
 
   return (
-    <div className={`w-full min-w-0 rounded-lg border ${borderClass}`}>
+    <div className="w-full min-w-0">
       <button
         type="button"
         onClick={() => setCardExpanded((value) => !value)}
-        className={`flex w-full min-w-0 items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-[color-mix(in_srgb,var(--rb-border)_50%,var(--rb-page-bg))] ${headerBg}`}
+        className={`flex w-full min-w-0 items-center gap-2 px-0 py-1 text-left text-xs transition-colors hover:text-[var(--rb-text-primary)] ${headerTextClass}`}
         aria-expanded={cardExpanded}
       >
         <span
@@ -136,7 +134,7 @@ export function ToolCallCard({
         >
           ▶
         </span>
-        <span className="min-w-0 truncate font-medium text-[var(--rb-text-primary)]">
+        <span className="min-w-0 truncate font-medium">
           {name}
         </span>
         {provenance ? (
@@ -145,18 +143,18 @@ export function ToolCallCard({
           </span>
         ) : null}
         {running ? (
-          <span className="inline-flex shrink-0 items-center gap-1.5 text-[var(--rb-text-secondary)]">
+          <span className="inline-flex shrink-0 items-center gap-1.5">
             {cardExpanded ? (stage ?? t("agent.tool.running")) : null}
             <RunningDots />
           </span>
         ) : null}
         {isError ? (
-          <span className="shrink-0 rounded px-1.5 py-0.5 text-xs font-medium text-red-600 dark:text-red-400">
+          <span className={`shrink-0 rounded px-1.5 py-0.5 text-[0.6875rem] font-medium ${borderClass}`}>
             {t("agent.tool.error")}
           </span>
         ) : null}
         {!running && !isError && cardExpanded ? (
-          <span className="shrink-0 text-xs text-[var(--rb-text-secondary)]">
+          <span className="shrink-0 text-[0.6875rem]">
             {t("agent.tool.done")}
           </span>
         ) : null}
@@ -167,7 +165,7 @@ export function ToolCallCard({
         style={{ gridTemplateRows: cardExpanded ? "1fr" : "0fr" }}
       >
         <div className="overflow-hidden">
-      <div className="border-t border-[var(--rb-border)] px-3 py-2">
+      <div className="px-0 py-1">
         {pythonInput ? (
           <>
             <button
@@ -230,7 +228,7 @@ export function ToolCallCard({
       </div>
 
       {paperRecommendations && projectId ? (
-        <div className="space-y-2 border-t border-[var(--rb-border)] px-3 py-2">
+        <div className="space-y-2 px-0 py-1">
           {paperRecommendations.map((recommendation) => (
             <PaperRecommendationCard
               key={recommendation.arxivId}
@@ -242,9 +240,7 @@ export function ToolCallCard({
       ) : null}
 
       {formattedResult !== undefined && paperRecommendations === null ? (
-        <div
-          className={`border-t px-3 py-2 ${isError ? "border-red-200 dark:border-red-900" : "border-[var(--rb-border)]"}`}
-        >
+        <div className="px-0 py-1">
           <button
             type="button"
             onClick={() => setResultExpanded((value) => !value)}

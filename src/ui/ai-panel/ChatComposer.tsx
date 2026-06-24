@@ -18,6 +18,7 @@ import {
   type ClipboardEvent,
   type DragEvent,
   type KeyboardEvent,
+  type RefObject,
 } from "react";
 import type { ContextTokenBreakdown } from "@/core/agent/contextSize";
 import { useTranslation } from "@/i18n";
@@ -45,6 +46,7 @@ export interface ChatComposerProps {
   onSend: (payload: ChatSendPayload) => void | Promise<void>;
   onStop?: () => void;
   stopping?: boolean;
+  rippleContainerRef?: RefObject<HTMLElement | null>;
 }
 
 const MAX_ATTACHMENTS = 10;
@@ -56,6 +58,7 @@ export function ChatComposer({
   onSend,
   onStop,
   stopping = false,
+  rippleContainerRef,
 }: ChatComposerProps) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState("");
@@ -255,7 +258,7 @@ export function ChatComposer({
       ) : null}
 
       <div className="flex items-end gap-2 sm:gap-3">
-        <BoxSwitch />
+        <BoxSwitch rippleContainerRef={rippleContainerRef} />
         <textarea
           value={draft}
           onChange={(event) => setDraft(event.target.value)}

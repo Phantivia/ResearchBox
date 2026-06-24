@@ -1,13 +1,36 @@
+import type { MouseEvent, RefObject } from "react";
 import { useTranslation } from "@/i18n";
 import { useAgentStore } from "@/store";
 
-export function BoxSwitch() {
+export interface BoxSwitchProps {
+  rippleContainerRef?: RefObject<HTMLElement | null>;
+}
+
+export function BoxSwitch({ rippleContainerRef }: BoxSwitchProps) {
   const { t } = useTranslation();
   const boxOpen = useAgentStore((state) => state.boxOpen);
   const openBox = useAgentStore((state) => state.openBox);
   const closeBox = useAgentStore((state) => state.closeBox);
+  const setBoxRippleOrigin = useAgentStore((state) => state.setBoxRippleOrigin);
 
   const label = boxOpen ? t("agent.box.collecting") : t("agent.box.researching");
+
+  const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+    if (boxOpen) {
+      const container = rippleContainerRef?.current;
+      if (container) {
+        const rect = container.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          const xPercent = ((event.clientX - rect.left) / rect.width) * 100;
+          const yPercent = ((event.clientY - rect.top) / rect.height) * 100;
+          setBoxRippleOrigin({ xPercent, yPercent });
+        }
+      }
+      closeBox();
+      return;
+    }
+    openBox();
+  };
 
   return (
     <button
@@ -16,18 +39,12 @@ export function BoxSwitch() {
       aria-checked={boxOpen}
       aria-label={label}
       title={label}
-      onClick={() => {
-        if (boxOpen) {
-          closeBox();
-        } else {
-          openBox();
-        }
-      }}
+      onClick={handleClick}
       className={[
-        "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[var(--rb-primary)]",
+        "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--rb-primary)_45%,transparent)]",
         boxOpen
-          ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
-          : "border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300",
+          ? "border-[var(--rb-border)] bg-[var(--rb-page-bg)] text-[var(--rb-text-primary)] hover:bg-[color-mix(in_srgb,var(--rb-text-primary)_6%,var(--rb-page-bg))]"
+          : "border-[var(--rb-primary-hover)] bg-[var(--rb-primary-hover)] text-white hover:bg-[var(--rb-primary)]",
       ].join(" ")}
     >
       <span

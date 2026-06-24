@@ -1,10 +1,14 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { AgentMessage, ContentBlock } from "@/core/agent/types";
+import { BOUNDARY_MARKER_PREFIX } from "@/core/agent/boundary";
 import { extractStreamingPythonCode } from "@/core/agent/streamingToolInput";
+import { useTranslation } from "@/i18n";
 import { useAgentStore } from "@/store";
 import { AssistantAvatar } from "./AssistantAvatar";
+import { AssistantText } from "./AssistantText";
 import { ArtifactCard } from "./ArtifactCard";
 import { ArtifactDetailPanel } from "./ArtifactDetailPanel";
+import { BoxRippleOverlay } from "./BoxRippleOverlay";
 import { ChatComposer, type ChatSendPayload } from "./ChatComposer";
 import { MessageBubble } from "./MessageBubble";
 import { StreamingPythonToolCard } from "./StreamingPythonToolCard";
@@ -62,11 +66,7 @@ function renderAssistantContent(
           />
         );
       case "text":
-        return (
-          <MessageBubble key={blockIndex} role="assistant">
-            {block.text}
-          </MessageBubble>
-        );
+        return <AssistantText key={blockIndex} content={block.text} />;
       case "tool_use": {
         const resultEntry = toolResults.get(block.id);
         const running = runningTools[block.id];
@@ -104,6 +104,7 @@ function renderMessage(
   toolResults: Map<string, ToolResultEntry>,
   runningTools: Record<string, { name: string; stage: string }>,
   projectId: string,
+  boundaryLabel: string,
 ) {
   if (!isUiVisibleMessage(message)) {
     return null;
@@ -145,17 +146,17 @@ function renderMessage(
     (block): block is Extract<ContentBlock, { type: "image" }> => block.type === "image",
   );
   const text = textBlocks.join("\n\n");
-  const isBoundaryMarker = text.startsWith("【盒子已关闭】");
+  const isBoundaryMarker = text.startsWith(BOUNDARY_MARKER_PREFIX);
 
   return (
     <div key={index}>
       {text ? (
         isBoundaryMarker ? (
-          <div className="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm leading-relaxed text-indigo-900 dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200">
-            {text}
+          <div className="rounded-lg bg-[var(--rb-primary-hover)] px-4 py-2.5 text-sm text-white">
+            {boundaryLabel}
           </div>
         ) : (
-          <MessageBubble role="user">{text}</MessageBubble>
+          <MessageBubble>{text}</MessageBubble>
         )
       ) : null}
       {imageBlocks.length > 0 ? (
@@ -182,13 +183,22 @@ export function AgentChatPanel({
   onStop,
   stopping = false,
 }: AgentChatPanelProps) {
+  const { t } = useTranslation();
   const messages = useAgentStore((state) => state.messages);
+  const boxOpen = useAgentStore((state) => state.boxOpen);
+  const boxRippleOrigin = useAgentStore((state) => state.boxRippleOrigin);
+  const clearBoxRipple = useAgentStore((state) => state.clearBoxRipple);
   const streamingText = useAgentStore((state) => state.streamingText);
   const streamingThinking = useAgentStore((state) => state.streamingThinking);
   const streamingToolCalls = useAgentStore((state) => state.streamingToolCalls);
   const runningTools = useAgentStore((state) => state.runningTools);
   const contextBreakdown = useAgentStore((state) => state.contextBreakdown);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const chatSurfaceRef = useRef<HTMLDivElement>(null);
+
+  const handleRippleComplete = useCallback(() => {
+    clearBoxRipple();
+  }, [clearBoxRipple]);
 
   const toolResults = useMemo(() => buildToolResultMap(messages), [messages]);
   const streamingPythonCalls = useMemo(
@@ -214,11 +224,28 @@ export function AgentChatPanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--rb-page-bg)] md:flex-row">
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div
+        ref={chatSurfaceRef}
+        className={[
+          "relative flex min-h-0 min-w-0 flex-1 flex-col transition-[background-color,color] duration-500 ease-out",
+          !boxOpen ? "rb-chat-box-closed" : "",
+        ].join(" ")}
+      >
+        {boxRippleOrigin ? (
+          <BoxRippleOverlay origin={boxRippleOrigin} onComplete={handleRippleComplete} />
+        ) : null}
+
         <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4">
           <div className="mx-auto flex max-w-3xl flex-col gap-4">
             {messages.map((message, index) =>
-              renderMessage(message, index, toolResults, runningTools, projectId),
+              renderMessage(
+                message,
+                index,
+                toolResults,
+                runningTools,
+                projectId,
+                t("agent.box.boundaryLabel"),
+              ),
             )}
 
             {isStreaming ? (
@@ -233,7 +260,7 @@ export function AgentChatPanel({
                     />
                   ) : null}
                   {streamingText ? (
-                    <MessageBubble role="assistant">{streamingText}</MessageBubble>
+                    <AssistantText content={streamingText} />
                   ) : null}
                   {streamingPythonCalls.map(([id, call]) => (
                     <StreamingPythonToolCard
@@ -257,6 +284,7 @@ export function AgentChatPanel({
           onSend={onSend}
           onStop={onStop}
           stopping={stopping}
+          rippleContainerRef={chatSurfaceRef}
         />
       </div>
 
