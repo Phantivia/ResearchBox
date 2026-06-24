@@ -7,6 +7,7 @@ import { buildAgentSystemPrompt } from "@/core/agent/systemPrompt";
 import { buildResearchTools } from "@/core/agent/tools";
 import type { AgentDeps, AgentMessage, AgentStore, ContentBlock, Terminal } from "@/core/agent/types";
 import { estimateContextBreakdown } from "@/core/agent/contextSize";
+import { toToolSchema } from "@/core/agent/schema";
 import { createProvider } from "@/core/llm";
 import { db } from "@/db";
 import { useTranslation } from "@/i18n";
@@ -195,12 +196,22 @@ export default function AgentChat() {
       date: new Date().toISOString().slice(0, 10),
       boxOpen,
     });
+    const toolDefinitions = buildResearchTools({ allowWeb, allowCode }).map(toToolSchema);
     const breakdown = estimateContextBreakdown(
       messagesWithStreaming(messages, streamingText, streamingThinking),
-      system,
+      { systemPrompt: system, toolDefinitions },
     );
     setContextBreakdown(breakdown);
-  }, [messages, streamingText, streamingThinking, projectName, boxOpen, setContextBreakdown]);
+  }, [
+    messages,
+    streamingText,
+    streamingThinking,
+    projectName,
+    boxOpen,
+    allowWeb,
+    allowCode,
+    setContextBreakdown,
+  ]);
 
   const appendTerminalNotice = useCallback(
     (terminal: Terminal) => {

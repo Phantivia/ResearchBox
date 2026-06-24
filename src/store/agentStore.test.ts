@@ -79,8 +79,8 @@ describe("useAgentStore", () => {
     useAgentStore.getState().setContextBreakdown({
       systemPrompt: 10,
       conversation: 20,
-      toolUse: 0,
-      toolResult: 0,
+      toolDefinition: 0,
+      toolIO: 0,
     });
     useAgentStore.getState().closeBox();
 

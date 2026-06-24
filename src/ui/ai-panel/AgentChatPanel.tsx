@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { AgentMessage, ContentBlock } from "@/core/agent/types";
 import { useAgentStore } from "@/store";
-import { ApprovalDialog } from "./ApprovalDialog";
 import { AssistantAvatar } from "./AssistantAvatar";
 import { ArtifactCard } from "./ArtifactCard";
 import { ArtifactDetailPanel } from "./ArtifactDetailPanel";
@@ -181,45 +180,45 @@ export function AgentChatPanel({
   }, [messages, streamingText, streamingThinking, runningTools]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[var(--rb-page-bg)]">
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4">
-        <div className="mx-auto flex max-w-3xl flex-col gap-4">
-          <ApprovalDialog />
+    <div className="flex h-full min-h-0 flex-col bg-[var(--rb-page-bg)] md:flex-row">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4">
+          <div className="mx-auto flex max-w-3xl flex-col gap-4">
+            {messages.map((message, index) =>
+              renderMessage(message, index, toolResults, runningTools, projectId),
+            )}
 
-          {messages.map((message, index) =>
-            renderMessage(message, index, toolResults, runningTools, projectId),
-          )}
-
-          {isStreaming ? (
-            <div className="flex gap-2">
-              <AssistantAvatar />
-              <div className="flex min-w-0 flex-1 flex-col gap-2">
-                {streamingThinking ? (
-                  <ThinkingBlock
-                    text={streamingThinking}
-                    streaming
-                    responseStarted={Boolean(streamingText)}
-                  />
-                ) : null}
-                {streamingText ? (
-                  <MessageBubble role="assistant">{streamingText}</MessageBubble>
-                ) : null}
+            {isStreaming ? (
+              <div className="flex gap-2">
+                <AssistantAvatar />
+                <div className="flex min-w-0 flex-1 flex-col gap-2">
+                  {streamingThinking ? (
+                    <ThinkingBlock
+                      text={streamingThinking}
+                      streaming
+                      responseStarted={Boolean(streamingText)}
+                    />
+                  ) : null}
+                  {streamingText ? (
+                    <MessageBubble role="assistant">{streamingText}</MessageBubble>
+                  ) : null}
+                </div>
               </div>
-            </div>
-          ) : null}
+            ) : null}
 
-          <div ref={bottomRef} />
+            <div ref={bottomRef} />
+          </div>
         </div>
-      </div>
 
-      <ChatComposer
-        disabled={disabled}
-        contextWindow={contextWindow}
-        contextBreakdown={contextBreakdown}
-        onSend={onSend}
-        onStop={onStop}
-        stopping={stopping}
-      />
+        <ChatComposer
+          disabled={disabled}
+          contextWindow={contextWindow}
+          contextBreakdown={contextBreakdown}
+          onSend={onSend}
+          onStop={onStop}
+          stopping={stopping}
+        />
+      </div>
 
       <ArtifactDetailPanel />
     </div>

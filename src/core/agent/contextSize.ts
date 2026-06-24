@@ -1,3 +1,4 @@
+import type { ToolSchema } from "@/core/llm/types";
 import type { AgentMessage, ContentBlock } from "@/core/agent/types";
 
 const CJK_CHAR = /[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]/;
@@ -48,36 +49,49 @@ export function estimateChars(messages: AgentMessage[]): number {
 
 export interface ContextTokenBreakdown {
   systemPrompt: number;
+  toolDefinition: number;
+  toolIO: number;
   conversation: number;
-  toolUse: number;
-  toolResult: number;
 }
 
 export const EMPTY_CONTEXT_BREAKDOWN: ContextTokenBreakdown = {
   systemPrompt: 0,
+  toolDefinition: 0,
+  toolIO: 0,
   conversation: 0,
-  toolUse: 0,
-  toolResult: 0,
 };
+
+export interface EstimateContextBreakdownOptions {
+  systemPrompt?: string;
+  toolDefinitions?: ToolSchema[];
+}
+
+export function estimateToolDefinitionTokens(toolDefinitions: ToolSchema[]): number {
+  if (toolDefinitions.length === 0) {
+    return 0;
+  }
+
+  return estimateTokensFromString(JSON.stringify(toolDefinitions));
+}
 
 export function totalContextTokens(breakdown: ContextTokenBreakdown): number {
   return (
     breakdown.systemPrompt +
-    breakdown.conversation +
-    breakdown.toolUse +
-    breakdown.toolResult
+    breakdown.toolDefinition +
+    breakdown.toolIO +
+    breakdown.conversation
   );
 }
 
 export function estimateContextBreakdown(
   messages: AgentMessage[],
-  systemPrompt = "",
+  options: EstimateContextBreakdownOptions = {},
 ): ContextTokenBreakdown {
   const breakdown: ContextTokenBreakdown = {
-    systemPrompt: estimateTokensFromString(systemPrompt),
+    systemPrompt: estimateTokensFromString(options.systemPrompt ?? ""),
+    toolDefinition: estimateToolDefinitionTokens(options.toolDefinitions ?? []),
+    toolIO: 0,
     conversation: 0,
-    toolUse: 0,
-    toolResult: 0,
   };
 
   for (const message of messages) {
@@ -92,10 +106,8 @@ export function estimateContextBreakdown(
           breakdown.conversation += tokens;
           break;
         case "tool_use":
-          breakdown.toolUse += tokens;
-          break;
         case "tool_result":
-          breakdown.toolResult += tokens;
+          breakdown.toolIO += tokens;
           break;
         case "artifact_card":
           break;

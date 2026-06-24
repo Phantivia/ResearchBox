@@ -125,14 +125,29 @@ describe("estimateTokens", () => {
 
 describe("estimateContextBreakdown", () => {
   it("counts system prompt tokens separately", () => {
-    const breakdown = estimateContextBreakdown([], "abcd");
+    const breakdown = estimateContextBreakdown([], { systemPrompt: "abcd" });
     expect(breakdown.systemPrompt).toBe(1);
     expect(breakdown.conversation).toBe(0);
-    expect(breakdown.toolUse).toBe(0);
-    expect(breakdown.toolResult).toBe(0);
+    expect(breakdown.toolDefinition).toBe(0);
+    expect(breakdown.toolIO).toBe(0);
   });
 
-  it("categorizes conversation, tool_use, and tool_result blocks", () => {
+  it("counts tool definition tokens from serialized schemas", () => {
+    const breakdown = estimateContextBreakdown([], {
+      toolDefinitions: [
+        {
+          name: "search",
+          description: "Search papers",
+          inputSchema: { type: "object", properties: { q: { type: "string" } } },
+        },
+      ],
+    });
+
+    expect(breakdown.toolDefinition).toBeGreaterThan(0);
+    expect(breakdown.systemPrompt).toBe(0);
+  });
+
+  it("categorizes conversation and tool input/output blocks", () => {
     const input = { q: "x" };
     const messages: AgentMessage[] = [
       {
@@ -157,11 +172,12 @@ describe("estimateContextBreakdown", () => {
       },
     ];
 
-    const breakdown = estimateContextBreakdown(messages, "abcd");
+    const breakdown = estimateContextBreakdown(messages, { systemPrompt: "abcd" });
     expect(breakdown.systemPrompt).toBe(1);
     expect(breakdown.conversation).toBe(2);
-    expect(breakdown.toolUse).toBe(Math.ceil(JSON.stringify(input).length / 4));
-    expect(breakdown.toolResult).toBe(1);
+    expect(breakdown.toolIO).toBe(
+      Math.ceil(JSON.stringify(input).length / 4) + 1,
+    );
     expect(totalContextTokens(breakdown)).toBe(estimateTokens(messages) + 1);
   });
 

@@ -6,6 +6,54 @@ import { useTranslation } from "@/i18n";
 import { useAgentStore } from "@/store";
 import { ArtifactMarkdownContent } from "./ArtifactMarkdownContent";
 
+function ArtifactDetailBody({
+  artifact,
+  onClose,
+}: {
+  artifact: Artifact | null;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <>
+      <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-[var(--rb-border)] md:hidden" />
+
+      <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--rb-border)] px-4 py-3">
+        <div className="min-w-0">
+          {artifact ? (
+            <>
+              <p className="text-xs font-medium uppercase tracking-wide text-[var(--rb-text-secondary)]">
+                {t(`agent.artifact.kind.${artifact.kind}`)}
+              </p>
+              <h2
+                id="artifact-detail-title"
+                className="mt-0.5 truncate text-lg font-semibold text-[var(--rb-text-primary)]"
+              >
+                {artifact.title}
+              </h2>
+            </>
+          ) : (
+            <p className="text-sm text-[var(--rb-text-secondary)]">{t("agent.artifact.loading")}</p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={t("agent.artifact.closePreview")}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--rb-text-secondary)] hover:bg-[color-mix(in_srgb,var(--rb-border)_50%,transparent)]"
+        >
+          <CloseIcon />
+        </button>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+        {artifact ? <ArtifactMarkdownContent content={artifact.content} /> : null}
+      </div>
+    </>
+  );
+}
+
 export function ArtifactDetailPanel() {
   const { t } = useTranslation();
   const artifactPanel = useAgentStore((state) => state.artifactPanel);
@@ -58,21 +106,31 @@ export function ArtifactDetailPanel() {
     };
 
     window.addEventListener("keydown", onKeyDown);
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = previousOverflow;
-    };
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, [handleClose, mounted]);
 
   if (!mounted) {
     return null;
   }
 
-  return createPortal(
-    <div className="fixed inset-0 z-[90]" role="presentation">
+  const desktopPanel = (
+    <aside
+      role="dialog"
+      aria-modal="false"
+      aria-labelledby="artifact-detail-title"
+      className={[
+        "hidden min-h-0 shrink-0 flex-col overflow-hidden border-[var(--rb-border)] bg-[var(--rb-card-bg)] transition-[width,opacity] duration-240 ease-[cubic-bezier(0.32,0.72,0,1)] md:flex",
+        visible
+          ? "w-[min(480px,40vw)] border-l opacity-100"
+          : "w-0 border-l-0 opacity-0 pointer-events-none",
+      ].join(" ")}
+    >
+      <ArtifactDetailBody artifact={artifact} onClose={handleClose} />
+    </aside>
+  );
+
+  const mobileOverlay = createPortal(
+    <div className="fixed inset-0 z-[90] md:hidden" role="presentation">
       <button
         type="button"
         aria-label={t("agent.artifact.closePreview")}
@@ -88,51 +146,21 @@ export function ArtifactDetailPanel() {
         aria-modal="true"
         aria-labelledby="artifact-detail-title"
         className={[
-          "absolute flex flex-col overflow-hidden border-[var(--rb-border)] bg-[var(--rb-card-bg)] shadow-2xl transition-transform duration-240 ease-[cubic-bezier(0.32,0.72,0,1)]",
-          "inset-x-0 bottom-0 max-h-[min(88dvh,40rem)] rounded-t-2xl border-t md:inset-x-auto md:inset-y-0 md:right-0 md:max-h-none md:w-[min(480px,90vw)] md:rounded-none md:border-l md:border-t-0",
-          visible
-            ? "translate-y-0 md:translate-x-0"
-            : "translate-y-full md:translate-y-0 md:translate-x-full",
+          "absolute inset-x-0 bottom-0 flex max-h-[min(88dvh,40rem)] flex-col overflow-hidden rounded-t-2xl border border-b-0 border-[var(--rb-border)] bg-[var(--rb-card-bg)] shadow-2xl transition-transform duration-240 ease-[cubic-bezier(0.32,0.72,0,1)]",
+          visible ? "translate-y-0" : "translate-y-full",
         ].join(" ")}
       >
-        <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-[var(--rb-border)] md:hidden" />
-
-        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--rb-border)] px-4 py-3">
-          <div className="min-w-0">
-            {artifact ? (
-              <>
-                <p className="text-xs font-medium uppercase tracking-wide text-[var(--rb-text-secondary)]">
-                  {t(`agent.artifact.kind.${artifact.kind}`)}
-                </p>
-                <h2
-                  id="artifact-detail-title"
-                  className="mt-0.5 truncate text-lg font-semibold text-[var(--rb-text-primary)]"
-                >
-                  {artifact.title}
-                </h2>
-              </>
-            ) : (
-              <p className="text-sm text-[var(--rb-text-secondary)]">
-                {t("agent.artifact.loading")}
-              </p>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={handleClose}
-            aria-label={t("agent.artifact.closePreview")}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--rb-text-secondary)] hover:bg-[color-mix(in_srgb,var(--rb-border)_50%,transparent)]"
-          >
-            <CloseIcon />
-          </button>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-          {artifact ? <ArtifactMarkdownContent content={artifact.content} /> : null}
-        </div>
+        <ArtifactDetailBody artifact={artifact} onClose={handleClose} />
       </div>
     </div>,
     document.body,
+  );
+
+  return (
+    <>
+      {desktopPanel}
+      {mobileOverlay}
+    </>
   );
 }
 

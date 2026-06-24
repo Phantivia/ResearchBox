@@ -7,10 +7,12 @@ export function ChatBoxArtifacts() {
   const { projectId = "" } = useParams<{ projectId: string }>();
 
   return (
-    <main className="relative z-10 flex h-[calc(100dvh-3.5rem)] min-h-0 flex-col overflow-hidden md:h-dvh">
-      <div className="mx-auto min-h-0 w-full max-w-3xl flex-1 overflow-y-auto px-4 py-6">
-        <CurrentProjectLabel />
-        <ArtifactListView projectId={projectId} variant="full" />
+    <main className="relative z-10 flex h-[calc(100dvh-3.5rem)] min-h-0 flex-row overflow-hidden md:h-dvh">
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-6">
+        <div className="mx-auto w-full max-w-3xl">
+          <CurrentProjectLabel />
+          <ArtifactListView projectId={projectId} variant="full" />
+        </div>
       </div>
       <ArtifactDetailPanel />
     </main>

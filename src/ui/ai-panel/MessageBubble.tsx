@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import Markdown from "react-markdown";
+import { MarkdownContent } from "./MarkdownContent";
 
 export interface MessageBubbleProps {
   role: "user" | "assistant";
@@ -8,6 +8,7 @@ export interface MessageBubbleProps {
 
 export function MessageBubble({ role, children }: MessageBubbleProps) {
   const isUser = role === "user";
+  const text = typeof children === "string" ? children : String(children);
 
   return (
     <div className={`flex w-full ${isUser ? "justify-end" : "justify-start"}`}>
@@ -22,9 +23,7 @@ export function MessageBubble({ role, children }: MessageBubbleProps) {
         {isUser ? (
           <div className="whitespace-pre-wrap text-sm leading-relaxed">{children}</div>
         ) : (
-          <div className="prose prose-sm max-w-none text-[var(--rb-text-primary)] prose-headings:text-[var(--rb-text-primary)] prose-p:text-[var(--rb-text-primary)] prose-strong:text-[var(--rb-text-primary)] prose-code:text-[var(--rb-text-primary)]">
-            <Markdown>{typeof children === "string" ? children : String(children)}</Markdown>
-          </div>
+          <MarkdownContent content={text} />
         )}
       </div>
     </div>

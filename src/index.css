@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 @theme {
   --color-blue-50: #f0f3f8;
@@ -320,6 +321,43 @@
 
   .rb-drawer-backdrop-enter {
     animation: rb-drawer-backdrop-in 280ms cubic-bezier(0.32, 0.72, 0, 1) both;
+  }
+
+  .rb-markdown {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .rb-markdown pre {
+    overflow-x: auto;
+  }
+
+  .rb-markdown table {
+    width: max-content;
+    max-width: 100%;
+    border-collapse: collapse;
+  }
+
+  .rb-markdown table :is(th, td) {
+    border: 1px solid var(--rb-border);
+    padding: 0.4em 0.75em;
+  }
+
+  .rb-markdown table thead :is(th, td) {
+    background-color: color-mix(in srgb, var(--rb-border) 35%, transparent);
+  }
+
+  .rb-markdown .inline-math {
+    display: inline;
+    margin: 0 0.1em;
+    white-space: nowrap;
+  }
+
+  .rb-markdown .inline-math .katex {
+    display: inline-block;
+    line-height: 1;
+    vertical-align: -0.15em;
   }
 }
 
