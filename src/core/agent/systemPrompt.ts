@@ -1,3 +1,5 @@
+import { IN_BOX_PRIORITY_RULE } from "./boundary";
+
 export const SYSTEM_PROMPT_DYNAMIC_BOUNDARY =
   "__SYSTEM_PROMPT_DYNAMIC_BOUNDARY__";
 
@@ -35,33 +37,39 @@ Literature search has no binary done signal like passing tests; convergence is a
 - Optional working memory: you may track a set of seen arXiv IDs / DOIs across rounds. When several consecutive rounds add few or no new relevant hits, treat that as recall saturation and tell the user retrieval is **approaching saturation**. This is an optional workflow, not a mandatory rule — use judgment; do not rely on fixed numeric cutoffs.
 - When closing an exhaustive task, report your **retrieval strategy** in a reportable-search style: queries used, sources covered (e.g. Semantic Scholar, OpenAlex, arXiv, web), and plausible blind spots or gaps.
 
+# In-box priority (盒内优先)
+${IN_BOX_PRIORITY_RULE}
+
 # Using your tools
 - Use paperbox_list to see what papers are in the box (title, authors, abstract) before retrieval or external search.
 - Use paperbox_read to fetch metadata, abstracts, outlines, or full block text for one paper by routeId.
 - Call independent read-only tools in parallel when there are no dependencies between them.
 - Do not claim to have read a paper without having retrieved its content via tools in this conversation.
 
-# Citations
-- Attribute claims to specific papers (title or routeId) and block IDs when quoting or paraphrasing structured blocks.
-- Distinguish between what the paper states and your own synthesis or speculation.
-
-# Retrieval citation rules
-- After using the retrieval tool, every claim about paper content derived from retrieval evidence MUST include a \`paperId#blockId\` citation (e.g. \`2401.12345:latest#blk-42\`). This is mandatory — analogous to file:line references in code assistants.
-- Treat recalled blocks as point-in-time snapshots: before recommending from retrieval hits, verify the evidence still supports your answer; stale snapshots may be outdated.`;
+# Citation rules (引用规范)
+- Every claim about paper content MUST include a \`paperId#blockId\` citation (e.g. \`2401.12345:latest#blk-42\`) when quoting or paraphrasing structured blocks — mandatory, analogous to file:line references in code assistants.
+- Attribute claims to specific papers and block IDs; distinguish what the paper states from your own synthesis or speculation.
+- After using the retrieval tool, treat recalled blocks as point-in-time snapshots: before recommending from retrieval hits, verify the evidence still supports your answer; stale snapshots may be outdated.`;
 
 function buildDynamicPrompt(ctx: {
   projectName?: string;
   date?: string;
+  boxOpen?: boolean;
 }): string {
   const lines = ["# Session context"];
+  const boxOpen = ctx.boxOpen !== false;
+  if (boxOpen) {
+    lines.push(
+      "- Paper Box: 采集阶段 — 可用 academic_search / websearch 拉文献进盒，结果需用户逐篇纳入。",
+    );
+  } else {
+    lines.push("- Paper Box: 研究阶段 — 优先盒内、不主动外搜。");
+  }
   if (ctx.projectName) {
     lines.push(`- Active project: ${ctx.projectName}`);
   }
   if (ctx.date) {
     lines.push(`- Today's date: ${ctx.date}`);
-  }
-  if (lines.length === 1) {
-    lines.push("- No project-specific context was provided.");
   }
   return lines.join("\n");
 }
@@ -69,6 +77,7 @@ function buildDynamicPrompt(ctx: {
 export function buildAgentSystemPrompt(ctx: {
   projectName?: string;
   date?: string;
+  boxOpen?: boolean;
 }): string {
   return `${STABLE_PROMPT}\n\n${SYSTEM_PROMPT_DYNAMIC_BOUNDARY}\n\n${buildDynamicPrompt(ctx)}`;
 }
