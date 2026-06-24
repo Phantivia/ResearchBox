@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { buildBoundaryMarker } from "@/core/agent/boundary";
+import type { ContextTokenBreakdown } from "@/core/agent/contextSize";
+import { EMPTY_CONTEXT_BREAKDOWN } from "@/core/agent/contextSize";
 import type { AgentMessage, ApprovalRequest, ContentBlock } from "@/core/agent/types";
 
 export type PendingApproval = ApprovalRequest & {
@@ -14,7 +16,7 @@ interface AgentStoreState {
   boxOpen: boolean;
   streamingText: string;
   streamingThinking: string;
-  contextChars: number;
+  contextBreakdown: ContextTokenBreakdown;
   artifactsVersion: number;
   artifactPanel: { artifactId: string } | null;
 }
@@ -27,7 +29,7 @@ interface AgentStoreActions {
   resolveApproval: (id: string, ok: boolean) => void;
   setRunningTool: (id: string, info: { name: string; stage: string }) => void;
   clearRunningTool: (id: string) => void;
-  setContextChars: (n: number) => void;
+  setContextBreakdown: (breakdown: ContextTokenBreakdown) => void;
   setBoxOpen: (open: boolean) => void;
   openBox: () => void;
   closeBox: () => void;
@@ -44,7 +46,7 @@ const initialState: AgentStoreState = {
   boxOpen: true,
   streamingText: "",
   streamingThinking: "",
-  contextChars: 0,
+  contextBreakdown: EMPTY_CONTEXT_BREAKDOWN,
   artifactsVersion: 0,
   artifactPanel: null,
 };
@@ -113,7 +115,7 @@ export const useAgentStore = create<AgentStoreState & AgentStoreActions>()((set)
       return { runningTools: rest };
     }),
 
-  setContextChars: (n) => set({ contextChars: n }),
+  setContextBreakdown: (breakdown) => set({ contextBreakdown: breakdown }),
 
   setBoxOpen: (open) => set({ boxOpen: open }),
 

@@ -1,4 +1,5 @@
 import { useState, type KeyboardEvent } from "react";
+import type { ContextTokenBreakdown } from "@/core/agent/contextSize";
 import { useTranslation } from "@/i18n";
 import { BoxSwitch } from "./BoxSwitch";
 import { ContextMeter } from "./ContextMeter";
@@ -6,7 +7,7 @@ import { ContextMeter } from "./ContextMeter";
 export interface ChatComposerProps {
   disabled: boolean;
   contextWindow: number;
-  contextChars: number;
+  contextBreakdown: ContextTokenBreakdown;
   onSend: (text: string) => void;
   onStop?: () => void;
   stopping?: boolean;
@@ -15,7 +16,7 @@ export interface ChatComposerProps {
 export function ChatComposer({
   disabled,
   contextWindow,
-  contextChars,
+  contextBreakdown,
   onSend,
   onStop,
   stopping = false,
@@ -56,6 +57,7 @@ export function ChatComposer({
           placeholder={t("agent.inputPlaceholder")}
           className="min-h-[2.75rem] flex-1 resize-y rounded-lg border border-[var(--rb-border)] bg-[var(--rb-page-bg)] px-3 py-2 text-sm text-[var(--rb-text-primary)] placeholder:text-[var(--rb-text-secondary)] focus:border-[var(--rb-primary)] focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--rb-primary)_25%,transparent)] disabled:cursor-not-allowed disabled:opacity-60"
         />
+        <ContextMeter breakdown={contextBreakdown} contextWindow={contextWindow} />
         {showStop ? (
           <button
             type="button"
@@ -80,7 +82,6 @@ export function ChatComposer({
           </button>
         )}
       </div>
-      <ContextMeter tokens={contextChars} contextWindow={contextWindow} />
     </div>
   );
 }

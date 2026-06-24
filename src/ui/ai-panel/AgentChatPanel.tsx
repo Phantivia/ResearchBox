@@ -170,7 +170,7 @@ export function AgentChatPanel({
   const streamingText = useAgentStore((state) => state.streamingText);
   const streamingThinking = useAgentStore((state) => state.streamingThinking);
   const runningTools = useAgentStore((state) => state.runningTools);
-  const contextChars = useAgentStore((state) => state.contextChars);
+  const contextBreakdown = useAgentStore((state) => state.contextBreakdown);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const toolResults = useMemo(() => buildToolResultMap(messages), [messages]);
@@ -215,7 +215,7 @@ export function AgentChatPanel({
       <ChatComposer
         disabled={disabled}
         contextWindow={contextWindow}
-        contextChars={contextChars}
+        contextBreakdown={contextBreakdown}
         onSend={onSend}
         onStop={onStop}
         stopping={stopping}

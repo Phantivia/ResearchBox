@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   contextUsageRatio,
   estimateChars,
+  estimateContextBreakdown,
   estimateTokens,
+  totalContextTokens,
 } from "./contextSize";
 import type { AgentMessage } from "./types";
 
@@ -118,6 +120,74 @@ describe("estimateTokens", () => {
     expect(estimateTokens(messages)).toBe(
       Math.ceil(JSON.stringify(input).length / 4),
     );
+  });
+});
+
+describe("estimateContextBreakdown", () => {
+  it("counts system prompt tokens separately", () => {
+    const breakdown = estimateContextBreakdown([], "abcd");
+    expect(breakdown.systemPrompt).toBe(1);
+    expect(breakdown.conversation).toBe(0);
+    expect(breakdown.toolUse).toBe(0);
+    expect(breakdown.toolResult).toBe(0);
+  });
+
+  it("categorizes conversation, tool_use, and tool_result blocks", () => {
+    const input = { q: "x" };
+    const messages: AgentMessage[] = [
+      {
+        role: "user",
+        content: [{ type: "text", text: "abcd" }],
+      },
+      {
+        role: "assistant",
+        content: [
+          { type: "thinking", text: "abcd" },
+          {
+            type: "tool_use",
+            id: "call_1",
+            name: "search",
+            input,
+          },
+        ],
+      },
+      {
+        role: "tool",
+        content: [{ type: "tool_result", toolUseId: "call_1", content: "abcd" }],
+      },
+    ];
+
+    const breakdown = estimateContextBreakdown(messages, "abcd");
+    expect(breakdown.systemPrompt).toBe(1);
+    expect(breakdown.conversation).toBe(2);
+    expect(breakdown.toolUse).toBe(Math.ceil(JSON.stringify(input).length / 4));
+    expect(breakdown.toolResult).toBe(1);
+    expect(totalContextTokens(breakdown)).toBe(estimateTokens(messages) + 1);
+  });
+
+  it("excludes llmHidden messages from breakdown", () => {
+    const messages: AgentMessage[] = [
+      {
+        role: "assistant",
+        llmHidden: true,
+        content: [
+          {
+            type: "artifact_card",
+            artifactId: "a1",
+            title: "ignored title here",
+            kind: "note",
+          },
+        ],
+      },
+      {
+        role: "user",
+        content: [{ type: "text", text: "abcd" }],
+      },
+    ];
+
+    const breakdown = estimateContextBreakdown(messages);
+    expect(breakdown.conversation).toBe(1);
+    expect(totalContextTokens(breakdown)).toBe(1);
   });
 });
 

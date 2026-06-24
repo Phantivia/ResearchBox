@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { EMPTY_CONTEXT_BREAKDOWN } from "@/core/agent/contextSize";
 import { useAgentStore } from "./agentStore";
 
 beforeEach(() => {
@@ -75,7 +76,12 @@ describe("useAgentStore", () => {
       content: [{ type: "text", text: "hi" }],
     });
     useAgentStore.getState().setStreaming({ text: "partial" });
-    useAgentStore.getState().setContextChars(42);
+    useAgentStore.getState().setContextBreakdown({
+      systemPrompt: 10,
+      conversation: 20,
+      toolUse: 0,
+      toolResult: 0,
+    });
     useAgentStore.getState().closeBox();
 
     useAgentStore.getState().reset();
@@ -87,7 +93,7 @@ describe("useAgentStore", () => {
     expect(state.boxOpen).toBe(true);
     expect(state.streamingText).toBe("");
     expect(state.streamingThinking).toBe("");
-    expect(state.contextChars).toBe(0);
+    expect(state.contextBreakdown).toEqual(EMPTY_CONTEXT_BREAKDOWN);
     expect(state.artifactsVersion).toBe(0);
     expect(state.artifactPanel).toBeNull();
   });

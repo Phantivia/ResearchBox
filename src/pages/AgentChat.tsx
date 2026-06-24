@@ -6,7 +6,7 @@ import { executeBatched } from "@/core/agent/orchestrate";
 import { buildAgentSystemPrompt } from "@/core/agent/systemPrompt";
 import { buildResearchTools } from "@/core/agent/tools";
 import type { AgentDeps, AgentMessage, AgentStore, ContentBlock, Terminal } from "@/core/agent/types";
-import { estimateTokens } from "@/core/agent/contextSize";
+import { estimateContextBreakdown } from "@/core/agent/contextSize";
 import { createProvider } from "@/core/llm";
 import { db } from "@/db";
 import { useTranslation } from "@/i18n";
@@ -157,7 +157,8 @@ export default function AgentChat() {
   const streamingThinking = useAgentStore((state) => state.streamingThinking);
   const append = useAgentStore((state) => state.append);
   const setStreaming = useAgentStore((state) => state.setStreaming);
-  const setContextChars = useAgentStore((state) => state.setContextChars);
+  const setContextBreakdown = useAgentStore((state) => state.setContextBreakdown);
+  const boxOpen = useAgentStore((state) => state.boxOpen);
   const loadForProject = usePaperStore((state) => state.loadForProject);
 
   const [sending, setSending] = useState(false);
@@ -189,11 +190,17 @@ export default function AgentChat() {
   );
 
   useEffect(() => {
-    const tokens = estimateTokens(
+    const system = buildAgentSystemPrompt({
+      projectName,
+      date: new Date().toISOString().slice(0, 10),
+      boxOpen,
+    });
+    const breakdown = estimateContextBreakdown(
       messagesWithStreaming(messages, streamingText, streamingThinking),
+      system,
     );
-    setContextChars(tokens);
-  }, [messages, streamingText, streamingThinking, setContextChars]);
+    setContextBreakdown(breakdown);
+  }, [messages, streamingText, streamingThinking, projectName, boxOpen, setContextBreakdown]);
 
   const appendTerminalNotice = useCallback(
     (terminal: Terminal) => {

@@ -46,19 +46,68 @@ export function estimateChars(messages: AgentMessage[]): number {
   return total;
 }
 
-export function estimateTokens(messages: AgentMessage[]): number {
-  let total = 0;
+export interface ContextTokenBreakdown {
+  systemPrompt: number;
+  conversation: number;
+  toolUse: number;
+  toolResult: number;
+}
+
+export const EMPTY_CONTEXT_BREAKDOWN: ContextTokenBreakdown = {
+  systemPrompt: 0,
+  conversation: 0,
+  toolUse: 0,
+  toolResult: 0,
+};
+
+export function totalContextTokens(breakdown: ContextTokenBreakdown): number {
+  return (
+    breakdown.systemPrompt +
+    breakdown.conversation +
+    breakdown.toolUse +
+    breakdown.toolResult
+  );
+}
+
+export function estimateContextBreakdown(
+  messages: AgentMessage[],
+  systemPrompt = "",
+): ContextTokenBreakdown {
+  const breakdown: ContextTokenBreakdown = {
+    systemPrompt: estimateTokensFromString(systemPrompt),
+    conversation: 0,
+    toolUse: 0,
+    toolResult: 0,
+  };
 
   for (const message of messages) {
     if (message.llmHidden) {
       continue;
     }
     for (const block of message.content) {
-      total += estimateTokensFromString(blockText(block));
+      const tokens = estimateTokensFromString(blockText(block));
+      switch (block.type) {
+        case "text":
+        case "thinking":
+          breakdown.conversation += tokens;
+          break;
+        case "tool_use":
+          breakdown.toolUse += tokens;
+          break;
+        case "tool_result":
+          breakdown.toolResult += tokens;
+          break;
+        case "artifact_card":
+          break;
+      }
     }
   }
 
-  return total;
+  return breakdown;
+}
+
+export function estimateTokens(messages: AgentMessage[]): number {
+  return totalContextTokens(estimateContextBreakdown(messages));
 }
 
 export function contextUsageRatio(tokens: number, contextWindow: number): number {
