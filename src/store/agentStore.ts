@@ -25,6 +25,7 @@ interface AgentStoreActions {
   setRunningTool: (id: string, info: { name: string; stage: string }) => void;
   clearRunningTool: (id: string) => void;
   setContextChars: (n: number) => void;
+  setPermissionMode: (mode: AgentStoreState["permissionMode"]) => void;
   reset: () => void;
 }
 
@@ -103,6 +104,8 @@ export const useAgentStore = create<AgentStoreState & AgentStoreActions>()((set)
     }),
 
   setContextChars: (n) => set({ contextChars: n }),
+
+  setPermissionMode: (mode) => set({ permissionMode: mode }),
 
   reset: () => set(initialState),
 }));

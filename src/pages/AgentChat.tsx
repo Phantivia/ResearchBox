@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { runAgent, type BatchExecutor } from "@/core/agent/loop";
+import { makeApprovalFn } from "@/core/agent/approval";
 import { executeBatched } from "@/core/agent/orchestrate";
 import { buildAgentSystemPrompt } from "@/core/agent/systemPrompt";
 import { buildResearchTools } from "@/core/agent/tools";
-import type { AgentDeps, AgentMessage, ContentBlock, Terminal } from "@/core/agent/types";
+import type { AgentDeps, AgentMessage, AgentStore, ContentBlock, Terminal } from "@/core/agent/types";
 import { estimateTokens } from "@/core/agent/contextSize";
 import { createProvider } from "@/core/llm";
 import { db } from "@/db";
@@ -56,25 +57,27 @@ function messagesWithStreaming(
   return [...messages, { role: "assistant", content }];
 }
 
-function buildAgentStoreAdapter(): AgentDeps["store"] {
-  const state = useAgentStore.getState();
+function buildAgentStoreAdapter(): AgentStore {
   return {
-    messages: state.messages,
-    pendingApprovals: state.pendingApprovals.map(({ tool, input, reason, risk }) => ({
-      tool,
-      input,
-      reason,
-      risk,
-    })),
-    runningTools: state.runningTools,
-    permissionMode: state.permissionMode,
-    append: (message) => useAgentStore.getState().append(message),
-    enqueueApproval: (request) => {
-      useAgentStore.getState().enqueueApproval({
-        ...request,
-        resolve: () => {},
-      });
+    get messages() {
+      return useAgentStore.getState().messages;
     },
+    get pendingApprovals() {
+      return useAgentStore.getState().pendingApprovals.map(({ tool, input, reason, risk }) => ({
+        tool,
+        input,
+        reason,
+        risk,
+      }));
+    },
+    get runningTools() {
+      return useAgentStore.getState().runningTools;
+    },
+    get permissionMode() {
+      return useAgentStore.getState().permissionMode;
+    },
+    append: (message) => useAgentStore.getState().append(message),
+    enqueueApproval: (request) => useAgentStore.getState().enqueueApproval(request),
     setRunningTool: (id, info) => useAgentStore.getState().setRunningTool(id, info),
     clearRunningTool: (id) => useAgentStore.getState().clearRunningTool(id),
   };
@@ -230,12 +233,13 @@ export default function AgentChat() {
       let accumulatedThinking = "";
       const runningLabel = t("agent.tool.running");
 
+      const storeAdapter = buildAgentStoreAdapter();
       const deps: AgentDeps = {
         db,
         llm: createProvider(config),
-        store: buildAgentStoreAdapter(),
+        store: storeAdapter,
         signal: controller.signal,
-        requestApproval: async () => true,
+        requestApproval: makeApprovalFn(storeAdapter),
         projectId,
       };
 

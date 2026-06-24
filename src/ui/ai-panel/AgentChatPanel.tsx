@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { AgentMessage, ContentBlock } from "@/core/agent/types";
 import { useAgentStore } from "@/store";
+import { ApprovalDialog } from "./ApprovalDialog";
 import { AssistantAvatar } from "./AssistantAvatar";
 import { ChatComposer } from "./ChatComposer";
 import { ContextMeter } from "./ContextMeter";
 import { MessageBubble } from "./MessageBubble";
+import { PermissionModeSwitch } from "./PermissionModeSwitch";
 import { ThinkingBlock } from "./ThinkingBlock";
 import { ToolCallCard } from "./ToolCallCard";
 
@@ -138,10 +140,13 @@ export function AgentChatPanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--rb-page-bg)]">
+      <PermissionModeSwitch />
       <ContextMeter tokens={contextChars} contextWindow={contextWindow} />
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4">
         <div className="mx-auto flex max-w-3xl flex-col gap-4">
+          <ApprovalDialog />
+
           {messages.map((message, index) =>
             renderMessage(message, index, toolResults, runningTools),
           )}
