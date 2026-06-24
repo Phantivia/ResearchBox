@@ -99,6 +99,20 @@ describe("useAgentStore", () => {
     expect(state.sessionsVersion).toBe(0);
     expect(state.currentSessionId).toBeNull();
     expect(state.artifactPanel).toBeNull();
+    expect(state.logoRevealGeneration).toBe(0);
+  });
+
+  it("startNewSession with revealLogo increments logoRevealGeneration", () => {
+    expect(useAgentStore.getState().logoRevealGeneration).toBe(0);
+
+    useAgentStore.getState().startNewSession({ revealLogo: true });
+    expect(useAgentStore.getState().logoRevealGeneration).toBe(1);
+
+    useAgentStore.getState().startNewSession();
+    expect(useAgentStore.getState().logoRevealGeneration).toBe(1);
+
+    useAgentStore.getState().startNewSession({ revealLogo: true });
+    expect(useAgentStore.getState().logoRevealGeneration).toBe(2);
   });
 
   it("bumpArtifactsVersion increments artifactsVersion", () => {

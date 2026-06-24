@@ -23,6 +23,10 @@ export type BoxRippleOrigin = {
   mode: BoxRippleMode;
 };
 
+export type StartNewSessionOptions = {
+  revealLogo?: boolean;
+};
+
 interface AgentStoreState {
   messages: AgentMessage[];
   currentSessionId: number | null;
@@ -31,6 +35,7 @@ interface AgentStoreState {
   streamingToolCalls: Record<string, StreamingToolCall>;
   boxOpen: boolean;
   boxRippleOrigin: BoxRippleOrigin | null;
+  logoRevealGeneration: number;
   streamingText: string;
   streamingThinking: string;
   contextBreakdown: ContextTokenBreakdown;
@@ -60,7 +65,7 @@ interface AgentStoreActions {
   openArtifactPanel: (artifactId: string) => void;
   closeArtifactPanel: () => void;
   loadSession: (session: AgentSession) => void;
-  startNewSession: () => void;
+  startNewSession: (options?: StartNewSessionOptions) => void;
   setCurrentSessionId: (id: number | null) => void;
   bumpSessionsVersion: () => void;
   reset: () => void;
@@ -74,6 +79,7 @@ const initialState: AgentStoreState = {
   streamingToolCalls: {},
   boxOpen: true,
   boxRippleOrigin: null,
+  logoRevealGeneration: 0,
   streamingText: "",
   streamingThinking: "",
   contextBreakdown: EMPTY_CONTEXT_BREAKDOWN,
@@ -225,7 +231,7 @@ export const useAgentStore = create<AgentStoreState & AgentStoreActions>()((set)
       streamingThinking: "",
     }),
 
-  startNewSession: () =>
+  startNewSession: (options) =>
     set((state) => ({
       messages: [],
       currentSessionId: null,
@@ -239,6 +245,9 @@ export const useAgentStore = create<AgentStoreState & AgentStoreActions>()((set)
       artifactsVersion: state.artifactsVersion,
       sessionsVersion: state.sessionsVersion,
       artifactPanel: state.artifactPanel,
+      logoRevealGeneration: options?.revealLogo
+        ? state.logoRevealGeneration + 1
+        : state.logoRevealGeneration,
     })),
 
   setCurrentSessionId: (id) => set({ currentSessionId: id }),

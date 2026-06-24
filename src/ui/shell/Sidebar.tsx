@@ -332,7 +332,7 @@ function SidebarContent({ mobile = false, onDismiss }: SidebarContentProps) {
   function goToChatBox(path: string, resetSession: boolean) {
     runWithDismissFeedback(`chatbox:${path}`, () => {
       if (resetSession) {
-        useAgentStore.getState().startNewSession();
+        useAgentStore.getState().startNewSession({ revealLogo: true });
       }
       navigate(path);
     });

@@ -209,6 +209,7 @@ export function AgentChatPanel({
   const isStreaming = Boolean(
     streamingText || streamingThinking || streamingPythonCalls.length > 0,
   );
+  const isEmptyChat = messages.length === 0 && !isStreaming;
 
   useEffect(() => {
     const scroll = () => {
@@ -223,12 +224,18 @@ export function AgentChatPanel({
   }, [messages, streamingText, streamingThinking, runningTools, streamingToolCalls, isStreaming]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-[var(--rb-page-bg)] md:flex-row">
+    <div
+      className={[
+        "flex h-full min-h-0 flex-col md:flex-row",
+        isEmptyChat ? "rb-chat-panel-empty" : "bg-[var(--rb-page-bg)]",
+      ].join(" ")}
+    >
       <div
         ref={chatSurfaceRef}
         className={[
           "rb-chat-box-surface relative isolate flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
           boxOpen ? "rb-chat-box-open" : "rb-chat-box-closed",
+          isEmptyChat ? "rb-chat-box-empty" : "",
           boxRippleOrigin ? "rb-chat-box-rippling" : "",
           boxRippleOrigin?.mode === "opening" ? "rb-box-ripple-opening" : "",
         ].join(" ")}
