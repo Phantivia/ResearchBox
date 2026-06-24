@@ -64,9 +64,7 @@ export const paperboxListTool: Tool<
   name: "paperbox_list",
   description: `List all papers in the current project's Paper Box with title, authors, and abstract.
 
-Use this before retrieval or external search to see what is already in the box, whether you need outside sources, and which papers deserve deeper inspection (paperbox_read or retrieval).
-
-中文：列出盒内全部论文的标题、作者与摘要。检索或外搜前先用它判断盒里已有什么、是否需要外部检索、该对哪几篇做深度检索。只读、可并行、低成本。`,
+Use this before retrieval or external search to see what is already in the box, whether you need outside sources, and which papers deserve deeper inspection (paperbox_read or retrieval).`,
   inputSchema: paperboxListInputSchema,
   isReadOnly: () => true,
   isConcurrencySafe: () => true,

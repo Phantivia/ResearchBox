@@ -88,9 +88,7 @@ export const artifactsTool: Tool<typeof artifactsInputSchema, ArtifactsOutput> =
   name: "artifacts",
   description: `Create a research artifact (summary, comparison table, outline, or note) and persist it to the project after user approval. Include sourceCitations as paperId#blockId references for traceability.
 
-Use after retrieval/paperbox_read when you have enough evidence. Artifacts appear in the sidebar for the user to preview.
-
-中文：生成并落库研究产出（摘要、对比表、大纲、笔记）。写操作，需用户审批；plan 模式下不可调用。sourceCitations 须为 paperId#blockId 形式。`,
+Use after retrieval/paperbox_read when you have enough evidence. Artifacts appear in the sidebar for the user to preview.`,
   inputSchema: artifactsInputSchema,
   isReadOnly: () => false,
   isConcurrencySafe: () => false,

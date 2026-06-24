@@ -84,8 +84,8 @@ describe("recommendPapersTool", () => {
   });
 
   it("description mentions curated recommendations and inclusion gate", () => {
-    expect(recommendPapersTool.description).toContain("引入论文推荐");
+    expect(recommendPapersTool.description).toContain("inclusion cards");
     expect(recommendPapersTool.description).toContain("NOT automatically added");
-    expect(recommendPapersTool.description).toContain("纳入");
+    expect(recommendPapersTool.description).toContain("Include");
   });
 });

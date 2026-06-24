@@ -70,11 +70,7 @@ export const pythonTool: Tool<
 IMPORTANT:
 - Use for numeric/data tasks (pandas-style workflows when packages are available), not system shell access.
 - Large stdout/result may be truncated in the tool result; full output persistence is handled by the result budget layer.
-- If execution fails or is aborted, the tool returns an explicit error — do not invent output.
-
-中文：在 WASM 沙盒（Web Worker 内 Pyodide）执行 Python，用于数据处理/分析/轻量可视化。非只读；单 Worker 串行执行。高危操作，执行前需用户审批。
-大输出可能在工具结果中被截断；完整落盘由结果预算层处理。
-执行失败或中止时会返回明确错误，勿编造输出。`,
+- If execution fails or is aborted, the tool returns an explicit error — do not invent output.`,
   inputSchema: pythonInputSchema,
   isReadOnly: () => false,
   isConcurrencySafe: () => false,

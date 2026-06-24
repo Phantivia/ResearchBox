@@ -116,7 +116,7 @@ describe("academicSearchTool", () => {
 
   it("description points agent to recommend_papers and notes arxiv HTML limitation", () => {
     expect(academicSearchTool.description).toContain("recommend_papers");
-    expect(academicSearchTool.description).toContain("引入论文推荐");
+    expect(academicSearchTool.description).toContain("Include");
     expect(academicSearchTool.description).toContain("arXiv HTML");
   });
 });

@@ -149,9 +149,7 @@ export const retrievalTool: Tool<typeof retrievalInputSchema, RetrievalHit[]> = 
   name: "retrieval",
   description: `Search the local Paper Box for evidence blocks relevant to a query. Returns block-level hits with paperId#blockId citations for mandatory referencing in your answer.
 
-Use paperbox_list first to see what is in the box. After retrieval, cite every paper claim as \`paperId#blockId\`. For full paper context on a hit, follow up with paperbox_read(routeId).
-
-中文：从本地 PaperIR 库检索与 query 相关的证据区块，返回带 blockId 的定位引用。回答中涉及论文内容的论断必须带 paperId#blockId 引用；需要全文时用 paperbox_read 拉取。只读、可并行。`,
+Use paperbox_list first to see what is in the box. After retrieval, cite every paper claim as \`paperId#blockId\`. For full paper context on a hit, follow up with paperbox_read(routeId).`,
   inputSchema: retrievalInputSchema,
   isReadOnly: () => true,
   isConcurrencySafe: () => true,

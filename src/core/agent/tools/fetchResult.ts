@@ -20,9 +20,7 @@ export const fetchResultTool: Tool<
   name: "fetch_result",
   description: `Retrieve the full content of a large tool output that was persisted to IndexedDB.
 
-When another tool returns a <persisted_output> preview with a resultId, call this tool to load the complete serialized result before analyzing it.
-
-中文：按 resultId 取回因结果预算落库而截断的工具输出全文。只读、可并行。`,
+When another tool returns a <persisted_output> preview with a resultId, call this tool to load the complete serialized result before analyzing it.`,
   inputSchema: fetchResultInputSchema,
   isReadOnly: () => true,
   isConcurrencySafe: () => true,

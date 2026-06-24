@@ -226,7 +226,7 @@ LLM 通过 `loop.ts` → `toToolSchema` 将下列 `description` 一并发送。
 | `fetch_result` | `tools/fetchResult.ts` | L21–L25 |
 | `python` | `tools/python.ts` | L68–L77 |
 
-**动态工具描述**：`websearch` 的 `buildWebSearchDescription(now)` 会注入当前 `{monthYear}`，要求检索近期信息时使用正确年份，并强制回答末尾附 `Sources:` 超链接列表；同时声明 **Limited Parallel: Maximum 3 websearch call per time**（每次最多并行 3 次 websearch）。
+**动态工具描述**：`websearch` 的 `buildWebSearchDescription(now)` 会注入当前 `{monthYear}`，要求检索近期信息时使用正确年份，并强制回答末尾附 `Sources:` 超链接列表；同时声明 **Limited Parallel: Maximum 3 websearch call per time**。
 
 ---
 

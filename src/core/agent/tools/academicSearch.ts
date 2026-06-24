@@ -60,15 +60,9 @@ export const academicSearchTool: Tool<
   name: "academic_search",
   description: `Search external academic literature (Semantic Scholar / OpenAlex, arXiv-centric). Returns arxivId, title, authors, and abstract for each hit. Read-only, network access; results are for agent analysis only — NOT shown to the user as inclusion cards.
 
-After curating relevant hits, call recommend_papers (引入论文推荐) with arxivId, abstract, and reason so the user can review and click 「纳入」 per paper. Inclusion is the only legitimate entry for external literature into the Paper Box.
+After curating relevant hits, call recommend_papers with arxivId, abstract, and reason so the user can review and click Include on each paper. Inclusion is the only legitimate entry for external literature into the Paper Box.
 
-Note (implementation): import currently supports arXiv papers with arXiv HTML only.
-
-中文：外部学术文献搜索（Semantic Scholar / OpenAlex，以 arXiv 为中心），返回 arxivId、标题、作者与摘要。只读、联网；结果仅供 agent 分析，**不以卡片形式展示给用户**。
-
-筛选相关文献后，请调用 recommend_papers（引入论文推荐），填写 arxivId、abstract 与推荐理由，由用户逐篇点「纳入」进盒。
-
-注释：当前纳入仅支持有 arXiv HTML 的 arXiv 论文。`,
+Note (implementation): import currently supports arXiv papers with arXiv HTML only.`,
   inputSchema: academicSearchInputSchema,
   isReadOnly: () => true,
   isConcurrencySafe: () => true,

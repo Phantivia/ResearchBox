@@ -21,7 +21,7 @@ function normalizeRecommendations(
 function formatRecommendationsMessage(papers: PaperRecommendation[]): string {
   const lines = [
     `Presented ${papers.length} paper recommendation(s) to the user for optional inclusion into the Paper Box.`,
-    "The user sees interactive cards and may click 「纳入」 per paper; inclusion is the only legitimate entry for external literature.",
+    "The user sees interactive cards and may click Include per paper; inclusion is the only legitimate entry for external literature.",
     "",
   ];
 
@@ -50,13 +50,11 @@ export const recommendPapersTool: Tool<
   PaperRecommendation[]
 > = {
   name: "recommend_papers",
-  description: `Present curated external paper recommendations to the user as interactive inclusion cards (引入论文推荐).
+  description: `Present curated external paper recommendations to the user as interactive inclusion cards.
 
-Use after academic_search or websearch when you have selected relevant papers worth importing. Provide arxivId, abstract, and a concise reason per paper. Supports batch input. Results are NOT automatically added to the Paper Box — the user decides via 「纳入」 on each card.
+Use after academic_search or websearch when you have selected relevant papers worth importing. Provide arxivId, abstract, and a concise reason per paper. Supports batch input. Results are NOT automatically added to the Paper Box — the user decides via Include on each card.
 
-Do NOT use this tool to dump raw search results; curate first. Only arXiv papers with arXiv HTML are importable today.
-
-中文：向用户展示精选的外部论文推荐卡片（引入论文推荐）。在 academic_search / websearch 后，对值得纳入的文献调用本工具，填写 arxivId、abstract 与推荐理由，可批量。不自动进盒，用户逐篇点「纳入」。勿把未筛选的搜索结果直接塞入；当前仅支持有 arXiv HTML 的 arXiv 论文。`,
+Do NOT use this tool to dump raw search results; curate first. Only arXiv papers with arXiv HTML are importable today.`,
   inputSchema: recommendPapersInputSchema,
   isReadOnly: () => true,
   isConcurrencySafe: () => true,

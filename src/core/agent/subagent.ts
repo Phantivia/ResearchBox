@@ -246,9 +246,7 @@ Types:
 - paper-summarizer: efficient read-only summary via paperbox_read + retrieval (cheap model recommended)
 - reviewer: adversarial verification of citations and claims — tries to disprove, not confirm (read-only retrieval only)
 
-Returns a distilled summary plus a full transcript attachment for your context. Multiple sub-agents may run in parallel.
-
-中文：派发子代理总结或核查论文。必须给出 paperId（如适用）和具体问题，禁止模糊指令。只读、后台运行、不可自批危险操作。`,
+Returns a distilled summary plus a full transcript attachment for your context. Multiple sub-agents may run in parallel.`,
   inputSchema: subAgentInputSchema,
   isConcurrencySafe: () => true,
   isReadOnly: () => true,
