@@ -165,6 +165,7 @@ function SidebarContent({ mobile = false, onDismiss }: SidebarContentProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { projects, activeProjectId, getActiveProject } = useProjectStore();
+  const currentSessionId = useAgentStore((state) => state.currentSessionId);
   const { providers, loaded: settingsLoaded, load: loadSettings } = useSettingsStore();
   const active = getActiveProject();
   const [switcherOpen, setSwitcherOpen] = useState(false);
@@ -351,7 +352,7 @@ function SidebarContent({ mobile = false, onDismiss }: SidebarContentProps) {
   function renderChatBoxNavItem(item: (typeof CHATBOX_NAV)[number]) {
     const disabled = item.requiresProject && !activeProjectId;
     const path = activeProjectId ? item.path(activeProjectId) : "/";
-    const active = item.isActive(location.pathname);
+    const active = item.isActive(location.pathname, currentSessionId);
 
     if (disabled) {
       return (

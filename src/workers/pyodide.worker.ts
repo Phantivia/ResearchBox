@@ -48,6 +48,7 @@ async function handleRun(msg: RunMessage): Promise<ResultMessage> {
     stdoutBuffer = "";
 
     try {
+      await pyodide.loadPackagesFromImports(msg.code);
       const raw = await pyodide.runPythonAsync(msg.code);
       return {
         type: "result",

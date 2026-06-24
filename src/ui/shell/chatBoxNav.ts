@@ -7,7 +7,7 @@ export interface ChatBoxNavItem {
   icon: FeatureIconId;
   requiresProject: boolean;
   path: (projectId: string) => string;
-  isActive: (pathname: string) => boolean;
+  isActive: (pathname: string, currentSessionId: number | null) => boolean;
 }
 
 export const CHATBOX_NAV: readonly ChatBoxNavItem[] = [
@@ -17,8 +17,10 @@ export const CHATBOX_NAV: readonly ChatBoxNavItem[] = [
     icon: "chat-box-new",
     requiresProject: true,
     path: (projectId) => `/p/${encodeURIComponent(projectId)}/chat-box`,
-    isActive: (pathname) =>
-      /\/chat-box(?:\/|$)/.test(pathname) && !/\/chat-box\/artifacts(?:\/|$)/.test(pathname),
+    isActive: (pathname, currentSessionId) =>
+      /\/chat-box(?:\/|$)/.test(pathname) &&
+      !/\/chat-box\/artifacts(?:\/|$)/.test(pathname) &&
+      currentSessionId === null,
   },
 ];
 

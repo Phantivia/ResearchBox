@@ -1,9 +1,24 @@
-import { useEffect, useRef } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "@/i18n";
+import { useTrailingThrottleEffect } from "@/ui/hooks/useTrailingThrottleEffect";
 import { PYTHON_TOKEN_CLASS, tokenizePython } from "./pythonHighlight";
 
-export function PythonHighlightedCode({ code }: { code: string }) {
-  const tokens = tokenizePython(code);
+export function PythonHighlightedCode({
+  code,
+  streaming = false,
+}: {
+  code: string;
+  streaming?: boolean;
+}) {
+  const deferredCode = useDeferredValue(code);
+  const highlightSource = streaming ? deferredCode : code;
+  const tokens = useMemo(
+    () => tokenizePython(highlightSource),
+    [highlightSource],
+  );
+  const pendingTail =
+    streaming && deferredCode !== code ? code.slice(deferredCode.length) : "";
+
   return (
     <>
       {tokens.map((token, index) => (
@@ -11,6 +26,9 @@ export function PythonHighlightedCode({ code }: { code: string }) {
           {token.text}
         </span>
       ))}
+      {pendingTail ? (
+        <span className={PYTHON_TOKEN_CLASS.plain}>{pendingTail}</span>
+      ) : null}
     </>
   );
 }
@@ -33,8 +51,22 @@ export function PythonCodePanel({
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLPreElement>(null);
 
+  useTrailingThrottleEffect(
+    () => {
+      if (!streaming) {
+        return;
+      }
+      scrollRef.current?.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    },
+    [code, streaming],
+    120,
+  );
+
   useEffect(() => {
-    if (!streaming) {
+    if (streaming) {
       return;
     }
     scrollRef.current?.scrollTo({
@@ -63,7 +95,7 @@ export function PythonCodePanel({
         className={`overflow-auto px-3 py-3 font-mono text-[13px] leading-relaxed whitespace-pre-wrap break-words ${maxHeightClass}`}
       >
         <code>
-          <PythonHighlightedCode code={code} />
+          <PythonHighlightedCode code={code} streaming={streaming} />
           {streaming ? <span className="vscode-py-cursor">▍</span> : null}
         </code>
       </pre>
