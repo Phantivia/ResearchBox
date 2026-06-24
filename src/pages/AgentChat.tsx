@@ -10,7 +10,7 @@ import { estimateTokens } from "@/core/agent/contextSize";
 import { createProvider } from "@/core/llm";
 import { db } from "@/db";
 import { useTranslation } from "@/i18n";
-import { useAgentStore, useProjectStore, useSettingsStore } from "@/store";
+import { useAgentStore, usePaperStore, useProjectStore, useSettingsStore } from "@/store";
 import { AgentChatPanel } from "@/ui/ai-panel";
 import { CurrentProjectLabel } from "@/ui/shell/CurrentProjectLabel";
 import { FeatureIcon } from "@/ui/shell/featureIcons";
@@ -123,6 +123,7 @@ export default function AgentChat() {
   const append = useAgentStore((state) => state.append);
   const setStreaming = useAgentStore((state) => state.setStreaming);
   const setContextChars = useAgentStore((state) => state.setContextChars);
+  const loadForProject = usePaperStore((state) => state.loadForProject);
 
   const [sending, setSending] = useState(false);
   const [stopping, setStopping] = useState(false);
@@ -133,6 +134,12 @@ export default function AgentChat() {
       void loadSettings();
     }
   }, [settingsLoaded, loadSettings]);
+
+  useEffect(() => {
+    if (projectId) {
+      void loadForProject(projectId);
+    }
+  }, [projectId, loadForProject]);
 
   useEffect(() => {
     return () => {
@@ -355,6 +362,7 @@ export default function AgentChat() {
         <AgentChatPanel
           contextWindow={contextWindow}
           disabled={sending}
+          projectId={projectId}
           onSend={handleSend}
           onStop={handleStop}
           stopping={stopping}

@@ -1,5 +1,7 @@
 import { useState } from "react";
+import type { AcademicHit } from "@/core/agent/search/types";
 import { useTranslation } from "@/i18n";
+import { SearchResultCard } from "./SearchResultCard";
 
 const RESULT_PREVIEW_LINES = 4;
 const RESULT_PREVIEW_CHARS = 240;
@@ -10,6 +12,32 @@ export interface ToolCallCardProps {
   stage?: string;
   result?: string;
   isError?: boolean;
+  projectId?: string;
+}
+
+function parseAcademicSearchHits(result: string): AcademicHit[] | null {
+  const trimmed = result.trim();
+  if (!trimmed.startsWith("[")) {
+    return null;
+  }
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      return parsed === null ? null : [];
+    }
+    return parsed.every(
+      (item) =>
+        item &&
+        typeof item === "object" &&
+        typeof (item as AcademicHit).arxivId === "string" &&
+        typeof (item as AcademicHit).title === "string" &&
+        Array.isArray((item as AcademicHit).authors),
+    )
+      ? (parsed as AcademicHit[])
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 function formatJson(value: unknown): string {
@@ -68,6 +96,7 @@ export function ToolCallCard({
   stage,
   result,
   isError = false,
+  projectId,
 }: ToolCallCardProps) {
   const { t } = useTranslation();
   const [inputExpanded, setInputExpanded] = useState(false);
@@ -75,6 +104,10 @@ export function ToolCallCard({
   const running = result === undefined;
   const inputJson = formatJson(input);
   const formattedResult = result !== undefined ? formatResultText(result) : undefined;
+  const academicHits =
+    name === "academic_search" && formattedResult && !isError
+      ? parseAcademicSearchHits(formattedResult)
+      : null;
 
   const borderClass = isError
     ? "border-red-300 dark:border-red-800"
@@ -142,6 +175,14 @@ export function ToolCallCard({
           </pre>
         ) : null}
       </div>
+
+      {academicHits && projectId ? (
+        <div className="space-y-2 border-t border-[var(--rb-border)] px-3 py-2">
+          {academicHits.map((hit) => (
+            <SearchResultCard key={hit.arxivId} projectId={projectId} hit={hit} />
+          ))}
+        </div>
+      ) : null}
 
       {formattedResult !== undefined ? (
         <div

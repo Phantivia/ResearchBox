@@ -5,5 +5,6 @@ export { ChatComposer, type ChatComposerProps } from "./ChatComposer";
 export { ContextMeter, type ContextMeterProps } from "./ContextMeter";
 export { MessageBubble, type MessageBubbleProps } from "./MessageBubble";
 export { PermissionModeSwitch } from "./PermissionModeSwitch";
+export { SearchResultCard, type SearchResultCardProps } from "./SearchResultCard";
 export { ThinkingBlock, type ThinkingBlockProps } from "./ThinkingBlock";
 export { ToolCallCard, type ToolCallCardProps } from "./ToolCallCard";

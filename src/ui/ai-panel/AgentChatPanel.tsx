@@ -13,6 +13,7 @@ import { ToolCallCard } from "./ToolCallCard";
 export interface AgentChatPanelProps {
   contextWindow: number;
   disabled: boolean;
+  projectId: string;
   onSend: (text: string) => void;
   onStop?: () => void;
   stopping?: boolean;
@@ -45,6 +46,7 @@ function renderAssistantContent(
   content: ContentBlock[],
   toolResults: Map<string, ToolResultEntry>,
   runningTools: Record<string, { name: string; stage: string }>,
+  projectId: string,
 ) {
   const hasText = content.some((block) => block.type === "text");
 
@@ -75,6 +77,7 @@ function renderAssistantContent(
             stage={running?.stage}
             result={resultEntry?.result}
             isError={resultEntry?.isError}
+            projectId={projectId}
           />
         );
       }
@@ -99,6 +102,7 @@ function renderMessage(
   index: number,
   toolResults: Map<string, ToolResultEntry>,
   runningTools: Record<string, { name: string; stage: string }>,
+  projectId: string,
 ) {
   if (!isUiVisibleMessage(message)) {
     return null;
@@ -109,7 +113,7 @@ function renderMessage(
       <div key={index} className="flex gap-2">
         <AssistantAvatar />
         <div className="flex min-w-0 flex-1 flex-col gap-2">
-          {renderAssistantContent(message.content, toolResults, runningTools)}
+          {renderAssistantContent(message.content, toolResults, runningTools, projectId)}
         </div>
       </div>
     );
@@ -130,6 +134,7 @@ function renderMessage(
 export function AgentChatPanel({
   contextWindow,
   disabled,
+  projectId,
   onSend,
   onStop,
   stopping = false,
@@ -158,7 +163,7 @@ export function AgentChatPanel({
           <ApprovalDialog />
 
           {messages.map((message, index) =>
-            renderMessage(message, index, toolResults, runningTools),
+            renderMessage(message, index, toolResults, runningTools, projectId),
           )}
 
           {isStreaming ? (
