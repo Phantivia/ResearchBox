@@ -19,6 +19,7 @@ export function provenanceForToolName(toolName: string): Provenance | null {
   if (
     toolName === "paperbox_list" ||
     toolName === "paperbox_read" ||
+    toolName === "paperbox_fetch" ||
     toolName === "retrieval"
   ) {
     return "paperbox";

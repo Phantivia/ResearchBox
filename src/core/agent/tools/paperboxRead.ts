@@ -81,7 +81,9 @@ Sections:
 - meta (default): Bibliographic metadata and raw abstract HTML — lightweight overview.
 - abstract: Structured abstractBlocks only.
 - outline: Heading-only table of contents derived from body blocks.
-- full: All abstractBlocks plus all body blocks (can be large; prefer abstract or outline when a quick scan suffices).
+- full: All abstractBlocks plus all body blocks with raw HTML (large; prefer paperbox_fetch for full-text reading).
+
+For full paper text with block markers and stripped HTML, use paperbox_fetch instead.
 
 routeId examples: "2401.12345" (latest) or "2401.12345v2". Obtain routeId from paperbox_list.`,
   inputSchema: paperboxReadInputSchema,

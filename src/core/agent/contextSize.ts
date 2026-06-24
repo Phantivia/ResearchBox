@@ -22,7 +22,7 @@ function blockText(block: ContentBlock): string {
   }
 }
 
-function estimateTokensFromString(text: string): number {
+export function estimateTokensFromString(text: string): number {
   let cjkChars = 0;
   let otherChars = 0;
 

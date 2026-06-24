@@ -5,6 +5,7 @@ import type { LLMProvider } from "@/core/llm/types";
 import { runAgent, type BatchExecutor } from "./loop";
 import { executeBatched } from "./orchestrate";
 import { fetchResultTool } from "./tools/fetchResult";
+import { paperboxFetchTool } from "./tools/paperboxFetch";
 import { paperboxListTool } from "./tools/paperboxList";
 import { paperboxReadTool } from "./tools/paperboxRead";
 import { retrievalTool } from "./tools/retrieval";
@@ -54,14 +55,14 @@ const PAPER_SUMMARIZER_SYSTEM_PROMPT = `You are a research paper summarization s
 
 === CRITICAL: READ-ONLY MODE — NO WRITES OR EXECUTION ===
 You are STRICTLY PROHIBITED from creating artifacts, running Python, or modifying project state.
-You may only read papers via paperbox_read and search content via retrieval.
+You may only read papers via paperbox_read, paperbox_fetch, and search content via retrieval.
 
 Given the caller's message, use the tools available to complete the summarization task efficiently.
 Complete the task fully — respond with a concise structured report covering key findings, methodology, and limitations.
 The caller will relay this to the user, so include only essentials.
 
 Guidelines:
-- Use retrieval for targeted evidence; use paperbox_read for metadata, abstract, or outline when helpful.
+- Use retrieval for targeted evidence; use paperbox_read for metadata, abstract, or outline; use paperbox_fetch for full paper text.
 - Spawn parallel tool calls when searching multiple sections.
 - NEVER delegate understanding back to the caller — work from the paperId and specific questions provided.
 - If paperId is missing when needed, state what is missing rather than guessing.
@@ -80,7 +81,7 @@ Failure patterns to avoid:
 
 Your process:
 1. Parse the review request for specific claims, citations, and artifact references
-2. For each claim, use retrieval and paperbox_read to find supporting or contradicting evidence
+2. For each claim, use retrieval, paperbox_fetch, and paperbox_read to find supporting or contradicting evidence
 3. Flag missing citations, misattributed blockIds, stale snapshots, and unsupported assertions
 
 === OUTPUT FORMAT (REQUIRED) ===
@@ -103,12 +104,12 @@ When complete, respond with this structured verification report.`;
 export const SUBAGENTS: Record<SubAgentType, SubAgentDef> = {
   "paper-summarizer": {
     systemPrompt: PAPER_SUMMARIZER_SYSTEM_PROMPT,
-    tools: [paperboxReadTool, retrievalTool],
+    tools: [paperboxReadTool, paperboxFetchTool, retrievalTool],
     maxTurns: SUB_AGENT_MAX_TURNS,
   },
   reviewer: {
     systemPrompt: REVIEWER_SYSTEM_PROMPT,
-    tools: [paperboxReadTool, paperboxListTool, retrievalTool, fetchResultTool],
+    tools: [paperboxReadTool, paperboxFetchTool, paperboxListTool, retrievalTool, fetchResultTool],
     maxTurns: SUB_AGENT_MAX_TURNS,
   },
 };
@@ -243,7 +244,7 @@ export const subAgentTool: Tool<typeof subAgentInputSchema, SubAgentOutput> = {
 Never delegate understanding: you MUST provide paperId (when applicable) and a specific, concrete prompt — not "summarize based on your findings" or "verify as needed".
 
 Types:
-- paper-summarizer: efficient read-only summary via paperbox_read + retrieval (cheap model recommended)
+- paper-summarizer: efficient read-only summary via paperbox_fetch + retrieval (cheap model recommended)
 - reviewer: adversarial verification of citations and claims — tries to disprove, not confirm (read-only retrieval only)
 
 Returns a distilled summary plus a full transcript attachment for your context. Multiple sub-agents may run in parallel.`,

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db, getToolResult } from "@/db";
 import { executeBatched } from "./orchestrate";
 import { executeTool } from "./execute";
-import { MAX_RESULT_CHARS } from "./resultBudget";
+import { MAX_RESULT_TOKENS, shouldPersistToolResult } from "./resultBudget";
 import type { AgentDeps, AgentMessage, AgentStore, Tool } from "./types";
 import type { LLMProvider } from "@/core/llm/types";
 
@@ -147,7 +147,8 @@ describe("executeTool", () => {
   });
 
   it("returns small results unchanged", async () => {
-    const small = "x".repeat(MAX_RESULT_CHARS);
+    const small = "x".repeat(50_000);
+    expect(shouldPersistToolResult(small)).toBe(false);
     const tool = makeTool({
       name: "echo",
       call: async function* () {
@@ -169,7 +170,8 @@ describe("executeTool", () => {
   });
 
   it("persists oversized results and returns preview with resultId", async () => {
-    const large = "y".repeat(MAX_RESULT_CHARS + 1);
+    const large = "y".repeat(MAX_RESULT_TOKENS * 4);
+    expect(shouldPersistToolResult(large)).toBe(true);
     const tool = makeTool({
       name: "echo",
       call: async function* () {

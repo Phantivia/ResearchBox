@@ -107,26 +107,27 @@
   @keyframes rb-copy-hint {
     0% {
       opacity: 0;
-      transform: translateY(3px);
+      transform: translate(-50%, -6px);
     }
 
-    12% {
+    14% {
       opacity: 1;
-      transform: translateY(0);
+      transform: translate(-50%, 0);
     }
 
-    78% {
+    76% {
       opacity: 1;
-      transform: translateY(0);
+      transform: translate(-50%, 0);
     }
 
     100% {
       opacity: 0;
-      transform: translateY(-2px);
+      transform: translate(-50%, 8px);
     }
   }
 
   .rb-copy-hint {
+    left: 50%;
     animation: rb-copy-hint 1.4s ease forwards;
     pointer-events: none;
   }

@@ -43,6 +43,7 @@ describe("stripProvenancePrefix", () => {
 describe("provenanceForToolName", () => {
   it("maps paperbox tools", () => {
     expect(provenanceForToolName("paperbox_list")).toBe("paperbox");
+    expect(provenanceForToolName("paperbox_fetch")).toBe("paperbox");
     expect(provenanceForToolName("retrieval")).toBe("paperbox");
   });
 

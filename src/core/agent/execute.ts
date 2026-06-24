@@ -3,7 +3,7 @@ import { addToolResult } from "@/db";
 import { resolvePermission } from "./approval";
 import {
   buildLargeToolResultMessage,
-  MAX_RESULT_CHARS,
+  shouldPersistToolResult,
 } from "./resultBudget";
 import type { AgentDeps, AgentMessage, Tool } from "./types";
 
@@ -128,14 +128,17 @@ export async function* executeTool(
     const gen = tool.call(parsed.data, deps);
     let step = await gen.next();
     while (!step.done) {
+      const progress = step.value as { stage?: string } | undefined;
+      if (progress?.stage) {
+        deps.store.setRunningTool(call.id, { name: tool.name, stage: progress.stage });
+      }
       yield step.value;
       step = await gen.next();
     }
 
     const result = step.value;
     const serialized = serializeData(result.data);
-    const content =
-      serialized.length > MAX_RESULT_CHARS
+    const content = shouldPersistToolResult(serialized)
         ? buildLargeToolResultMessage(
             serialized,
             await addToolResult({ content: serialized }),

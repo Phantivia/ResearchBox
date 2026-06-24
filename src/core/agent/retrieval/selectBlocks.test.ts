@@ -1,7 +1,12 @@
 import { describe, it, expect } from "vitest";
 import type { LLMProvider } from "@/core/llm/types";
 import type { Candidate } from "./manifest";
-import { selectRelevantBlocks } from "./selectBlocks";
+import {
+  capPoolForSideQuery,
+  MAX_SIDE_QUERY_MANIFEST_CHARS,
+  MAX_SIDE_QUERY_POOL,
+  selectRelevantBlocks,
+} from "./selectBlocks";
 
 const FETCHED_AT = 1_700_000_000_000;
 
@@ -80,7 +85,7 @@ describe("selectRelevantBlocks", () => {
     expect(result).toEqual(["2401.11111:v1#p1"]);
   });
 
-  it("returns [] when model output is not valid JSON", async () => {
+  it("falls back to ranked blocks when model output is not valid JSON", async () => {
     const llm = mockLlm(() => Promise.resolve("not json"));
 
     const result = await selectRelevantBlocks({
@@ -91,10 +96,10 @@ describe("selectRelevantBlocks", () => {
       signal: new AbortController().signal,
     });
 
-    expect(result).toEqual([]);
+    expect(result).toEqual(["2401.11111:v1#p1"]);
   });
 
-  it("returns [] when chat throws", async () => {
+  it("falls back to ranked blocks when chat throws", async () => {
     const llm = mockLlm(() => Promise.reject(new Error("network failure")));
 
     const result = await selectRelevantBlocks({
@@ -105,7 +110,7 @@ describe("selectRelevantBlocks", () => {
       signal: new AbortController().signal,
     });
 
-    expect(result).toEqual([]);
+    expect(result).toEqual(["2401.11111:v1#p1"]);
   });
 
   it("drains streamed chat chunks before parsing JSON", async () => {
@@ -124,5 +129,41 @@ describe("selectRelevantBlocks", () => {
     });
 
     expect(result).toEqual(["2401.11111:v1#p2"]);
+  });
+
+  it("caps large pools before side-query", async () => {
+    const manyCandidates: Candidate[] = Array.from({ length: 250 }, (_, index) =>
+      makeCandidate(
+        "2401.11111:v1",
+        `b${index}`,
+        index === 42
+          ? "KernelBench Level 3 geometric mean speedup benchmark results."
+          : "Unrelated filler content about unrelated topics.",
+        index === 42 ? "Evaluation" : "Appendix",
+      ),
+    );
+
+    let seenUserChars = 0;
+    const llm = mockLlm((opts) => {
+      seenUserChars = opts.messages[0]?.content.length ?? 0;
+      return Promise.resolve(JSON.stringify({ ids: ["2401.11111:v1#b42"] }));
+    });
+
+    const result = await selectRelevantBlocks({
+      query: "KernelBench benchmark speedup",
+      candidates: manyCandidates,
+      llm,
+      topK: 5,
+      signal: new AbortController().signal,
+    });
+
+    expect(result).toEqual(["2401.11111:v1#b42"]);
+    expect(seenUserChars).toBeLessThanOrEqual(MAX_SIDE_QUERY_MANIFEST_CHARS + 200);
+    const { pool, wasCapped } = capPoolForSideQuery(
+      "KernelBench benchmark speedup",
+      manyCandidates,
+    );
+    expect(wasCapped).toBe(true);
+    expect(pool.length).toBeLessThanOrEqual(MAX_SIDE_QUERY_POOL);
   });
 });

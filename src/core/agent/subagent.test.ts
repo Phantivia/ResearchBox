@@ -90,7 +90,7 @@ describe("subAgentTool", () => {
       ),
     );
 
-    expect(getLastToolNames()).toEqual(["paperbox_read", "retrieval"]);
+    expect(getLastToolNames()).toEqual(["paperbox_read", "paperbox_fetch", "retrieval"]);
     expect(result.data.type).toBe("paper-summarizer");
     expect(result.data.summary).toContain("Methods:");
     expect(result.data.terminalReason).toBe("completed");

@@ -1,6 +1,9 @@
 import { z } from "zod";
 import { makePaperId } from "@/core/annotation";
 import type { Block, PaperIR } from "@/core/ir";
+import { createProvider } from "@/core/llm/createProvider";
+import { providerConfigForSubAgent } from "@/core/llm/providerReasoning";
+import type { LLMProvider } from "@/core/llm/types";
 import { buildBlockCandidates } from "../retrieval/manifest";
 import { selectRelevantBlocks } from "../retrieval/selectBlocks";
 import { withProvenance } from "../provenance";
@@ -62,6 +65,13 @@ function findBlock(paper: PaperIR, blockId: string): Block | undefined {
   return paper.blocks.find((block) => block.id === blockId);
 }
 
+function sideQueryLlm(deps: AgentDeps): LLMProvider {
+  if (deps.providerConfig) {
+    return createProvider(providerConfigForSubAgent(deps.providerConfig));
+  }
+  return deps.llm;
+}
+
 async function loadProjectPapers(
   deps: AgentDeps,
   paperIds?: string[],
@@ -103,7 +113,7 @@ function formatEvidenceMessage(
     "",
     "When citing claims from these blocks in your reply, you MUST use the exact `paperId#blockId` citation form shown below (mandatory, like file:line references).",
     "",
-    "If you need full paper context for a hit, call paperbox_read(routeId) with section \"full\" (or abstract/outline when a lighter read suffices).",
+    "If you need full paper context for a hit, call paperbox_fetch(routeId). For metadata, abstract structure, or outline only, use paperbox_read(routeId).",
   ];
 
   const routeHints = new Map<string, string>();
@@ -115,7 +125,7 @@ function formatEvidenceMessage(
   }
 
   if (routeHints.size > 0) {
-    lines.push("", "routeId reference for paperbox_read:");
+    lines.push("", "routeId reference for paperbox_fetch / paperbox_read:");
     for (const [paperId, routeId] of routeHints) {
       lines.push(`- ${paperId} → routeId: ${routeId}`);
     }
@@ -149,7 +159,7 @@ export const retrievalTool: Tool<typeof retrievalInputSchema, RetrievalHit[]> = 
   name: "retrieval",
   description: `Search the local Paper Box for evidence blocks relevant to a query. Returns block-level hits with paperId#blockId citations for mandatory referencing in your answer.
 
-Use paperbox_list first to see what is in the box. After retrieval, cite every paper claim as \`paperId#blockId\`. For full paper context on a hit, follow up with paperbox_read(routeId).`,
+Use paperbox_list first to see what is in the box. After retrieval, cite every paper claim as \`paperId#blockId\`. For full paper context on a hit, follow up with paperbox_fetch(routeId).`,
   inputSchema: retrievalInputSchema,
   isReadOnly: () => true,
   isConcurrencySafe: () => true,
@@ -173,7 +183,7 @@ Use paperbox_list first to see what is in the box. After retrieval, cite every p
     const selectedIds = await selectRelevantBlocks({
       query: input.query,
       candidates,
-      llm: deps.llm,
+      llm: sideQueryLlm(deps),
       topK: input.topK,
       signal: deps.signal,
     });

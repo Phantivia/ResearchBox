@@ -183,7 +183,7 @@ describe("retrievalTool", () => {
     expect(text).toContain("2401.11111:latest#p1");
     expect(text).toContain("2401.22222:latest#b1");
     expect(text).toContain("paperId#blockId");
-    expect(text).toContain("paperbox_read(routeId)");
+    expect(text).toContain("paperbox_fetch / paperbox_read");
     expect(text).toContain("2401.11111:latest → routeId: 2401.11111");
     expect(text).toContain("2401.22222:latest → routeId: 2401.22222");
     expect(text).toContain(`${daysSince(staleCreatedAt)} days old`);
@@ -217,6 +217,14 @@ describe("retrievalTool", () => {
       paperIds: ["2401.11111:latest"],
     });
 
-    expect(result.data).toEqual([]);
+    expect(result.data).toEqual([
+      {
+        blockId: "p1",
+        paperId: "2401.11111:latest",
+        citation: "2401.11111:latest#p1",
+        text: "<p>Included block.</p>",
+        staleDays: 0,
+      },
+    ]);
   });
 });

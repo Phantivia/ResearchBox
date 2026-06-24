@@ -50,12 +50,12 @@ function RetryIcon() {
 interface CopyActionButtonProps {
   label: string;
   successLabel: string;
-  hintSide: "start" | "end";
   onCopy: () => void | Promise<boolean>;
 }
 
-function CopyActionButton({ label, successLabel, hintSide, onCopy }: CopyActionButtonProps) {
+function CopyActionButton({ label, successLabel, onCopy }: CopyActionButtonProps) {
   const [showSuccess, setShowSuccess] = useState(false);
+  const [hintKey, setHintKey] = useState(0);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -72,6 +72,7 @@ function CopyActionButton({ label, successLabel, hintSide, onCopy }: CopyActionB
       if (!copied) {
         return;
       }
+      setHintKey((key) => key + 1);
       setShowSuccess(true);
       if (hideTimerRef.current) {
         clearTimeout(hideTimerRef.current);
@@ -90,14 +91,10 @@ function CopyActionButton({ label, successLabel, hintSide, onCopy }: CopyActionB
       </ActionButton>
       {showSuccess ? (
         <span
-          key={Date.now()}
+          key={hintKey}
           role="status"
           aria-live="polite"
-          className={`rb-copy-hint absolute whitespace-nowrap text-[11px] leading-none text-[var(--rb-text-secondary)] ${
-            hintSide === "end"
-              ? "left-full ml-1.5"
-              : "right-full mr-1.5"
-          }`}
+          className="rb-copy-hint absolute top-full z-10 mt-0.5 whitespace-nowrap text-[11px] leading-none text-[var(--rb-text-secondary)]"
         >
           {successLabel}
         </span>
@@ -141,7 +138,6 @@ export function ChatMessageActions({
       key="copy"
       label={copyLabel}
       successLabel={copySuccessLabel}
-      hintSide={variant === "user" ? "start" : "end"}
       onCopy={onCopy}
     />
   );
@@ -159,7 +155,7 @@ export function ChatMessageActions({
 
   return (
     <div
-      className={`mt-2.5 flex h-7 min-h-7 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 ${alignClass}`}
+      className={`relative mt-2.5 flex min-h-7 items-center gap-1 overflow-visible opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 ${alignClass}`}
     >
       {buttons}
     </div>

@@ -4,6 +4,7 @@ import { subAgentTool } from "../subagent";
 import { academicSearchTool } from "./academicSearch";
 import { artifactsTool } from "./artifacts";
 import { paperboxListTool } from "./paperboxList";
+import { paperboxFetchTool } from "./paperboxFetch";
 import { paperboxReadTool } from "./paperboxRead";
 import { retrievalTool } from "./retrieval";
 import { createWebSearchTool } from "./webSearch";
@@ -15,6 +16,7 @@ export { subAgentTool } from "../subagent";
 export { academicSearchTool } from "./academicSearch";
 export { artifactsTool } from "./artifacts";
 export { paperboxListTool } from "./paperboxList";
+export { paperboxFetchTool } from "./paperboxFetch";
 export { paperboxReadTool } from "./paperboxRead";
 export { pythonTool } from "./python";
 export { retrievalTool } from "./retrieval";
@@ -29,6 +31,7 @@ export function buildResearchTools(opts: {
   return [
     paperboxListTool,
     paperboxReadTool,
+    paperboxFetchTool,
     fetchResultTool,
     retrievalTool,
     academicSearchTool,

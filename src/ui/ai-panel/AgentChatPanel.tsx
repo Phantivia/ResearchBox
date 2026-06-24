@@ -154,6 +154,7 @@ function renderMessage(
   onEditRemoveImage: (id: string) => void,
   onCancelUserMessageEdit: () => void,
   onSubmitUserMessageEdit: () => void,
+  onResendUserMessage: (index: number, payload: UserMessageSendPayload) => void | Promise<void>,
   onRetryAssistantMessage: (index: number) => void,
 ) {
   if (!isUiVisibleMessage(message)) {
@@ -265,7 +266,9 @@ function renderMessage(
         retryLabel={labels.retry}
         editLabel={labels.edit}
         onCopy={() => copyMessageText(message)}
-        onRetry={() => onStartUserMessageEdit(index, message)}
+        onRetry={() => {
+          void onResendUserMessage(index, userMessageToSendPayload(message));
+        }}
         onEdit={() => onStartUserMessageEdit(index, message)}
       >
         {text ? <MessageBubble>{text}</MessageBubble> : null}
@@ -459,6 +462,7 @@ export function AgentChatPanel({
                 },
                 () => setEditSession(null),
                 handleSubmitUserMessageEdit,
+                onResendUserMessage,
                 onRetryAssistantMessage,
               ),
             )}
