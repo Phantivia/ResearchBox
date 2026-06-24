@@ -17,7 +17,6 @@ import { useTranslation } from "@/i18n";
 import { useAgentStore, usePaperStore, useProjectStore, useSettingsStore } from "@/store";
 import { AgentChatPanel } from "@/ui/ai-panel";
 import type { ChatSendPayload } from "@/ui/ai-panel/ChatComposer";
-import { userMessageToSendPayload } from "@/ui/ai-panel/userMessagePayload";
 import { CurrentProjectLabel } from "@/ui/shell/CurrentProjectLabel";
 import { FeatureIcon } from "@/ui/shell/featureIcons";
 
@@ -173,11 +172,6 @@ export default function AgentChat() {
 
   const [sending, setSending] = useState(false);
   const [stopping, setStopping] = useState(false);
-  const [draftSeed, setDraftSeed] = useState<{
-    text: string;
-    images: ChatSendPayload["images"];
-    nonce: number;
-  } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const toolNameByUseIdRef = useRef(new Map<string, string>());
   const prevProjectIdRef = useRef("");
@@ -535,8 +529,8 @@ export default function AgentChat() {
     ],
   );
 
-  const handleRetryUserMessage = useCallback(
-    async (index: number) => {
+  const handleResendUserMessage = useCallback(
+    async (index: number, payload: ChatSendPayload) => {
       if (sending) {
         return;
       }
@@ -544,31 +538,10 @@ export default function AgentChat() {
       if (!message || message.role !== "user") {
         return;
       }
-      const payload = userMessageToSendPayload(message);
       truncateMessages(index);
       await handleSend(payload);
     },
     [handleSend, sending, truncateMessages],
-  );
-
-  const handleEditUserMessage = useCallback(
-    (index: number) => {
-      if (sending) {
-        return;
-      }
-      const message = useAgentStore.getState().messages[index];
-      if (!message || message.role !== "user") {
-        return;
-      }
-      const payload = userMessageToSendPayload(message);
-      truncateMessages(index);
-      setDraftSeed({
-        text: payload.text,
-        images: payload.images,
-        nonce: Date.now(),
-      });
-    },
-    [sending, truncateMessages],
   );
 
   const handleRetryAssistantMessage = useCallback(
@@ -630,14 +603,10 @@ export default function AgentChat() {
           onSend={handleSend}
           onStop={handleStop}
           stopping={stopping}
-          onRetryUserMessage={(index) => {
-            void handleRetryUserMessage(index);
-          }}
-          onEditUserMessage={handleEditUserMessage}
+          onResendUserMessage={handleResendUserMessage}
           onRetryAssistantMessage={(index) => {
             void handleRetryAssistantMessage(index);
           }}
-          draftSeed={draftSeed}
         />
       )}
     </main>

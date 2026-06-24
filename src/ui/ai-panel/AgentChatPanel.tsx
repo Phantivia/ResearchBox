@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { AgentMessage, ContentBlock } from "@/core/agent/types";
 import { BOUNDARY_MARKER_PREFIX } from "@/core/agent/boundary";
 import { extractCopyableText } from "@/core/agent/messageText";
@@ -17,6 +17,8 @@ import { MessageBubble, UserMessageShell } from "./MessageBubble";
 import { StreamingPythonToolCard } from "./StreamingPythonToolCard";
 import { ThinkingBlock } from "./ThinkingBlock";
 import { ToolCallCard } from "./ToolCallCard";
+import { UserMessageInlineEditor } from "./UserMessageInlineEditor";
+import { userMessageToSendPayload } from "./userMessagePayload";
 
 export interface AgentChatPanelProps {
   contextWindow: number;
@@ -25,15 +27,19 @@ export interface AgentChatPanelProps {
   onSend: (payload: ChatSendPayload) => void | Promise<void>;
   onStop?: () => void;
   stopping?: boolean;
-  onRetryUserMessage: (index: number) => void;
-  onEditUserMessage: (index: number) => void;
+  onResendUserMessage: (index: number, payload: ChatSendPayload) => void | Promise<void>;
   onRetryAssistantMessage: (index: number) => void;
-  draftSeed?: { text: string; images: PendingImageAttachment[]; nonce: number } | null;
 }
 
 type ToolResultEntry = {
   result: string;
   isError?: boolean;
+};
+
+type UserMessageEditSession = {
+  index: number;
+  draft: string;
+  images: PendingImageAttachment[];
 };
 
 function buildToolResultMap(messages: AgentMessage[]): Map<string, ToolResultEntry> {
@@ -125,9 +131,15 @@ function renderMessage(
     copy: string;
     retry: string;
     edit: string;
+    cancel: string;
+    submitResend: string;
   },
-  onRetryUserMessage: (index: number) => void,
-  onEditUserMessage: (index: number) => void,
+  editSession: UserMessageEditSession | null,
+  interactionDisabled: boolean,
+  onStartUserMessageEdit: (index: number, message: AgentMessage) => void,
+  onEditDraftChange: (draft: string) => void,
+  onCancelUserMessageEdit: () => void,
+  onSubmitUserMessageEdit: () => void,
   onRetryAssistantMessage: (index: number) => void,
 ) {
   if (!isUiVisibleMessage(message)) {
@@ -204,6 +216,25 @@ function renderMessage(
     return null;
   }
 
+  const isEditing = editSession?.index === index;
+
+  if (isEditing && editSession) {
+    return (
+      <div key={index} className="flex w-full justify-end">
+        <UserMessageInlineEditor
+          text={editSession.draft}
+          images={editSession.images}
+          cancelLabel={labels.cancel}
+          submitLabel={labels.submitResend}
+          submitting={interactionDisabled}
+          onTextChange={onEditDraftChange}
+          onCancel={onCancelUserMessageEdit}
+          onSubmit={onSubmitUserMessageEdit}
+        />
+      </div>
+    );
+  }
+
   return (
     <div key={index}>
       <UserMessageShell
@@ -214,8 +245,8 @@ function renderMessage(
         onCopy={() => {
           void copyMessageText(message);
         }}
-        onRetry={() => onRetryUserMessage(index)}
-        onEdit={() => onEditUserMessage(index)}
+        onRetry={() => onStartUserMessageEdit(index, message)}
+        onEdit={() => onStartUserMessageEdit(index, message)}
       >
         {text ? <MessageBubble>{text}</MessageBubble> : null}
         {imageBlocks.length > 0 ? (
@@ -242,10 +273,8 @@ export function AgentChatPanel({
   onSend,
   onStop,
   stopping = false,
-  onRetryUserMessage,
-  onEditUserMessage,
+  onResendUserMessage,
   onRetryAssistantMessage,
-  draftSeed = null,
 }: AgentChatPanelProps) {
   const { t } = useTranslation();
   const messages = useAgentStore((state) => state.messages);
@@ -255,6 +284,7 @@ export function AgentChatPanel({
   const runningTools = useAgentStore((state) => state.runningTools);
   const contextBreakdown = useAgentStore((state) => state.contextBreakdown);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const [editSession, setEditSession] = useState<UserMessageEditSession | null>(null);
 
   const toolResults = useMemo(() => buildToolResultMap(messages), [messages]);
   const streamingPythonCalls = useMemo(
@@ -265,16 +295,52 @@ export function AgentChatPanel({
   const isStreaming = Boolean(
     streamingText || streamingThinking || streamingPythonCalls.length > 0,
   );
-  const actionsDisabled = disabled || isStreaming;
+  const isEditingUserMessage = editSession !== null;
+  const interactionDisabled = disabled || isStreaming;
+  const actionsDisabled = interactionDisabled || isEditingUserMessage;
 
   const actionLabels = useMemo(
     () => ({
       copy: t("agent.message.copy"),
       retry: t("agent.message.retry"),
       edit: t("agent.message.edit"),
+      cancel: t("agent.message.cancel"),
+      submitResend: t("agent.message.submitResend"),
     }),
     [t],
   );
+
+  useEffect(() => {
+    if (editSession == null) {
+      return;
+    }
+    const message = messages[editSession.index];
+    if (!message || message.role !== "user") {
+      setEditSession(null);
+    }
+  }, [editSession, messages]);
+
+  const startUserMessageEdit = (index: number, message: AgentMessage) => {
+    const payload = userMessageToSendPayload(message);
+    setEditSession({
+      index,
+      draft: payload.text,
+      images: payload.images,
+    });
+  };
+
+  const handleSubmitUserMessageEdit = () => {
+    if (!editSession) {
+      return;
+    }
+    const trimmed = editSession.draft.trim();
+    if (trimmed.length === 0 && editSession.images.length === 0) {
+      return;
+    }
+    const { index, draft, images } = editSession;
+    setEditSession(null);
+    void onResendUserMessage(index, { text: draft, images });
+  };
 
   useEffect(() => {
     const scroll = () => {
@@ -304,8 +370,14 @@ export function AgentChatPanel({
                 t("agent.box.boundaryLabel"),
                 actionsDisabled,
                 actionLabels,
-                onRetryUserMessage,
-                onEditUserMessage,
+                editSession,
+                interactionDisabled,
+                startUserMessageEdit,
+                (draft) => {
+                  setEditSession((current) => (current ? { ...current, draft } : current));
+                },
+                () => setEditSession(null),
+                handleSubmitUserMessageEdit,
                 onRetryAssistantMessage,
               ),
             )}
@@ -340,13 +412,12 @@ export function AgentChatPanel({
         </div>
 
         <ChatComposer
-          disabled={disabled}
+          disabled={disabled || isEditingUserMessage}
           contextWindow={contextWindow}
           contextBreakdown={contextBreakdown}
           onSend={onSend}
           onStop={onStop}
           stopping={stopping}
-          draftSeed={draftSeed}
         />
         </div>
       </div>
