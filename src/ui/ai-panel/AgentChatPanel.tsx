@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { AgentMessage, ContentBlock } from "@/core/agent/types";
 import { useAgentStore } from "@/store";
+import { AssistantAvatar } from "./AssistantAvatar";
 import { ChatComposer } from "./ChatComposer";
 import { ContextMeter } from "./ContextMeter";
 import { MessageBubble } from "./MessageBubble";
@@ -39,12 +40,28 @@ function renderMessage(message: AgentMessage, index: number) {
     .filter((text): text is string => text != null);
   const text = textBlocks.join("\n\n");
 
+  if (message.role === "assistant") {
+    const hasText = Boolean(text);
+
+    return (
+      <div key={index} className="flex gap-2">
+        <AssistantAvatar />
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          {thinkingBlocks.map((block, blockIndex) => (
+            <ThinkingBlock
+              key={blockIndex}
+              text={block.text}
+              responseStarted={hasText}
+            />
+          ))}
+          {text ? <MessageBubble role="assistant">{text}</MessageBubble> : null}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div key={index} className="flex flex-col gap-2">
-      {message.role === "assistant" &&
-        thinkingBlocks.map((block, blockIndex) => (
-          <ThinkingBlock key={blockIndex} text={block.text} />
-        ))}
+    <div key={index}>
       {text ? <MessageBubble role={bubbleRole}>{text}</MessageBubble> : null}
     </div>
   );
@@ -76,13 +93,20 @@ export function AgentChatPanel({
           {messages.map((message, index) => renderMessage(message, index))}
 
           {isStreaming ? (
-            <div className="flex flex-col gap-2">
-              {streamingThinking ? (
-                <ThinkingBlock text={streamingThinking} streaming />
-              ) : null}
-              {streamingText ? (
-                <MessageBubble role="assistant">{streamingText}</MessageBubble>
-              ) : null}
+            <div className="flex gap-2">
+              <AssistantAvatar />
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
+                {streamingThinking ? (
+                  <ThinkingBlock
+                    text={streamingThinking}
+                    streaming
+                    responseStarted={Boolean(streamingText)}
+                  />
+                ) : null}
+                {streamingText ? (
+                  <MessageBubble role="assistant">{streamingText}</MessageBubble>
+                ) : null}
+              </div>
             </div>
           ) : null}
 
