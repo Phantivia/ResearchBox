@@ -1,4 +1,5 @@
 import { useState, type KeyboardEvent } from "react";
+import { useTranslation } from "@/i18n";
 
 export interface ChatComposerProps {
   disabled: boolean;
@@ -6,6 +7,7 @@ export interface ChatComposerProps {
 }
 
 export function ChatComposer({ disabled, onSend }: ChatComposerProps) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState("");
 
   const handleSend = () => {
@@ -34,7 +36,7 @@ export function ChatComposer({ disabled, onSend }: ChatComposerProps) {
           onKeyDown={handleKeyDown}
           disabled={disabled}
           rows={2}
-          placeholder="输入消息…"
+          placeholder={t("agent.inputPlaceholder")}
           className="min-h-[2.75rem] flex-1 resize-y rounded-lg border border-[var(--rb-border)] bg-[var(--rb-page-bg)] px-3 py-2 text-sm text-[var(--rb-text-primary)] placeholder:text-[var(--rb-text-secondary)] focus:border-[var(--rb-primary)] focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--rb-primary)_25%,transparent)] disabled:cursor-not-allowed disabled:opacity-60"
         />
         <button
@@ -43,11 +45,11 @@ export function ChatComposer({ disabled, onSend }: ChatComposerProps) {
           disabled={disabled || draft.trim().length === 0}
           className="shrink-0 rounded-lg bg-[var(--rb-primary)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--rb-primary-hover)] focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--rb-primary)_35%,transparent)] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          发送
+          {t("agent.send")}
         </button>
       </div>
       <p className="mt-1.5 hidden text-[11px] text-[var(--rb-text-secondary)] sm:block">
-        Enter 发送，Shift+Enter 换行
+        {t("agent.enterHint")}
       </p>
     </div>
   );

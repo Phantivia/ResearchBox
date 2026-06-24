@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "@/i18n";
 
 export interface ThinkingBlockProps {
   text: string;
@@ -20,6 +21,7 @@ function ThinkingDots() {
 }
 
 export function ThinkingBlock({ text, streaming = false }: ThinkingBlockProps) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -36,10 +38,10 @@ export function ThinkingBlock({ text, streaming = false }: ThinkingBlockProps) {
         >
           ▶
         </span>
-        <span className="font-medium">思考过程</span>
+        <span className="font-medium">{t("agent.thinkingLabel")}</span>
         {streaming ? (
           <span className="inline-flex items-center gap-1.5 italic">
-            思考中…
+            {t("agent.thinkingStreaming")}
             <ThinkingDots />
           </span>
         ) : null}

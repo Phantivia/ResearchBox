@@ -1,4 +1,4 @@
-export type FeatureIconId = "paper-box" | "dummy";
+export type FeatureIconId = "paper-box" | "dummy" | "agent-chat";
 
 interface FeatureIconProps {
   id: FeatureIconId;
@@ -7,11 +7,30 @@ interface FeatureIconProps {
 
 export function FeatureIcon({ id, className = "h-4 w-4" }: FeatureIconProps) {
   switch (id) {
+    case "agent-chat":
+      return <AgentChatIcon className={className} />;
     case "paper-box":
       return <PaperBoxIcon className={className} />;
     case "dummy":
       return <DummyIcon className={className} />;
   }
+}
+
+function AgentChatIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  );
 }
 
 function PaperBoxIcon({ className }: { className?: string }) {

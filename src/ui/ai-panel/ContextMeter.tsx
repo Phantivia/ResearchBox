@@ -1,3 +1,5 @@
+import { useTranslation } from "@/i18n";
+
 export interface ContextMeterProps {
   tokens: number;
   contextWindow: number;
@@ -14,6 +16,7 @@ function resolveBarColor(percent: number): string {
 }
 
 export function ContextMeter({ tokens, contextWindow }: ContextMeterProps) {
+  const { t } = useTranslation();
   const safeWindow = Math.max(contextWindow, 1);
   const percent = Math.min(100, Math.round((tokens / safeWindow) * 100));
   const barColor = resolveBarColor(percent);
@@ -22,7 +25,10 @@ export function ContextMeter({ tokens, contextWindow }: ContextMeterProps) {
     <div className="border-b border-[var(--rb-border)] bg-[var(--rb-card-bg)] px-4 py-2">
       <div className="flex items-center justify-between gap-3 text-xs text-[var(--rb-text-secondary)]">
         <span>
-          上下文：{tokens.toLocaleString()} tokens（{percent}%）
+          {t("agent.contextUsage", {
+            tokens: tokens.toLocaleString(),
+            percent: String(percent),
+          })}
         </span>
       </div>
       <div
@@ -31,7 +37,7 @@ export function ContextMeter({ tokens, contextWindow }: ContextMeterProps) {
         aria-valuenow={percent}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label={`上下文占用 ${percent}%`}
+        aria-label={t("agent.contextAria", { percent: String(percent) })}
       >
         <div
           className={`h-full rounded-full transition-all duration-300 ${barColor}`}
