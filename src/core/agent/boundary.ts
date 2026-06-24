@@ -6,9 +6,22 @@ const CORE_IN_BOX_RULE =
 /** 系统提示常驻引用的盒内优先规则（P7-2）。 */
 export const IN_BOX_PRIORITY_RULE = `盒子关闭后，${CORE_IN_BOX_RULE}`;
 
+export const BOUNDARY_MARKER_PREFIX = "【盒子已关闭】";
+
 export function buildBoundaryMarker(): AgentMessage {
   return {
     role: "user",
-    content: [{ type: "text", text: `【盒子已关闭】从此标记起，${CORE_IN_BOX_RULE}` }],
+    content: [{ type: "text", text: `${BOUNDARY_MARKER_PREFIX}从此标记起，${CORE_IN_BOX_RULE}` }],
   };
+}
+
+export function isBoundaryMarker(message: AgentMessage): boolean {
+  if (message.role !== "user") {
+    return false;
+  }
+  const textBlock = message.content.find(
+    (block): block is Extract<(typeof message.content)[number], { type: "text" }> =>
+      block.type === "text",
+  );
+  return textBlock?.text.startsWith(BOUNDARY_MARKER_PREFIX) ?? false;
 }

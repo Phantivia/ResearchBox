@@ -75,7 +75,7 @@ export function SearchResultCard({ projectId, hit }: SearchResultCardProps) {
             <span className="truncate text-xs text-[var(--rb-text-secondary)]">
               {hit.arxivId}
             </span>
-            <span className="inline-flex shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-200">
+            <span className="inline-flex shrink-0 rounded-md border border-[color-mix(in_srgb,var(--rb-primary)_38%,var(--rb-border))] bg-[color-mix(in_srgb,var(--rb-border)_28%,var(--rb-page-bg))] px-2 py-0.5 text-[11px] font-medium text-[var(--rb-text-secondary)]">
               {sourceLabel(hit.source, t)}
             </span>
           </div>

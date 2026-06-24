@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildBoundaryMarker, IN_BOX_PRIORITY_RULE } from "./boundary";
+import {
+  buildBoundaryMarker,
+  IN_BOX_PRIORITY_RULE,
+  isBoundaryMarker,
+} from "./boundary";
 
 describe("buildBoundaryMarker", () => {
   it("returns a user text message with boundary marker wording", () => {
@@ -18,6 +22,27 @@ describe("buildBoundaryMarker", () => {
     expect(text).toContain("paperId#blockId");
     expect(text).toContain("盒内确实没有相关依据");
     expect(text).toContain("此点来自盒外、尚未正式纳入盒子");
+  });
+});
+
+describe("isBoundaryMarker", () => {
+  it("returns true for a boundary marker message", () => {
+    expect(isBoundaryMarker(buildBoundaryMarker())).toBe(true);
+  });
+
+  it("returns false for regular user and assistant messages", () => {
+    expect(
+      isBoundaryMarker({
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+      }),
+    ).toBe(false);
+    expect(
+      isBoundaryMarker({
+        role: "assistant",
+        content: [{ type: "text", text: "【盒子已关闭】fake" }],
+      }),
+    ).toBe(false);
   });
 });
 

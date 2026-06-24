@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   DEFAULT_REASONING_EFFORT,
+  DEFAULT_SUB_AGENT_REASONING_EFFORT,
   DEFAULT_TRANSLATION_REASONING_EFFORT,
   listAvailableModels,
   resolveDefaultReasoningEffort,
   resolveOpenRouterModelMetadata,
+  resolveSubAgentReasoningEffort,
   resolveTranslationReasoningEffort,
   supportsModelListing,
   supportsOpenRouterMetaLookup,
@@ -105,6 +107,7 @@ function emptyDraft(id: ProviderId): ProviderConfig {
     model: "",
     reasoningEffort: DEFAULT_REASONING_EFFORT,
     translationReasoningEffort: DEFAULT_TRANSLATION_REASONING_EFFORT,
+    subAgentReasoningEffort: DEFAULT_SUB_AGENT_REASONING_EFFORT,
   };
 }
 
@@ -676,6 +679,79 @@ export function SettingsPage() {
               </span>
             </label>
 
+            <label className="block">
+              <span className="mb-1 block text-sm font-medium text-gray-700">
+                {t("settings.subAgentModel")}
+              </span>
+              {showModelSelect ? (
+                <select
+                  name="rb-sub-agent-model"
+                  value={draft.subAgentModel ?? ""}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      subAgentModel: event.target.value || undefined,
+                    }))
+                  }
+                  disabled={modelListStatus.state === "loading"}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:cursor-wait disabled:opacity-60"
+                  {...NO_AUTOFILL_INPUT_PROPS}
+                >
+                  <option value="">{t("settings.subAgentModelFallback")}</option>
+                  {modelOptions.map((model) => (
+                    <option key={model} value={model}>
+                      {model}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  name="rb-sub-agent-model"
+                  value={draft.subAgentModel ?? ""}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      subAgentModel: event.target.value.trim() || undefined,
+                    }))
+                  }
+                  placeholder={draft.model || "gpt-4o-mini / claude-3-5-haiku-latest"}
+                  spellCheck={false}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  {...NO_AUTOFILL_INPUT_PROPS}
+                />
+              )}
+              <span className="mt-1 block text-xs text-gray-500">
+                {t("settings.subAgentModelHint")}
+              </span>
+            </label>
+
+            <label className="block">
+              <span className="mb-1 block text-sm font-medium text-gray-700">
+                {t("settings.subAgentReasoningEffort")}
+              </span>
+              <select
+                value={draft.subAgentReasoningEffort ?? DEFAULT_SUB_AGENT_REASONING_EFFORT}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    subAgentReasoningEffort: event.target.value as ReasoningEffort,
+                  }))
+                }
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                {...NO_AUTOFILL_INPUT_PROPS}
+              >
+                {REASONING_EFFORT_VALUES.map((value) => (
+                  <option key={value} value={value}>
+                    {t(`reasoning.${value}`)}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-xs text-gray-500">
+                {t("settings.subAgentReasoningEffortHint")}
+              </span>
+            </label>
+
             <div className="flex flex-wrap gap-3">
               <button
                 type="submit"
@@ -738,6 +814,10 @@ export function SettingsPage() {
                 const reasoningEffort = resolveDefaultReasoningEffort(provider);
                 const translationReasoningEffort =
                   resolveTranslationReasoningEffort(provider);
+                const subAgentReasoningEffort =
+                  resolveSubAgentReasoningEffort(provider);
+                const subAgentModel =
+                  provider.subAgentModel?.trim() || provider.model;
 
                 return (
                   <div
@@ -809,6 +889,27 @@ export function SettingsPage() {
                           </dt>
                           <dd className="mt-0.5 text-gray-600">
                             {t(`reasoning.${translationReasoningEffort}`)}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="font-medium text-gray-700">
+                            {t("settings.subAgentModel")}
+                          </dt>
+                          <dd className="mt-0.5 text-gray-600">
+                            {subAgentModel}
+                            {!provider.subAgentModel?.trim() && (
+                              <span className="ml-1 text-xs text-gray-500">
+                                ({t("settings.subAgentModelFallback")})
+                              </span>
+                            )}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="font-medium text-gray-700">
+                            {t("settings.subAgentReasoningEffort")}
+                          </dt>
+                          <dd className="mt-0.5 text-gray-600">
+                            {t(`reasoning.${subAgentReasoningEffort}`)}
                           </dd>
                         </div>
                         <div>

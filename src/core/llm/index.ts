@@ -18,6 +18,7 @@ export type {
 } from "./types";
 export {
   DEFAULT_REASONING_EFFORT,
+  DEFAULT_SUB_AGENT_REASONING_EFFORT,
   DEFAULT_TRANSLATION_REASONING_EFFORT,
   isChatThinkingChunk,
   textFromChatStreamChunk,
@@ -26,8 +27,10 @@ export { LLMError } from "./http";
 export { parseSSEStream } from "./sse";
 export { createProvider } from "./createProvider";
 export {
+  providerConfigForSubAgent,
   providerConfigForTranslation,
   resolveDefaultReasoningEffort,
+  resolveSubAgentReasoningEffort,
   resolveTranslationReasoningEffort,
 } from "./providerReasoning";
 export {

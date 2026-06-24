@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { ArtifactKindSchema } from "@/core/agent/artifact/schema";
 import type { PaperIRDatabase } from "@/db";
-import type { LLMProvider } from "@/core/llm";
+import type { LLMProvider, ProviderConfig } from "@/core/llm";
 
 export const PermissionModeSchema = z.enum(["default", "ask"]);
 export type PermissionMode = z.infer<typeof PermissionModeSchema>;
@@ -104,4 +104,6 @@ export interface AgentDeps {
   requestApproval: ApprovalFn;
   /** Active workspace; injected by the page when constructing deps. */
   projectId?: string;
+  /** Active provider config; sub-agent derives an isolated LLM from this. */
+  providerConfig?: ProviderConfig;
 }

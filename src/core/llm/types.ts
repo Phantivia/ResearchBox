@@ -71,6 +71,8 @@ export const DEFAULT_REASONING_EFFORT: ReasoningEffort = "low";
 
 export const DEFAULT_TRANSLATION_REASONING_EFFORT: ReasoningEffort = "off";
 
+export const DEFAULT_SUB_AGENT_REASONING_EFFORT: ReasoningEffort = "off";
+
 import type { StoredOpenRouterModelMeta } from "./openrouterSchema";
 
 export type ProviderConfig = {
@@ -82,5 +84,9 @@ export type ProviderConfig = {
   reasoningEffort?: ReasoningEffort;
   /** Translation-specific reasoning effort; defaults to off when unset. */
   translationReasoningEffort?: ReasoningEffort;
+  /** Sub-agent model override; falls back to `model` when unset. */
+  subAgentModel?: string;
+  /** Sub-agent reasoning effort; defaults to off when unset. */
+  subAgentReasoningEffort?: ReasoningEffort;
   openRouterMeta?: StoredOpenRouterModelMeta | null;
 };

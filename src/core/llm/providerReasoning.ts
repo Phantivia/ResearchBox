@@ -1,5 +1,6 @@
 import {
   DEFAULT_REASONING_EFFORT,
+  DEFAULT_SUB_AGENT_REASONING_EFFORT,
   DEFAULT_TRANSLATION_REASONING_EFFORT,
   type ProviderConfig,
   type ReasoningEffort,
@@ -23,5 +24,22 @@ export function providerConfigForTranslation(
   return {
     ...config,
     reasoningEffort: resolveTranslationReasoningEffort(config),
+  };
+}
+
+export function resolveSubAgentReasoningEffort(
+  config: ProviderConfig,
+): ReasoningEffort {
+  return config.subAgentReasoningEffort ?? DEFAULT_SUB_AGENT_REASONING_EFFORT;
+}
+
+export function providerConfigForSubAgent(
+  config: ProviderConfig,
+): ProviderConfig {
+  const subModel = config.subAgentModel?.trim();
+  return {
+    ...config,
+    model: subModel || config.model,
+    reasoningEffort: resolveSubAgentReasoningEffort(config),
   };
 }

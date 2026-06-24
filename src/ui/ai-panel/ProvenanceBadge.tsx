@@ -1,26 +1,23 @@
 import type { Provenance } from "@/core/agent/provenance";
 import { useTranslation } from "@/i18n";
 
-const PROVENANCE_STYLES: Record<
-  Provenance,
-  { bg: string; text: string; ring: string }
-> = {
+const PROVENANCE_STYLES: Record<Provenance, { dot: string; border: string }> = {
   paperbox: {
-    bg: "bg-emerald-50 dark:bg-emerald-950/40",
-    text: "text-emerald-800 dark:text-emerald-300",
-    ring: "ring-emerald-200 dark:ring-emerald-800",
+    dot: "bg-[color-mix(in_srgb,#059669_45%,var(--rb-text-secondary))]",
+    border: "border-[color-mix(in_srgb,#059669_30%,var(--rb-border))]",
   },
   academic: {
-    bg: "bg-blue-50 dark:bg-blue-950/40",
-    text: "text-blue-800 dark:text-blue-300",
-    ring: "ring-blue-200 dark:ring-blue-800",
+    dot: "bg-[color-mix(in_srgb,var(--rb-primary)_65%,var(--rb-text-secondary))]",
+    border: "border-[color-mix(in_srgb,var(--rb-primary)_38%,var(--rb-border))]",
   },
   web: {
-    bg: "bg-amber-50 dark:bg-amber-950/40",
-    text: "text-amber-800 dark:text-amber-300",
-    ring: "ring-amber-200 dark:ring-amber-800",
+    dot: "bg-[color-mix(in_srgb,#b45309_40%,var(--rb-text-secondary))]",
+    border: "border-[color-mix(in_srgb,#b45309_28%,var(--rb-border))]",
   },
 };
+
+const BADGE_BASE =
+  "inline-flex shrink-0 items-center gap-1.5 rounded-md border bg-[color-mix(in_srgb,var(--rb-border)_28%,var(--rb-page-bg))] px-2 py-0.5 text-[11px] font-medium tracking-wide text-[var(--rb-text-secondary)]";
 
 const PROVENANCE_I18N = {
   paperbox: "agent.provenance.paperbox",
@@ -38,15 +35,11 @@ export function ProvenanceBadge({ provenance, className = "" }: ProvenanceBadgeP
   const styles = PROVENANCE_STYLES[provenance];
 
   return (
-    <span
-      className={[
-        "inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset",
-        styles.bg,
-        styles.text,
-        styles.ring,
-        className,
-      ].join(" ")}
-    >
+    <span className={[BADGE_BASE, styles.border, className].join(" ")}>
+      <span
+        className={["h-1.5 w-1.5 shrink-0 rounded-full", styles.dot].join(" ")}
+        aria-hidden
+      />
       {t(PROVENANCE_I18N[provenance])}
     </span>
   );

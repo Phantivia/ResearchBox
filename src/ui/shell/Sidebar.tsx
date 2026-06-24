@@ -302,7 +302,7 @@ function SidebarContent({ mobile = false, onDismiss }: SidebarContentProps) {
       setSettingsExpanded(false);
       setFeaturesExpanded(false);
       setDockMode("chatbox");
-      window.setTimeout(() => setChatboxExpanded(true), PANEL_EXPAND_DELAY_MS);
+      setChatboxExpanded(true);
 
       if (!activeProjectId) {
         runWithDismissFeedback("chatbox-home", () => {
@@ -315,7 +315,7 @@ function SidebarContent({ mobile = false, onDismiss }: SidebarContentProps) {
     if (dockMode === "features") {
       setFeaturesExpanded(false);
       setDockMode("chatbox");
-      window.setTimeout(() => setChatboxExpanded(true), PANEL_EXPAND_DELAY_MS);
+      setChatboxExpanded(true);
       return;
     }
 
@@ -338,6 +338,62 @@ function SidebarContent({ mobile = false, onDismiss }: SidebarContentProps) {
   }
 
   const settingsMode = dockMode === "settings";
+
+  function handleSettingsClick() {
+    if (dockMode === "settings") {
+      setSettingsExpanded((expanded) => !expanded);
+      return;
+    }
+
+    openSettings();
+  }
+
+  function renderChatBoxNavItem(item: (typeof CHATBOX_NAV)[number]) {
+    const disabled = item.requiresProject && !activeProjectId;
+    const path = activeProjectId ? item.path(activeProjectId) : "/";
+    const active = item.isActive(location.pathname);
+
+    if (disabled) {
+      return (
+        <span
+          key={item.id}
+          title={t("noProject.title")}
+          aria-disabled
+          className="flex cursor-not-allowed items-center gap-2.5 rounded-sm px-2 py-2 text-sm text-gray-600 opacity-60"
+        >
+          <FeatureIcon id={item.icon} className="h-4 w-4 shrink-0" />
+          <span className="truncate">{t(item.labelKey)}</span>
+        </span>
+      );
+    }
+
+    const chatboxKey = `chatbox:${path}`;
+    const isPressed = pressedKey === chatboxKey;
+
+    return (
+      <button
+        key={item.id}
+        type="button"
+        onClick={() => goToChatBox(path, item.id === "chat-box-new")}
+        className={[
+          "flex w-full items-center gap-2.5 rounded-sm px-2 py-2 text-left text-sm transition-colors",
+          active
+            ? "bg-white/5 font-medium text-white"
+            : isPressed
+              ? "bg-white/[0.04] text-gray-200"
+              : "text-gray-400 hover:bg-white/[0.04] hover:text-gray-200",
+        ].join(" ")}
+      >
+        <FeatureIcon
+          id={item.icon}
+          className={`h-4 w-4 shrink-0 ${active ? "text-white" : "text-gray-500"}`}
+        />
+        <span className="truncate">{t(item.labelKey)}</span>
+      </button>
+    );
+  }
+
+  const chatBoxNewItem = CHATBOX_NAV.find((item) => item.id === "chat-box-new");
 
   return (
     <div className="flex h-full flex-col">
@@ -458,163 +514,146 @@ function SidebarContent({ mobile = false, onDismiss }: SidebarContentProps) {
           onClick={handleChatBoxClick}
         />
 
-        <CollapsiblePanel open={chatboxExpanded} durationMs={300} className="pt-1">
-          <nav aria-label={t("nav.chatBox")} className="mt-0.5 space-y-0.5 border-l border-white/10 pl-2.5">
-            {CHATBOX_NAV.map((item) => {
-              const disabled = item.requiresProject && !activeProjectId;
-              const path = activeProjectId ? item.path(activeProjectId) : "/";
-              const active = item.isActive(location.pathname);
-
-              if (disabled) {
-                return (
-                  <span
-                    key={item.id}
-                    title={t("noProject.title")}
-                    aria-disabled
-                    className="flex cursor-not-allowed items-center gap-2.5 rounded-sm px-2 py-2 text-sm text-gray-600 opacity-60"
-                  >
-                    <FeatureIcon id={item.icon} className="h-4 w-4 shrink-0" />
-                    <span className="truncate">{t(item.labelKey)}</span>
-                  </span>
-                );
-              }
-
-              const chatboxKey = `chatbox:${path}`;
-              const isPressed = pressedKey === chatboxKey;
-
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => goToChatBox(path, item.id === "chat-box-new")}
-                  className={[
-                    "flex w-full items-center gap-2.5 rounded-sm px-2 py-2 text-left text-sm transition-colors",
-                    active
-                      ? "bg-white/5 font-medium text-white"
-                      : isPressed
-                        ? "bg-white/[0.04] text-gray-200"
-                        : "text-gray-400 hover:bg-white/[0.04] hover:text-gray-200",
-                  ].join(" ")}
+        <div
+          className={[
+            "flex min-h-0 flex-col overflow-hidden transition-[flex-grow,flex-basis] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
+            dockMode === "chatbox" ? "flex-1 grow basis-0" : "flex-none grow-0 basis-0",
+          ].join(" ")}
+        >
+          {dockMode === "chatbox" && chatboxExpanded ? (
+            <>
+              {chatBoxNewItem ? (
+                <nav
+                  aria-label={t("nav.chatBoxNewChat")}
+                  className="mt-0.5 shrink-0 space-y-0.5 border-l border-white/10 pl-2.5 pt-1"
                 >
-                  <FeatureIcon
-                    id={item.icon}
-                    className={`h-4 w-4 shrink-0 ${active ? "text-white" : "text-gray-500"}`}
-                  />
-                  <span className="truncate">{t(item.labelKey)}</span>
-                </button>
-              );
-            })}
-          </nav>
-        </CollapsiblePanel>
+                  {renderChatBoxNavItem(chatBoxNewItem)}
+                </nav>
+              ) : null}
 
-        <DockHeaderButton
-          label={t("nav.features")}
-          icon={<FeaturesIcon />}
-          active={isFeatureActive && !settingsMode}
-          expanded={featuresExpanded}
-          onClick={handleFeaturesClick}
-        />
+              {activeProjectId ? (
+                <HistorySearch projectId={activeProjectId} />
+              ) : (
+                <div className="min-h-0 flex-1" aria-hidden />
+              )}
+            </>
+          ) : (
+            <CollapsiblePanel open={chatboxExpanded} durationMs={300} className="pt-1">
+              <nav aria-label={t("nav.chatBox")} className="mt-0.5 space-y-0.5 border-l border-white/10 pl-2.5">
+                {CHATBOX_NAV.map((item) => renderChatBoxNavItem(item))}
+              </nav>
+            </CollapsiblePanel>
+          )}
+        </div>
 
-        <CollapsiblePanel open={featuresExpanded} durationMs={300} className="pt-1">
-          <nav aria-label={t("nav.features")} className="mt-0.5 space-y-0.5 border-l border-white/10 pl-2.5">
-            {FEATURE_NAV.map((item) => {
-              const disabled = item.requiresProject && !activeProjectId;
-              const path = activeProjectId ? item.path(activeProjectId) : "/";
-              const active = item.isActive(location.pathname);
+        <div className="shrink-0">
+          <DockHeaderButton
+            label={t("nav.features")}
+            icon={<FeaturesIcon />}
+            active={isFeatureActive && !settingsMode}
+            expanded={featuresExpanded}
+            onClick={handleFeaturesClick}
+          />
 
-              if (disabled) {
+          <CollapsiblePanel open={featuresExpanded} durationMs={300} className="pt-1">
+            <nav aria-label={t("nav.features")} className="mt-0.5 space-y-0.5 border-l border-white/10 pl-2.5">
+              {FEATURE_NAV.map((item) => {
+                const disabled = item.requiresProject && !activeProjectId;
+                const path = activeProjectId ? item.path(activeProjectId) : "/";
+                const active = item.isActive(location.pathname);
+
+                if (disabled) {
+                  return (
+                    <span
+                      key={item.id}
+                      title={t("noProject.title")}
+                      aria-disabled
+                      className="flex cursor-not-allowed items-center gap-2.5 rounded-sm px-2 py-2 text-sm text-gray-600 opacity-60"
+                    >
+                      <FeatureIcon id={item.icon} className="h-4 w-4 shrink-0" />
+                      <span className="truncate">{t(item.labelKey)}</span>
+                    </span>
+                  );
+                }
+
+                const featureKey = `feature:${path}`;
+                const isPressed = pressedKey === featureKey;
+
                 return (
-                  <span
+                  <button
                     key={item.id}
-                    title={t("noProject.title")}
-                    aria-disabled
-                    className="flex cursor-not-allowed items-center gap-2.5 rounded-sm px-2 py-2 text-sm text-gray-600 opacity-60"
+                    type="button"
+                    onClick={() => goToFeature(path)}
+                    className={[
+                      "flex w-full items-center gap-2.5 rounded-sm px-2 py-2 text-left text-sm transition-colors",
+                      active
+                        ? "bg-white/5 font-medium text-white"
+                        : isPressed
+                          ? "bg-white/[0.04] text-gray-200"
+                          : "text-gray-400 hover:bg-white/[0.04] hover:text-gray-200",
+                    ].join(" ")}
                   >
-                    <FeatureIcon id={item.icon} className="h-4 w-4 shrink-0" />
+                    <FeatureIcon
+                      id={item.icon}
+                      className={`h-4 w-4 shrink-0 ${active ? "text-white" : "text-gray-500"}`}
+                    />
                     <span className="truncate">{t(item.labelKey)}</span>
-                  </span>
+                  </button>
                 );
-              }
-
-              const featureKey = `feature:${path}`;
-              const isPressed = pressedKey === featureKey;
-
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => goToFeature(path)}
-                  className={[
-                    "flex w-full items-center gap-2.5 rounded-sm px-2 py-2 text-left text-sm transition-colors",
-                    active
-                      ? "bg-white/5 font-medium text-white"
-                      : isPressed
-                        ? "bg-white/[0.04] text-gray-200"
-                        : "text-gray-400 hover:bg-white/[0.04] hover:text-gray-200",
-                  ].join(" ")}
-                >
-                  <FeatureIcon
-                    id={item.icon}
-                    className={`h-4 w-4 shrink-0 ${active ? "text-white" : "text-gray-500"}`}
-                  />
-                  <span className="truncate">{t(item.labelKey)}</span>
-                </button>
-              );
-            })}
-          </nav>
-        </CollapsiblePanel>
+              })}
+            </nav>
+          </CollapsiblePanel>
+        </div>
 
         <div
           aria-hidden
           className={[
             "min-h-0 transition-[flex-grow,flex-basis] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
-            settingsMode ? "flex-none grow-0 basis-0" : "flex-1 grow",
+            dockMode === "features" ? "flex-1 grow basis-0" : "flex-none grow-0 basis-0",
           ].join(" ")}
-        >
-          {chatboxExpanded && !settingsMode && activeProjectId ? (
-            <HistorySearch projectId={activeProjectId} />
-          ) : null}
+        />
+
+        <div className="shrink-0">
+          {settingsMode ? (
+            <DockHeaderButton
+              label={t("nav.settings")}
+              icon={<GearIcon />}
+              active
+              expanded={settingsExpanded}
+              onClick={handleSettingsClick}
+            />
+          ) : (
+            <DockActionButton
+              label={t("nav.settings")}
+              icon={<GearIcon />}
+              pressed={pressedKey === "open-settings"}
+              onClick={handleSettingsClick}
+            />
+          )}
+
+          <CollapsiblePanel open={settingsMode && settingsExpanded} durationMs={300} shrink>
+            <nav aria-label={t("nav.settings")} className="space-y-px pl-2 pt-0.5">
+              {visibleSettingsSections.map((section) => {
+                const sectionKey = `settings:${section.id}`;
+                const isPressed = pressedKey === sectionKey;
+
+                return (
+                  <button
+                    key={section.id}
+                    type="button"
+                    onClick={() => goToSettingsSection(section.id)}
+                    className={[
+                      "flex w-full items-center px-2 py-1.5 text-left text-xs transition-colors",
+                      isPressed ? "text-gray-200" : "text-gray-500 hover:text-gray-200",
+                    ].join(" ")}
+                  >
+                    <span className="truncate">{t(section.labelKey)}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          </CollapsiblePanel>
         </div>
-
-        {settingsMode ? (
-          <DockHeaderButton
-            label={t("nav.settings")}
-            icon={<GearIcon />}
-            active
-            expanded={settingsExpanded}
-            onClick={() => setSettingsExpanded((expanded) => !expanded)}
-          />
-        ) : (
-          <DockActionButton
-            label={t("nav.settings")}
-            icon={<GearIcon />}
-            pressed={pressedKey === "open-settings"}
-            onClick={openSettings}
-          />
-        )}
-
-        <CollapsiblePanel open={settingsMode && settingsExpanded} durationMs={300} shrink>
-          <nav aria-label={t("nav.settings")} className="space-y-px pl-2 pt-0.5">
-            {visibleSettingsSections.map((section) => {
-              const sectionKey = `settings:${section.id}`;
-              const isPressed = pressedKey === sectionKey;
-
-              return (
-              <button
-                key={section.id}
-                type="button"
-                onClick={() => goToSettingsSection(section.id)}
-                className={[
-                  "flex w-full items-center px-2 py-1.5 text-left text-xs transition-colors",
-                  isPressed ? "text-gray-200" : "text-gray-500 hover:text-gray-200",
-                ].join(" ")}
-              >
-                <span className="truncate">{t(section.labelKey)}</span>
-              </button>
-              );
-            })}
-          </nav>
-        </CollapsiblePanel>
       </div>
 
       <div className="mt-auto shrink-0 border-t border-white/5 px-3 py-3">
