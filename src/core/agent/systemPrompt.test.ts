@@ -23,4 +23,22 @@ describe("buildAgentSystemPrompt", () => {
     expect(prompt).toContain("paperId#blockId");
     expect(prompt).toContain("retrieval tool");
   });
+
+  it("includes retrieval posture and saturation guidance in the stable segment before the dynamic boundary", () => {
+    const prompt = buildAgentSystemPrompt({});
+    const boundaryIndex = prompt.indexOf(SYSTEM_PROMPT_DYNAMIC_BOUNDARY);
+
+    const exploreIndex = prompt.indexOf("Explore (探索式)");
+    const exhaustiveIndex = prompt.indexOf("Exhaustive (穷尽式)");
+    const saturationIndex = prompt.indexOf("approaching saturation");
+
+    expect(exploreIndex).toBeGreaterThan(-1);
+    expect(exhaustiveIndex).toBeGreaterThan(-1);
+    expect(saturationIndex).toBeGreaterThan(-1);
+    expect(exploreIndex).toBeLessThan(boundaryIndex);
+    expect(exhaustiveIndex).toBeLessThan(boundaryIndex);
+    expect(saturationIndex).toBeLessThan(boundaryIndex);
+    expect(prompt).toMatch(/default when uncertain/i);
+    expect(prompt).toMatch(/retrieval strategy/i);
+  });
 });
