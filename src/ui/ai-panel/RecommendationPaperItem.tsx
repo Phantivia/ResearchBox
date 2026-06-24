@@ -98,6 +98,14 @@ export function RecommendationPaperItem({
     recommendation.title,
     RECOMMENDATION_TITLE_MAX_CARD,
   );
+  const showCompactPeek = compact && !expanded;
+
+  function handleCompactToggle() {
+    if (!compact) {
+      return;
+    }
+    setExpanded((value) => !value);
+  }
 
   return (
     <article
@@ -108,41 +116,68 @@ export function RecommendationPaperItem({
           : includeActive
             ? "border-green-200 ring-1 ring-inset ring-green-100"
             : "border-[var(--rb-border)]",
+        showCompactPeek ? "cursor-pointer active:bg-[color-mix(in_srgb,var(--rb-border)_12%,var(--rb-card-bg))]" : "",
       ].join(" ")}
+      onClick={showCompactPeek ? handleCompactToggle : undefined}
+      onKeyDown={
+        showCompactPeek
+          ? (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                handleCompactToggle();
+              }
+            }
+          : undefined
+      }
+      role={showCompactPeek ? "button" : undefined}
+      tabIndex={showCompactPeek ? 0 : undefined}
+      aria-expanded={compact ? expanded : undefined}
     >
-      <div className="p-3">
-        <div className="flex items-start gap-2">
-          {compact ? (
-            <button
-              type="button"
-              onClick={() => setExpanded((value) => !value)}
-              className="mt-0.5 flex shrink-0 items-center text-[var(--rb-text-secondary)] hover:text-[var(--rb-text-primary)]"
-              aria-expanded={expanded}
-            >
-              <ExpandChevron expanded={expanded} />
-            </button>
-          ) : null}
-
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <ProvenanceBadge provenance="academic" />
-              <span className="truncate text-xs text-[var(--rb-text-secondary)]">
-                {recommendation.arxivId}
-              </span>
-            </div>
+      <div className={compact ? "px-3 py-2" : "p-3"}>
+        {showCompactPeek ? (
+          <div className="min-w-0">
             <h3
-              className="mt-1 text-sm font-semibold leading-snug text-[var(--rb-text-primary)]"
+              className="line-clamp-1 text-sm font-medium leading-snug text-[var(--rb-text-primary)]"
               title={recommendation.title}
             >
               {displayTitle}
             </h3>
+            <p className="line-clamp-1 text-xs leading-snug text-[var(--rb-text-secondary)]">
+              {recommendation.reason}
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-start gap-2">
+              {compact ? (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setExpanded(false);
+                  }}
+                  className="mt-0.5 flex shrink-0 items-center text-[var(--rb-text-secondary)] hover:text-[var(--rb-text-primary)]"
+                  aria-expanded={expanded}
+                  aria-label={t("agent.recommend.collapseSheet")}
+                >
+                  <ExpandChevron expanded={expanded} />
+                </button>
+              ) : null}
 
-            {compact && !expanded ? (
-              <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[var(--rb-text-secondary)]">
-                {recommendation.reason}
-              </p>
-            ) : (
-              <>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <ProvenanceBadge provenance="academic" />
+                  <span className="truncate text-xs text-[var(--rb-text-secondary)]">
+                    {recommendation.arxivId}
+                  </span>
+                </div>
+                <h3
+                  className="mt-1 text-sm font-semibold leading-snug text-[var(--rb-text-primary)]"
+                  title={recommendation.title}
+                >
+                  {displayTitle}
+                </h3>
+
                 <p className="mt-2 text-xs font-medium text-[var(--rb-text-primary)]">
                   {t("agent.recommend.reason")}
                 </p>
@@ -159,56 +194,56 @@ export function RecommendationPaperItem({
                     </p>
                   </>
                 ) : null}
-              </>
-            )}
-          </div>
-        </div>
+              </div>
+            </div>
 
-        <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
-          {alreadyInBox && effectiveDecision !== "ignored" ? (
-            <span className="rounded-md bg-gray-100 px-2.5 py-1 text-xs font-medium text-[var(--rb-text-secondary)]">
-              {t("agent.search.alreadyInBox")}
-            </span>
-          ) : null}
+            <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+              {alreadyInBox && effectiveDecision !== "ignored" ? (
+                <span className="rounded-md bg-gray-100 px-2.5 py-1 text-xs font-medium text-[var(--rb-text-secondary)]">
+                  {t("agent.search.alreadyInBox")}
+                </span>
+              ) : null}
 
-          <button
-            type="button"
-            onClick={() => void handleIgnore()}
-            disabled={showIncluding}
-            className={[
-              "rounded-md px-2.5 py-1 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--rb-border)]",
-              ignoreActive
-                ? "bg-[color-mix(in_srgb,var(--rb-text-secondary)_18%,var(--rb-card-bg))] text-[var(--rb-text-primary)] ring-1 ring-inset ring-[var(--rb-border)]"
-                : "border border-[var(--rb-border)] bg-[var(--rb-card-bg)] text-[var(--rb-text-secondary)] hover:bg-[color-mix(in_srgb,var(--rb-border)_30%,var(--rb-card-bg))]",
-            ].join(" ")}
-          >
-            {ignoreActive ? t("agent.recommend.ignored") : t("agent.recommend.ignore")}
-          </button>
+              <button
+                type="button"
+                onClick={() => void handleIgnore()}
+                disabled={showIncluding}
+                className={[
+                  "rounded-md px-2.5 py-1 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--rb-border)]",
+                  ignoreActive
+                    ? "bg-[color-mix(in_srgb,var(--rb-text-secondary)_18%,var(--rb-card-bg))] text-[var(--rb-text-primary)] ring-1 ring-inset ring-[var(--rb-border)]"
+                    : "border border-[var(--rb-border)] bg-[var(--rb-card-bg)] text-[var(--rb-text-secondary)] hover:bg-[color-mix(in_srgb,var(--rb-border)_30%,var(--rb-card-bg))]",
+                ].join(" ")}
+              >
+                {ignoreActive ? t("agent.recommend.ignored") : t("agent.recommend.ignore")}
+              </button>
 
-          <button
-            type="button"
-            onClick={() => void handleInclude()}
-            disabled={showIncluding || (alreadyInBox && includeActive)}
-            className={[
-              "rounded-md px-2.5 py-1 text-xs font-medium transition-colors focus:outline-none focus:ring-2",
-              includeActive || alreadyInBox
-                ? "bg-green-50 text-green-700 ring-1 ring-inset ring-green-200"
-                : "bg-[var(--rb-primary)] text-white hover:bg-[var(--rb-primary-hover)] focus:ring-blue-300",
-            ].join(" ")}
-          >
-            {showIncluding
-              ? t("agent.search.including")
-              : includeActive || alreadyInBox
-                ? t("agent.search.included")
-                : t("agent.search.include")}
-          </button>
-        </div>
+              <button
+                type="button"
+                onClick={() => void handleInclude()}
+                disabled={showIncluding || (alreadyInBox && includeActive)}
+                className={[
+                  "rounded-md px-2.5 py-1 text-xs font-medium transition-colors focus:outline-none focus:ring-2",
+                  includeActive || alreadyInBox
+                    ? "bg-green-50 text-green-700 ring-1 ring-inset ring-green-200"
+                    : "bg-[var(--rb-primary)] text-white hover:bg-[var(--rb-primary-hover)] focus:ring-blue-300",
+                ].join(" ")}
+              >
+                {showIncluding
+                  ? t("agent.search.including")
+                  : includeActive || alreadyInBox
+                    ? t("agent.search.included")
+                    : t("agent.search.include")}
+              </button>
+            </div>
 
-        {showFailed && errorMessage ? (
-          <p className="mt-2 text-xs text-red-600" role="alert">
-            {errorMessage}
-          </p>
-        ) : null}
+            {showFailed && errorMessage ? (
+              <p className="mt-2 text-xs text-red-600" role="alert">
+                {errorMessage}
+              </p>
+            ) : null}
+          </>
+        )}
       </div>
     </article>
   );
