@@ -1,16 +1,12 @@
 import { useEffect, type CSSProperties } from "react";
-
-export interface BoxRippleOrigin {
-  xPercent: number;
-  yPercent: number;
-}
+import type { BoxRippleOrigin } from "@/store/agentStore";
 
 export interface BoxRippleOverlayProps {
   origin: BoxRippleOrigin;
   onComplete: () => void;
 }
 
-const RIPPLE_DURATION_MS = 850;
+const RIPPLE_DURATION_MS = 1100;
 
 export function BoxRippleOverlay({ origin, onComplete }: BoxRippleOverlayProps) {
   useEffect(() => {
@@ -20,7 +16,10 @@ export function BoxRippleOverlay({ origin, onComplete }: BoxRippleOverlayProps) 
 
   return (
     <div
-      className="rb-box-ripple-overlay pointer-events-none absolute inset-0 z-10"
+      className={[
+        "rb-box-ripple-overlay pointer-events-none absolute inset-0 z-0",
+        origin.mode === "opening" ? "rb-box-ripple-overlay--opening" : "rb-box-ripple-overlay--closing",
+      ].join(" ")}
       style={
         {
           "--ripple-x": `${origin.xPercent}%`,

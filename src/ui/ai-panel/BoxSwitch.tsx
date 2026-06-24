@@ -1,9 +1,26 @@
 import type { MouseEvent, RefObject } from "react";
+import type { BoxRippleOrigin } from "@/store/agentStore";
 import { useTranslation } from "@/i18n";
 import { useAgentStore } from "@/store";
 
 export interface BoxSwitchProps {
   rippleContainerRef?: RefObject<HTMLElement | null>;
+}
+
+function rippleOriginFromClick(
+  event: MouseEvent<HTMLButtonElement>,
+  container: HTMLElement,
+  mode: BoxRippleOrigin["mode"],
+): BoxRippleOrigin | null {
+  const rect = container.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) {
+    return null;
+  }
+  return {
+    xPercent: ((event.clientX - rect.left) / rect.width) * 100,
+    yPercent: ((event.clientY - rect.top) / rect.height) * 100,
+    mode,
+  };
 }
 
 export function BoxSwitch({ rippleContainerRef }: BoxSwitchProps) {
@@ -16,16 +33,19 @@ export function BoxSwitch({ rippleContainerRef }: BoxSwitchProps) {
   const label = boxOpen ? t("agent.box.collecting") : t("agent.box.researching");
 
   const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
-    if (boxOpen) {
-      const container = rippleContainerRef?.current;
-      if (container) {
-        const rect = container.getBoundingClientRect();
-        if (rect.width > 0 && rect.height > 0) {
-          const xPercent = ((event.clientX - rect.left) / rect.width) * 100;
-          const yPercent = ((event.clientY - rect.top) / rect.height) * 100;
-          setBoxRippleOrigin({ xPercent, yPercent });
-        }
+    const container = rippleContainerRef?.current;
+    if (container) {
+      const origin = rippleOriginFromClick(
+        event,
+        container,
+        boxOpen ? "closing" : "opening",
+      );
+      if (origin) {
+        setBoxRippleOrigin(origin);
       }
+    }
+
+    if (boxOpen) {
       closeBox();
       return;
     }

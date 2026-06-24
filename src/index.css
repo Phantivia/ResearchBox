@@ -461,7 +461,18 @@
     --rb-text-secondary: #9ca3af;
     --rb-border: #3d4d63;
     color-scheme: dark;
+  }
+
+  .rb-chat-box-closed:not(.rb-chat-box-rippling) {
     background-color: var(--rb-page-bg);
+  }
+
+  .rb-chat-box-surface.rb-chat-box-open:not(.rb-chat-box-rippling) {
+    background-color: #f9fafb;
+  }
+
+  .rb-chat-box-surface.rb-chat-box-rippling.rb-box-ripple-opening {
+    background-color: #1a2230;
   }
 
   @keyframes rb-box-ripple-expand {
@@ -475,8 +486,15 @@
   }
 
   .rb-box-ripple-overlay {
+    animation: rb-box-ripple-expand 1.1s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  }
+
+  .rb-box-ripple-overlay--closing {
     background-color: #1a2230;
-    animation: rb-box-ripple-expand 0.85s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+  }
+
+  .rb-box-ripple-overlay--opening {
+    background-color: #f9fafb;
   }
 }
 

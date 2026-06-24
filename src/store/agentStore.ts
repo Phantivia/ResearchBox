@@ -15,9 +15,12 @@ export type StreamingToolCall = {
   partialJson: string;
 };
 
+export type BoxRippleMode = "closing" | "opening";
+
 export type BoxRippleOrigin = {
   xPercent: number;
   yPercent: number;
+  mode: BoxRippleMode;
 };
 
 interface AgentStoreState {
@@ -184,7 +187,7 @@ export const useAgentStore = create<AgentStoreState & AgentStoreActions>()((set)
         lastMessage && isBoundaryMarker(lastMessage)
           ? state.messages.slice(0, -1)
           : state.messages;
-      return { boxOpen: true, boxRippleOrigin: null, messages };
+      return { boxOpen: true, messages };
     }),
 
   closeBox: () =>

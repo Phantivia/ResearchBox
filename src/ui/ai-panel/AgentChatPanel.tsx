@@ -227,14 +227,17 @@ export function AgentChatPanel({
       <div
         ref={chatSurfaceRef}
         className={[
-          "relative flex min-h-0 min-w-0 flex-1 flex-col transition-[background-color,color] duration-500 ease-out",
-          !boxOpen ? "rb-chat-box-closed" : "",
+          "rb-chat-box-surface relative isolate flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          boxOpen ? "rb-chat-box-open" : "rb-chat-box-closed",
+          boxRippleOrigin ? "rb-chat-box-rippling" : "",
+          boxRippleOrigin?.mode === "opening" ? "rb-box-ripple-opening" : "",
         ].join(" ")}
       >
         {boxRippleOrigin ? (
           <BoxRippleOverlay origin={boxRippleOrigin} onComplete={handleRippleComplete} />
         ) : null}
 
+        <div className="relative z-1 flex min-h-0 flex-1 flex-col">
         <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4">
           <div className="mx-auto flex max-w-3xl flex-col gap-4">
             {messages.map((message, index) =>
@@ -286,6 +289,7 @@ export function AgentChatPanel({
           stopping={stopping}
           rippleContainerRef={chatSurfaceRef}
         />
+        </div>
       </div>
 
       <ArtifactDetailPanel />
