@@ -234,7 +234,7 @@ describe("executeTool", () => {
         return { data: "should not run" };
       },
     });
-    const deps = makeDeps({ requestApproval: async () => false });
+    const deps = makeDeps({ requestApproval: async () => false, permissionMode: "ask" });
     const { result } = await drainExecuteTool(
       { id: "t1", name: "echo", input: { text: "hi" } },
       [tool],
@@ -265,7 +265,7 @@ describe("executeTool", () => {
       },
     });
     const requestApproval = vi.fn(async () => true);
-    const deps = makeDeps({ requestApproval });
+    const deps = makeDeps({ requestApproval, permissionMode: "ask" });
     const { result } = await drainExecuteTool(
       { id: "t1", name: "echo", input: { text: "hi" } },
       [tool],
@@ -286,7 +286,37 @@ describe("executeTool", () => {
     expect(result.denied).toBeUndefined();
   });
 
-  it("denies write tools in plan mode when checkPermissions asks", async () => {
+  it("auto-executes in default mode when checkPermissions asks without requestApproval", async () => {
+    const tool = makeTool({
+      name: "echo",
+      isReadOnly: () => false,
+      checkPermissions: async () => ({
+        behavior: "ask",
+        reason: "需要审批",
+        risk: "low",
+      }),
+      call: async function* () {
+        return { data: "ok" };
+      },
+    });
+    const requestApproval = vi.fn(async () => false);
+    const deps = makeDeps({ requestApproval, permissionMode: "default" });
+    const { result } = await drainExecuteTool(
+      { id: "t1", name: "echo", input: { text: "hi" } },
+      [tool],
+      deps,
+    );
+
+    expect(requestApproval).not.toHaveBeenCalled();
+    expect(result.message.content[0]).toEqual({
+      type: "tool_result",
+      toolUseId: "t1",
+      content: "ok",
+    });
+    expect(result.denied).toBeUndefined();
+  });
+
+  it("denies write tools in ask mode when checkPermissions asks and approval rejected", async () => {
     const tool = makeTool({
       name: "writer",
       isReadOnly: () => false,
@@ -299,10 +329,10 @@ describe("executeTool", () => {
         return { data: "should not run" };
       },
     });
-    const requestApproval = vi.fn(async () => true);
+    const requestApproval = vi.fn(async () => false);
     const deps = makeDeps({
       requestApproval,
-      permissionMode: "plan",
+      permissionMode: "ask",
     });
     const { result } = await drainExecuteTool(
       { id: "t1", name: "writer", input: { text: "hi" } },
@@ -313,11 +343,11 @@ describe("executeTool", () => {
     expect(result.message.content[0]).toEqual({
       type: "tool_result",
       toolUseId: "t1",
-      content: "计划模式下不允许执行写操作",
+      content: "用户拒绝了工具审批",
       isError: true,
     });
     expect(result.denied).toBe("writer");
-    expect(requestApproval).not.toHaveBeenCalled();
+    expect(requestApproval).toHaveBeenCalled();
   });
 
   it("propagates denied through executeBatched when approval is rejected", async () => {
@@ -333,7 +363,7 @@ describe("executeTool", () => {
         return { data: "ok" };
       },
     });
-    const deps = makeDeps({ requestApproval: async () => false });
+    const deps = makeDeps({ requestApproval: async () => false, permissionMode: "ask" });
     const gen = executeBatched(
       [{ id: "t1", name: "echo", input: { text: "hi" } }],
       [tool],

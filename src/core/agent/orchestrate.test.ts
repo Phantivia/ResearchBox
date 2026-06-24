@@ -182,4 +182,35 @@ describe("executeBatched", () => {
     expect(result.denied).toBe("deny_me");
     expect(toolUseIds(result.messages)).toEqual(["1", "2"]);
   });
+
+  it("places all tool results before catalog newMessages for OpenAI-compatible ordering", async () => {
+    const catalogTool: Tool<typeof delaySchema, string> = {
+      ...makeSafeTool("with_catalog"),
+      async *call(input) {
+        return {
+          data: input.label,
+          newMessages: [
+            {
+              role: "user" as const,
+              uiHidden: true,
+              content: [{ type: "text" as const, text: `catalog:${input.label}` }],
+            },
+          ],
+        };
+      },
+    };
+    const calls = [
+      { id: "1", name: "with_catalog", input: { delayMs: 0, label: "a" } },
+      { id: "2", name: "with_catalog", input: { delayMs: 0, label: "b" } },
+    ];
+
+    const result = await drainExecuteBatched(calls, [catalogTool], makeDeps());
+
+    expect(result.messages.map((m) => m.role)).toEqual([
+      "tool",
+      "tool",
+      "user",
+      "user",
+    ]);
+  });
 });

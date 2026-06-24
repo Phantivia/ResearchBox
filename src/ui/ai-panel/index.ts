@@ -1,13 +1,14 @@
 export { AgentChatPanel } from "./AgentChatPanel";
 export { ApprovalDialog } from "./ApprovalDialog";
-export { ArtifactList, type ArtifactListProps } from "./ArtifactList";
+export { ArtifactCard, type ArtifactCardProps } from "./ArtifactCard";
+export { ArtifactDetailPanel } from "./ArtifactDetailPanel";
+export { ArtifactList, ArtifactListView, type ArtifactListProps } from "./ArtifactList";
 export { ArtifactPreview, type ArtifactPreviewProps } from "./ArtifactPreview";
 export { AssistantAvatar } from "./AssistantAvatar";
 export { BoxSwitch } from "./BoxSwitch";
 export { ChatComposer, type ChatComposerProps } from "./ChatComposer";
 export { ContextMeter, type ContextMeterProps } from "./ContextMeter";
 export { MessageBubble, type MessageBubbleProps } from "./MessageBubble";
-export { PermissionModeSwitch } from "./PermissionModeSwitch";
 export { ProvenanceBadge, type ProvenanceBadgeProps } from "./ProvenanceBadge";
 export { SearchResultCard, type SearchResultCardProps } from "./SearchResultCard";
 export { ThinkingBlock, type ThinkingBlockProps } from "./ThinkingBlock";

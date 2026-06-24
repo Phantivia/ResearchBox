@@ -6,6 +6,7 @@ import { Dummy } from "./pages/Dummy";
 import { Reader } from "./pages/Reader";
 import { SettingsPage } from "./ui/settings";
 import AgentChat from "./pages/AgentChat";
+import { ChatBoxArtifacts } from "./pages/ChatBoxArtifacts";
 
 export function App() {
   return (
@@ -16,7 +17,9 @@ export function App() {
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/p/:projectId" element={<ProjectScope />}>
             <Route index element={<Navigate to="paper-box" replace />} />
-            <Route path="agent" element={<AgentChat />} />
+            <Route path="chat-box" element={<AgentChat />} />
+            <Route path="chat-box/artifacts" element={<ChatBoxArtifacts />} />
+            <Route path="agent" element={<Navigate to="../chat-box" replace />} />
             <Route path="paper-box" element={<PaperBox />} />
             <Route path="dummy" element={<Dummy />} />
             <Route path="paper/:routeId" element={<Reader />} />

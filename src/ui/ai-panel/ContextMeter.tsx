@@ -22,28 +22,18 @@ export function ContextMeter({ tokens, contextWindow }: ContextMeterProps) {
   const barColor = resolveBarColor(percent);
 
   return (
-    <div className="border-b border-[var(--rb-border)] bg-[var(--rb-card-bg)] px-4 py-2">
-      <div className="flex items-center justify-between gap-3 text-xs text-[var(--rb-text-secondary)]">
-        <span>
-          {t("agent.contextUsage", {
-            tokens: tokens.toLocaleString(),
-            percent: String(percent),
-          })}
-        </span>
-      </div>
+    <div
+      className="mt-2 h-1 w-full overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--rb-border)_40%,var(--rb-page-bg))]"
+      role="progressbar"
+      aria-valuenow={percent}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label={t("agent.contextAria", { percent: String(percent) })}
+    >
       <div
-        className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--rb-border)_40%,var(--rb-page-bg))]"
-        role="progressbar"
-        aria-valuenow={percent}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label={t("agent.contextAria", { percent: String(percent) })}
-      >
-        <div
-          className={`h-full rounded-full transition-all duration-300 ${barColor}`}
-          style={{ width: `${percent}%` }}
-        />
-      </div>
+        className={`h-full rounded-full transition-all duration-300 ${barColor}`}
+        style={{ width: `${percent}%` }}
+      />
     </div>
   );
 }

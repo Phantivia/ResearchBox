@@ -56,9 +56,6 @@ async function buildDenialMessage(
     if (perm.behavior === "deny") {
       return perm.message;
     }
-    if (deps.store.permissionMode === "plan" && !tool.isReadOnly(input)) {
-      return "计划模式下不允许执行写操作";
-    }
   } catch {
     // resolvePermission already fail-closed; message stays generic.
   }

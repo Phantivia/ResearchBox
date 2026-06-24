@@ -207,6 +207,9 @@ describe("loadPaperForDisplay", () => {
 
     expect(result.kind).toBe("readonly");
     expect(result.ir.title).toBe("Pipeline Test Paper");
+
+    const stored = await getPaper("2401.99999", "latest");
+    expect(stored?.title).toBe("Pipeline Test Paper");
   });
 });
 

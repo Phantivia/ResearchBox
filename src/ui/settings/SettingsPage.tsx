@@ -24,6 +24,7 @@ import { useSettingsStore, useStorageStore, useTranslationJobStore } from "@/sto
 import { AboutSection } from "./AboutSection";
 import { AcademicSearchSection } from "./AcademicSearchSection";
 import { AgentCapabilitiesSection } from "./AgentCapabilitiesSection";
+import { ChatBoxSection } from "./ChatBoxSection";
 import { DataManagementSection } from "./DataManagementSection";
 import { ColorPaletteSection } from "./ColorPaletteSection";
 import { OpenRouterMetaPanel } from "./OpenRouterMetaPanel";
@@ -842,6 +843,7 @@ export function SettingsPage() {
         <AcademicSearchSection />
 
         <AgentCapabilitiesSection />
+        <ChatBoxSection />
 
         <section
           id={SETTINGS_SECTION_IDS.readingPrefs}

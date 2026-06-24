@@ -6,9 +6,29 @@ export type WebHit = {
   snippet: string;
 };
 
+export type WebSearchFailureReason =
+  | "missing_api_key"
+  | "empty_query"
+  | "http_error"
+  | "network_error"
+  | "timeout"
+  | "aborted";
+
+export type WebSearchFailure = {
+  reason: WebSearchFailureReason;
+  provider: WebSearchProvider;
+  detail?: string;
+};
+
+export type WebSearchOutcome = {
+  hits: WebHit[];
+  failure?: WebSearchFailure;
+};
+
 export type WebSearchAdapterOptions = {
   maxResults: number;
   apiKey: string;
+  provider: WebSearchProvider;
   signal: AbortSignal;
   fetchFn?: typeof fetch;
 };
@@ -24,7 +44,9 @@ export type RunWebSearchInput = {
 };
 
 const TAVILY_SEARCH_URL = "https://api.tavily.com/search";
-const PERPLEXITY_SEARCH_URL = "https://api.perplexity.ai/search";
+const PERPLEXITY_SONAR_URL = "https://api.perplexity.ai/v1/sonar";
+const PERPLEXITY_SONAR_MODEL = "sonar";
+const PERPLEXITY_MAX_OUTPUT_TOKENS = 16;
 const WEB_SEARCH_TIMEOUT_MS = 30_000;
 
 type TavilyResult = {
@@ -37,15 +59,19 @@ type TavilySearchResponse = {
   results?: TavilyResult[];
 };
 
-type PerplexityResult = {
+type PerplexitySearchResult = {
   title?: string;
   url?: string;
   snippet?: string;
 };
 
-type PerplexitySearchResponse = {
-  results?: PerplexityResult[];
+type PerplexityChatCompletionResponse = {
+  search_results?: PerplexitySearchResult[];
 };
+
+export function providerLabel(provider: WebSearchProvider): string {
+  return provider === "tavily" ? "Tavily" : "Perplexity";
+}
 
 function mergeAbortSignals(primary: AbortSignal, timeoutMs: number): AbortSignal {
   if (typeof AbortSignal.timeout === "function") {
@@ -89,7 +115,7 @@ function mapTavilyHit(result: TavilyResult): WebHit | null {
   };
 }
 
-function mapPerplexityHit(result: PerplexityResult): WebHit | null {
+function mapPerplexityHit(result: PerplexitySearchResult): WebHit | null {
   const title = result.title?.trim();
   const url = result.url?.trim();
   if (!title || !url) {
@@ -103,24 +129,77 @@ function mapPerplexityHit(result: PerplexityResult): WebHit | null {
   };
 }
 
-export async function tavilySearch(
-  query: string,
-  opts: WebSearchAdapterOptions,
-): Promise<WebHit[]> {
-  const apiKey = opts.apiKey.trim();
-  if (!apiKey) {
-    return [];
+function classifyFetchError(
+  error: unknown,
+  provider: WebSearchProvider,
+  userSignal: AbortSignal,
+): WebSearchOutcome {
+  if (error instanceof Error && error.name === "AbortError") {
+    if (userSignal.aborted) {
+      return {
+        hits: [],
+        failure: { reason: "aborted", provider },
+      };
+    }
+    return {
+      hits: [],
+      failure: {
+        reason: "timeout",
+        provider,
+        detail: `${WEB_SEARCH_TIMEOUT_MS / 1000}s`,
+      },
+    };
   }
 
+  return {
+    hits: [],
+    failure: {
+      reason: "network_error",
+      provider,
+      detail: error instanceof Error ? error.message : String(error),
+    },
+  };
+}
+
+async function readHttpFailure(
+  response: Response,
+  provider: WebSearchProvider,
+): Promise<WebSearchOutcome> {
+  let detail = `HTTP ${response.status}`;
+  try {
+    const body = await response.text();
+    if (body.trim()) {
+      detail = `${detail}: ${body.trim().slice(0, 200)}`;
+    }
+  } catch {
+    // Response body is optional for error classification.
+  }
+
+  return {
+    hits: [],
+    failure: {
+      reason: "http_error",
+      provider,
+      detail,
+    },
+  };
+}
+
+async function adapterSearch<TResponse>(
+  url: string,
+  query: string,
+  opts: WebSearchAdapterOptions,
+  mapPayload: (payload: TResponse) => WebHit[],
+): Promise<WebSearchOutcome> {
   const doFetch = opts.fetchFn ?? globalThis.fetch;
   const signal = mergeAbortSignals(opts.signal, WEB_SEARCH_TIMEOUT_MS);
 
   try {
-    const response = await doFetch(TAVILY_SEARCH_URL, {
+    const response = await doFetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${opts.apiKey.trim()}`,
       },
       body: JSON.stringify({
         query,
@@ -130,71 +209,107 @@ export async function tavilySearch(
     });
 
     if (!response.ok) {
-      return [];
+      return readHttpFailure(response, opts.provider);
     }
 
-    const payload = (await response.json()) as TavilySearchResponse;
-    return (payload.results ?? [])
-      .map(mapTavilyHit)
-      .filter((hit): hit is WebHit => hit !== null)
-      .slice(0, opts.maxResults);
-  } catch {
-    return [];
+    const payload = (await response.json()) as TResponse;
+    return {
+      hits: mapPayload(payload).slice(0, opts.maxResults),
+    };
+  } catch (error) {
+    return classifyFetchError(error, opts.provider, opts.signal);
   }
+}
+
+export async function tavilySearch(
+  query: string,
+  opts: WebSearchAdapterOptions,
+): Promise<WebSearchOutcome> {
+  return adapterSearch<TavilySearchResponse>(TAVILY_SEARCH_URL, query, opts, (payload) =>
+    (payload.results ?? [])
+      .map(mapTavilyHit)
+      .filter((hit): hit is WebHit => hit !== null),
+  );
 }
 
 export async function perplexitySearch(
   query: string,
   opts: WebSearchAdapterOptions,
-): Promise<WebHit[]> {
-  const apiKey = opts.apiKey.trim();
-  if (!apiKey) {
-    return [];
-  }
-
+): Promise<WebSearchOutcome> {
   const doFetch = opts.fetchFn ?? globalThis.fetch;
   const signal = mergeAbortSignals(opts.signal, WEB_SEARCH_TIMEOUT_MS);
 
   try {
-    const response = await doFetch(PERPLEXITY_SEARCH_URL, {
+    const response = await doFetch(PERPLEXITY_SONAR_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${opts.apiKey.trim()}`,
       },
       body: JSON.stringify({
-        query,
-        max_results: Math.min(Math.max(opts.maxResults, 1), 20),
+        model: PERPLEXITY_SONAR_MODEL,
+        messages: [{ role: "user", content: query }],
+        max_tokens: PERPLEXITY_MAX_OUTPUT_TOKENS,
       }),
       signal,
     });
 
     if (!response.ok) {
-      return [];
+      return readHttpFailure(response, opts.provider);
     }
 
-    const payload = (await response.json()) as PerplexitySearchResponse;
-    return (payload.results ?? [])
+    const payload = (await response.json()) as PerplexityChatCompletionResponse;
+    const hits = (payload.search_results ?? [])
       .map(mapPerplexityHit)
       .filter((hit): hit is WebHit => hit !== null)
       .slice(0, opts.maxResults);
-  } catch {
-    return [];
+
+    return { hits };
+  } catch (error) {
+    return classifyFetchError(error, opts.provider, opts.signal);
   }
 }
 
-export async function runWebSearch(input: RunWebSearchInput): Promise<WebHit[]> {
+export async function runWebSearch(input: RunWebSearchInput): Promise<WebSearchOutcome> {
   const trimmedQuery = input.query.trim();
-  if (!trimmedQuery || input.maxResults <= 0) {
-    return [];
+  if (!trimmedQuery) {
+    return {
+      hits: [],
+      failure: {
+        reason: "empty_query",
+        provider: input.provider,
+        detail: "query must not be empty",
+      },
+    };
+  }
+
+  if (input.maxResults <= 0) {
+    return {
+      hits: [],
+      failure: {
+        reason: "empty_query",
+        provider: input.provider,
+        detail: "maxResults must be positive",
+      },
+    };
+  }
+
+  const apiKey =
+    input.provider === "tavily" ? input.tavilyApiKey : input.perplexityApiKey;
+  if (!apiKey.trim()) {
+    return {
+      hits: [],
+      failure: {
+        reason: "missing_api_key",
+        provider: input.provider,
+      },
+    };
   }
 
   const adapterOpts: WebSearchAdapterOptions = {
     maxResults: input.maxResults,
-    apiKey:
-      input.provider === "tavily"
-        ? input.tavilyApiKey
-        : input.perplexityApiKey,
+    apiKey,
+    provider: input.provider,
     signal: input.signal,
     fetchFn: input.fetchFn,
   };

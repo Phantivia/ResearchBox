@@ -1,7 +1,11 @@
 // AgentStore 只在此定义接口：core 不依赖 React，Zustand 实现放在 src/store/agentStore.ts。
 import { z } from "zod";
+import { ArtifactKindSchema } from "@/core/agent/artifact/schema";
 import type { PaperIRDatabase } from "@/db";
 import type { LLMProvider } from "@/core/llm";
+
+export const PermissionModeSchema = z.enum(["default", "ask"]);
+export type PermissionMode = z.infer<typeof PermissionModeSchema>;
 
 export const ContentBlockSchema = z.discriminatedUnion("type", [
   z.object({
@@ -24,6 +28,12 @@ export const ContentBlockSchema = z.discriminatedUnion("type", [
     content: z.string(),
     isError: z.boolean().optional(),
   }),
+  z.object({
+    type: z.literal("artifact_card"),
+    artifactId: z.string(),
+    title: z.string(),
+    kind: ArtifactKindSchema,
+  }),
 ]);
 
 export const AgentMessageSchema = z.object({
@@ -31,6 +41,8 @@ export const AgentMessageSchema = z.object({
   content: z.array(ContentBlockSchema),
   /** 仅用于 LLM 上下文、不在聊天 UI 展示（如工具注入的证据块）。 */
   uiHidden: z.boolean().optional(),
+  /** 仅在聊天 UI 展示、不送入 LLM（如 artifact 完成卡片）。 */
+  llmHidden: z.boolean().optional(),
 });
 
 export type ContentBlock = z.infer<typeof ContentBlockSchema>;
@@ -77,7 +89,7 @@ export interface AgentStore {
   messages: AgentMessage[];
   pendingApprovals: ApprovalRequest[];
   runningTools: Record<string, { name: string; stage: string }>;
-  permissionMode: "default" | "plan" | "autoApproveRead";
+  permissionMode: PermissionMode;
   append(m: AgentMessage): void;
   enqueueApproval(r: ApprovalRequest & { resolve: (ok: boolean) => void }): string | void;
   setRunningTool(id: string, info: { name: string; stage: string }): void;

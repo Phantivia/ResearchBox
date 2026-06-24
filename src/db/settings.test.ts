@@ -100,6 +100,7 @@ describe("settings helpers", () => {
       webSearchProvider: "tavily",
       tavilyApiKey: "",
       perplexityApiKey: "",
+      permissionMode: "default",
     });
 
     const reloaded = await getSettings();

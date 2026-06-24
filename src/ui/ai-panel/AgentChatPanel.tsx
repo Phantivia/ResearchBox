@@ -3,13 +3,11 @@ import type { AgentMessage, ContentBlock } from "@/core/agent/types";
 import { useAgentStore } from "@/store";
 import { ApprovalDialog } from "./ApprovalDialog";
 import { AssistantAvatar } from "./AssistantAvatar";
+import { ArtifactCard } from "./ArtifactCard";
+import { ArtifactDetailPanel } from "./ArtifactDetailPanel";
 import { ChatComposer } from "./ChatComposer";
-import { ContextMeter } from "./ContextMeter";
 import { MessageBubble } from "./MessageBubble";
-import { BoxSwitch } from "./BoxSwitch";
-import { PermissionModeSwitch } from "./PermissionModeSwitch";
 import { ThinkingBlock } from "./ThinkingBlock";
-import { ArtifactList } from "./ArtifactList";
 import { ToolCallCard } from "./ToolCallCard";
 
 export interface AgentChatPanelProps {
@@ -110,6 +108,24 @@ function renderMessage(
     return null;
   }
 
+  if (message.role === "assistant" && message.llmHidden) {
+    const card = message.content.find(
+      (block): block is Extract<ContentBlock, { type: "artifact_card" }> =>
+        block.type === "artifact_card",
+    );
+    if (card) {
+      return (
+        <div key={index}>
+          <ArtifactCard
+            artifactId={card.artifactId}
+            title={card.title}
+            kind={card.kind}
+          />
+        </div>
+      );
+    }
+  }
+
   if (message.role === "assistant") {
     return (
       <div key={index} className="flex gap-2">
@@ -166,15 +182,6 @@ export function AgentChatPanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--rb-page-bg)]">
-      <div className="border-b border-[var(--rb-border)] bg-[var(--rb-card-bg)]">
-        <div className="flex flex-col lg:flex-row lg:divide-x lg:divide-[var(--rb-border)]">
-          <BoxSwitch className="min-w-0 flex-1" />
-          <PermissionModeSwitch className="min-w-0 flex-1" />
-        </div>
-      </div>
-      <ArtifactList projectId={projectId} />
-      <ContextMeter tokens={contextChars} contextWindow={contextWindow} />
-
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4">
         <div className="mx-auto flex max-w-3xl flex-col gap-4">
           <ApprovalDialog />
@@ -207,10 +214,14 @@ export function AgentChatPanel({
 
       <ChatComposer
         disabled={disabled}
+        contextWindow={contextWindow}
+        contextChars={contextChars}
         onSend={onSend}
         onStop={onStop}
         stopping={stopping}
       />
+
+      <ArtifactDetailPanel />
     </div>
   );
 }

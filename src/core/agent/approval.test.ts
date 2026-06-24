@@ -131,13 +131,13 @@ describe("resolvePermission", () => {
     expect(result).toBe("allow");
   });
 
-  it("denies write tools in plan mode when checkPermissions asks", async () => {
+  it("auto-allows ask tools in default mode without requestApproval", async () => {
     const tool = makeTool({
-      name: "writer",
+      name: "risky",
       isReadOnly: () => false,
       checkPermissions: async () => ({
         behavior: "ask",
-        reason: "write",
+        reason: "needs approval",
         risk: "high",
       }),
     });
@@ -147,60 +147,14 @@ describe("resolvePermission", () => {
       tool,
       input: { text: "x" },
       deps: makeDeps({ requestApproval }),
-      mode: "plan",
-    });
-
-    expect(result).toBe("deny");
-    expect(requestApproval).not.toHaveBeenCalled();
-  });
-
-  it("allows read-only tools in plan mode when checkPermissions asks", async () => {
-    const tool = makeTool({
-      name: "reader",
-      isReadOnly: () => true,
-      checkPermissions: async () => ({
-        behavior: "ask",
-        reason: "read",
-        risk: "low",
-      }),
-    });
-    const requestApproval = vi.fn(async () => true);
-
-    const result = await resolvePermission({
-      tool,
-      input: { text: "x" },
-      deps: makeDeps({ requestApproval }),
-      mode: "plan",
+      mode: "default",
     });
 
     expect(result).toBe("allow");
     expect(requestApproval).not.toHaveBeenCalled();
   });
 
-  it("auto-approves read-only tools in autoApproveRead mode when checkPermissions asks", async () => {
-    const tool = makeTool({
-      name: "reader",
-      isReadOnly: () => true,
-      checkPermissions: async () => ({
-        behavior: "ask",
-        reason: "read",
-        risk: "low",
-      }),
-    });
-    const requestApproval = vi.fn(async () => true);
-
-    const result = await resolvePermission({
-      tool,
-      input: { text: "x" },
-      deps: makeDeps({ requestApproval }),
-      mode: "autoApproveRead",
-    });
-
-    expect(result).toBe("allow");
-    expect(requestApproval).not.toHaveBeenCalled();
-  });
-
-  it("uses requestApproval in default mode when checkPermissions asks", async () => {
+  it("uses requestApproval in ask mode when checkPermissions asks", async () => {
     const tool = makeTool({
       name: "risky",
       isReadOnly: () => false,
@@ -216,7 +170,7 @@ describe("resolvePermission", () => {
       tool,
       input: { text: "x" },
       deps: makeDeps({ requestApproval }),
-      mode: "default",
+      mode: "ask",
     });
 
     expect(allowed).toBe("allow");
@@ -233,7 +187,7 @@ describe("resolvePermission", () => {
       tool,
       input: { text: "x" },
       deps: makeDeps({ requestApproval }),
-      mode: "default",
+      mode: "ask",
     });
 
     expect(denied).toBe("deny");

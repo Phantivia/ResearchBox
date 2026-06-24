@@ -11,6 +11,8 @@ function blockText(block: ContentBlock): string {
       return block.content;
     case "tool_use":
       return JSON.stringify(block.input);
+    case "artifact_card":
+      return block.title;
   }
 }
 
@@ -33,6 +35,9 @@ export function estimateChars(messages: AgentMessage[]): number {
   let total = 0;
 
   for (const message of messages) {
+    if (message.llmHidden) {
+      continue;
+    }
     for (const block of message.content) {
       total += blockText(block).length;
     }
@@ -45,6 +50,9 @@ export function estimateTokens(messages: AgentMessage[]): number {
   let total = 0;
 
   for (const message of messages) {
+    if (message.llmHidden) {
+      continue;
+    }
     for (const block of message.content) {
       total += estimateTokensFromString(blockText(block));
     }

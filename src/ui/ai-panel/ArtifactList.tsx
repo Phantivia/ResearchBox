@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Artifact, ArtifactKind } from "@/core/agent/artifact/schema";
-import { deleteArtifact, getArtifact, listArtifacts } from "@/db";
+import { deleteArtifact, listArtifacts } from "@/db";
 import { useTranslation } from "@/i18n";
 import { useAgentStore } from "@/store";
-import { ArtifactPreview } from "./ArtifactPreview";
 
-export interface ArtifactListProps {
+export interface ArtifactListViewProps {
   projectId: string;
+  variant?: "compact" | "full";
 }
 
 function formatArtifactDate(ts: number, locale: string): string {
@@ -31,12 +31,12 @@ function ArtifactKindIcon({ kind }: { kind: ArtifactKind }) {
   }
 }
 
-export function ArtifactList({ projectId }: ArtifactListProps) {
+export function ArtifactListView({ projectId, variant = "compact" }: ArtifactListViewProps) {
   const { t, locale } = useTranslation();
   const artifactsVersion = useAgentStore((state) => state.artifactsVersion);
+  const openArtifactPanel = useAgentStore((state) => state.openArtifactPanel);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [loading, setLoading] = useState(true);
-  const [previewArtifact, setPreviewArtifact] = useState<Artifact | null>(null);
 
   useEffect(() => {
     if (!projectId) {
@@ -60,27 +60,36 @@ export function ArtifactList({ projectId }: ArtifactListProps) {
     };
   }, [projectId, artifactsVersion]);
 
-  const handleOpen = useCallback(async (artifact: Artifact) => {
-    const fresh = await getArtifact(artifact.id);
-    setPreviewArtifact(fresh ?? artifact);
-  }, []);
+  const handleOpen = useCallback(
+    (artifact: Artifact) => {
+      openArtifactPanel(artifact.id);
+    },
+    [openArtifactPanel],
+  );
 
   const handleDelete = useCallback(
     async (event: React.MouseEvent, artifact: Artifact) => {
       event.stopPropagation();
       await deleteArtifact(artifact.id);
       setArtifacts((current) => current.filter((entry) => entry.id !== artifact.id));
-      setPreviewArtifact((current) => (current?.id === artifact.id ? null : current));
     },
     [],
   );
 
+  const isFull = variant === "full";
+
   return (
-    <>
-      <section
-        aria-label={t("agent.artifact.sectionTitle")}
-        className="shrink-0 border-b border-[var(--rb-border)] bg-[var(--rb-card-bg)]"
-      >
+    <section
+      aria-label={t("agent.artifact.sectionTitle")}
+      className={isFull ? "" : "shrink-0 border-b border-[var(--rb-border)] bg-[var(--rb-card-bg)]"}
+    >
+      {isFull ? (
+        <header className="mb-4">
+          <h1 className="text-2xl font-bold text-[var(--rb-text-primary)]">
+            {t("nav.chatBoxArtifacts")}
+          </h1>
+        </header>
+      ) : (
         <div className="flex items-center justify-between px-3 py-2 sm:px-4">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--rb-text-secondary)]">
             {t("agent.artifact.sectionTitle")}
@@ -91,62 +100,61 @@ export function ArtifactList({ projectId }: ArtifactListProps) {
             </span>
           ) : null}
         </div>
+      )}
 
-        <div className="max-h-36 overflow-y-auto px-2 pb-2 sm:px-3">
-          {loading ? (
-            <p className="px-1 py-2 text-xs text-[var(--rb-text-secondary)]">
-              {t("agent.artifact.loading")}
-            </p>
-          ) : artifacts.length === 0 ? (
-            <p className="px-1 py-2 text-xs text-[var(--rb-text-secondary)]">
-              {t("agent.artifact.empty")}
-            </p>
-          ) : (
-            <ul className="space-y-1">
-              {artifacts.map((artifact) => (
-                <li key={artifact.id}>
-                  <div className="group flex items-center gap-1 rounded-lg border border-transparent hover:border-[var(--rb-border)] hover:bg-[color-mix(in_srgb,var(--rb-border)_30%,transparent)]">
-                    <button
-                      type="button"
-                      onClick={() => void handleOpen(artifact)}
-                      className="flex min-w-0 flex-1 items-center gap-2 px-2 py-2 text-left"
-                    >
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[color-mix(in_srgb,var(--rb-primary)_10%,transparent)] text-[var(--rb-primary)]">
-                        <ArtifactKindIcon kind={artifact.kind} />
+      <div className={isFull ? "" : "max-h-36 overflow-y-auto px-2 pb-2 sm:px-3"}>
+        {loading ? (
+          <p className="px-1 py-2 text-xs text-[var(--rb-text-secondary)]">
+            {t("agent.artifact.loading")}
+          </p>
+        ) : artifacts.length === 0 ? (
+          <p className="px-1 py-2 text-sm text-[var(--rb-text-secondary)]">
+            {t("agent.artifact.empty")}
+          </p>
+        ) : (
+          <ul className="space-y-1">
+            {artifacts.map((artifact) => (
+              <li key={artifact.id}>
+                <div className="group flex items-center gap-1 rounded-lg border border-transparent hover:border-[var(--rb-border)] hover:bg-[color-mix(in_srgb,var(--rb-border)_30%,transparent)]">
+                  <button
+                    type="button"
+                    onClick={() => handleOpen(artifact)}
+                    className="flex min-w-0 flex-1 items-center gap-2 px-2 py-2 text-left"
+                  >
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[color-mix(in_srgb,var(--rb-primary)_10%,transparent)] text-[var(--rb-primary)]">
+                      <ArtifactKindIcon kind={artifact.kind} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-[var(--rb-text-primary)]">
+                        {artifact.title}
                       </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium text-[var(--rb-text-primary)]">
-                          {artifact.title}
-                        </span>
-                        <span className="block truncate text-[10px] text-[var(--rb-text-secondary)]">
-                          {formatArtifactDate(artifact.updatedAt, locale)}
-                        </span>
+                      <span className="block truncate text-[10px] text-[var(--rb-text-secondary)]">
+                        {formatArtifactDate(artifact.updatedAt, locale)}
                       </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(event) => void handleDelete(event, artifact)}
-                      aria-label={t("agent.artifact.delete", { title: artifact.title })}
-                      className="mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--rb-text-secondary)] opacity-0 transition-opacity hover:bg-[color-mix(in_srgb,red_12%,transparent)] hover:text-red-600 group-hover:opacity-100"
-                    >
-                      <TrashIcon />
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </section>
-
-      {previewArtifact ? (
-        <ArtifactPreview
-          artifact={previewArtifact}
-          onClose={() => setPreviewArtifact(null)}
-        />
-      ) : null}
-    </>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(event) => void handleDelete(event, artifact)}
+                    aria-label={t("agent.artifact.delete", { title: artifact.title })}
+                    className="mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--rb-text-secondary)] opacity-0 transition-opacity hover:bg-[color-mix(in_srgb,red_12%,transparent)] hover:text-red-600 group-hover:opacity-100"
+                  >
+                    <TrashIcon />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
   );
+}
+
+export type ArtifactListProps = ArtifactListViewProps;
+
+export function ArtifactList(props: ArtifactListViewProps) {
+  return <ArtifactListView {...props} />;
 }
 
 function DocumentIcon() {

@@ -64,6 +64,7 @@ export async function loadPaperForDisplay(
   }
 
   const paper = await loadPaperReadonly(input, deps);
+  await savePaper(paper);
   return { kind: "readonly", ir: paper };
 }
 

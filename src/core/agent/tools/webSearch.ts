@@ -1,7 +1,13 @@
 import { z } from "zod";
 import { getSettings } from "@/db";
 import { withProvenance } from "../provenance";
-import { runWebSearch, type WebHit } from "../search/webAdapters";
+import {
+  providerLabel,
+  runWebSearch,
+  type WebHit,
+  type WebSearchFailure,
+  type WebSearchOutcome,
+} from "../search/webAdapters";
 import type { AgentMessage, Tool } from "../types";
 
 export const webSearchInputSchema = z.strictObject({
@@ -27,12 +33,12 @@ IMPORTANT — citation requirement:
 IMPORTANT — use the correct year in search queries:
 - The current month is ${monthYear}. Use this year when searching for recent information.
 
-Note: Requires a user-configured Tavily or Perplexity API key. If no key is configured for the selected provider, searches return empty (fail-open) without breaking the agent.
+Note: Requires a user-configured Tavily or Perplexity API key in Settings. If search cannot run (missing key, network error, etc.), the tool returns an explicit failure message — explain that to the user; do NOT pretend you searched the web.
 
 中文：开放域网页搜索，获取论文盒子之外的实时信息。只读、可并行；结果带 [来源: web] 标签。
 重要：回答末尾必须附 "Sources:" 段落，以 [标题](URL) 列出引用来源。
 检索近期信息时请使用正确年份（当前为 ${monthYear}）。
-未配置所选 provider 的 API key 时返回空结果（fail-open）。`;
+未配置 API key 或请求失败时，工具会返回明确说明，勿假装已联网搜索。`;
 }
 
 const SOURCES_REQUIREMENT = `CRITICAL REQUIREMENT — You MUST follow this:
@@ -40,28 +46,71 @@ const SOURCES_REQUIREMENT = `CRITICAL REQUIREMENT — You MUST follow this:
 - In the Sources section, list all relevant URLs from the search results as markdown hyperlinks: [Title](URL)
 - This is MANDATORY — never skip including sources in your response when search results were used`;
 
-function formatWebResults(hits: WebHit[], query: string): string {
-  const noKeyNote =
-    "Note: If no API key is configured for the selected provider, searches return empty (fail-open).";
+function formatFailureMessage(failure: WebSearchFailure, query: string): string {
+  const label = providerLabel(failure.provider);
 
-  if (hits.length === 0) {
+  switch (failure.reason) {
+    case "missing_api_key":
+      return [
+        `Web search for "${query}" did NOT run: no API key configured for ${label}.`,
+        "",
+        "Tell the user web search is unavailable until they configure a Tavily or Perplexity API key in Settings → Agent capabilities, and ensure web search is enabled.",
+        "Do NOT claim you searched the web or cite fabricated sources.",
+      ].join("\n");
+    case "empty_query":
+      return [
+        `Web search for "${query}" did NOT run: invalid input (${failure.detail ?? "empty query"}).`,
+        "",
+        "Fix the query and retry, or answer from other tools / general knowledge.",
+      ].join("\n");
+    case "http_error":
+      return [
+        `Web search for "${query}" failed: ${label} API returned ${failure.detail ?? "an HTTP error"}.`,
+        "",
+        "The API key may be invalid, expired, or the provider may be down. Tell the user search failed; do NOT invent results.",
+      ].join("\n");
+    case "network_error":
+      return [
+        `Web search for "${query}" failed: network error${failure.detail ? ` (${failure.detail})` : ""}.`,
+        "",
+        "Tell the user the search could not reach the provider. Do NOT invent results.",
+      ].join("\n");
+    case "timeout":
+      return [
+        `Web search for "${query}" failed: request timed out after ${failure.detail ?? `${30}s`}.`,
+        "",
+        "Tell the user the search timed out. Do NOT invent results.",
+      ].join("\n");
+    case "aborted":
+      return [
+        `Web search for "${query}" was aborted before completion.`,
+        "",
+        "Do NOT invent results.",
+      ].join("\n");
+  }
+}
+
+export function formatWebResults(outcome: WebSearchOutcome, query: string): string {
+  if (outcome.failure) {
+    return formatFailureMessage(outcome.failure, query);
+  }
+
+  if (outcome.hits.length === 0) {
     return [
-      `Web search for "${query}" returned no results.`,
+      `Web search for "${query}" completed successfully but returned no hits.`,
       "",
-      noKeyNote,
-      "",
-      SOURCES_REQUIREMENT,
+      "Try rephrasing the query or answer from other available context.",
     ].join("\n");
   }
 
   const lines = [
-    `Web search results for "${query}" (${hits.length} hits):`,
+    `Web search results for "${query}" (${outcome.hits.length} hits):`,
     "",
     SOURCES_REQUIREMENT,
     "",
   ];
 
-  for (const [index, hit] of hits.entries()) {
+  for (const [index, hit] of outcome.hits.entries()) {
     lines.push(
       `${index + 1}. [${hit.title}](${hit.url})`,
       `   ${hit.snippet || "(no snippet)"}`,
@@ -72,20 +121,20 @@ function formatWebResults(hits: WebHit[], query: string): string {
   return lines.join("\n").trimEnd();
 }
 
-function catalogMessage(hits: WebHit[], query: string): AgentMessage {
+function catalogMessage(summary: string): AgentMessage {
   return {
     role: "user",
     uiHidden: true,
     content: [
       {
         type: "text",
-        text: withProvenance("web", formatWebResults(hits, query)),
+        text: withProvenance("web", summary),
       },
     ],
   };
 }
 
-function createWebSearchTool(now = new Date()): Tool<typeof webSearchInputSchema, WebHit[]> {
+function createWebSearchTool(now = new Date()): Tool<typeof webSearchInputSchema, string> {
   return {
     name: "websearch",
     description: buildWebSearchDescription(now),
@@ -101,23 +150,20 @@ function createWebSearchTool(now = new Date()): Tool<typeof webSearchInputSchema
       yield { stage: "searching the web" };
 
       const settings = await getSettings();
-      let hits: WebHit[] = [];
-      try {
-        hits = await runWebSearch({
-          query: input.query,
-          maxResults: input.maxResults,
-          provider: settings.webSearchProvider,
-          tavilyApiKey: settings.tavilyApiKey,
-          perplexityApiKey: settings.perplexityApiKey,
-          signal: deps.signal,
-        });
-      } catch {
-        hits = [];
-      }
+      const outcome = await runWebSearch({
+        query: input.query,
+        maxResults: input.maxResults,
+        provider: settings.webSearchProvider,
+        tavilyApiKey: settings.tavilyApiKey,
+        perplexityApiKey: settings.perplexityApiKey,
+        signal: deps.signal,
+      });
+
+      const summary = formatWebResults(outcome, input.query);
 
       return {
-        data: hits,
-        newMessages: [catalogMessage(hits, input.query)],
+        data: summary,
+        newMessages: [catalogMessage(summary)],
       };
     },
   };
@@ -126,3 +172,4 @@ function createWebSearchTool(now = new Date()): Tool<typeof webSearchInputSchema
 export const webSearchTool = createWebSearchTool();
 
 export { createWebSearchTool };
+export type { WebHit };

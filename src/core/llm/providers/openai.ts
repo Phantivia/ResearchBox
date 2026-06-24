@@ -1,10 +1,14 @@
+import type { AgentMessage, ContentBlock } from "@/core/agent/types";
 import { fetchWithRetry } from "../http";
 import { resolveDefaultReasoningEffort } from "../providerReasoning";
 import {
+  type AssistantMessage,
   type ChatOptions,
   type ChatStreamChunk,
   type LLMProvider,
   type ProviderConfig,
+  type StreamEvent,
+  type ToolSchema,
 } from "../types";
 import { parseSSEStream } from "../sse";
 
@@ -13,15 +17,55 @@ type OpenAIChatMessage = {
   content: string;
 };
 
+type OpenAIToolCall = {
+  id: string;
+  type: "function";
+  function: { name: string; arguments: string };
+};
+
+type OpenAIAgentChatMessage =
+  | { role: "system"; content: string }
+  | { role: "user"; content: string }
+  | {
+      role: "assistant";
+      content: string | null;
+      tool_calls?: OpenAIToolCall[];
+      reasoning_content?: string;
+    }
+  | { role: "tool"; tool_call_id: string; content: string };
+
+type OpenAIStreamToolCallDelta = {
+  index?: number;
+  id?: string;
+  type?: string;
+  function?: { name?: string; arguments?: string };
+};
+
 type OpenAIChatCompletionResponse = {
   choices?: Array<{
-    message?: { content?: string; reasoning_content?: string };
-    delta?: { content?: string; reasoning_content?: string };
+    finish_reason?: string | null;
+    message?: {
+      content?: string | null;
+      reasoning_content?: string;
+      tool_calls?: OpenAIToolCall[];
+    };
+    delta?: {
+      content?: string | null;
+      reasoning_content?: string;
+      tool_calls?: OpenAIStreamToolCallDelta[];
+    };
   }>;
 };
 
 type OpenAIModelListResponse = {
   data?: Array<{ id?: string }>;
+};
+
+type ToolCallState = {
+  id: string;
+  name: string;
+  argumentsBuffer: string;
+  started: boolean;
 };
 
 function buildUrl(baseURL: string): string {
@@ -39,6 +83,114 @@ function buildMessages(
   return [{ role: "system", content: system }, ...messages];
 }
 
+function blocksToText(
+  blocks: ContentBlock[],
+  type: "text" | "thinking",
+): string {
+  return blocks
+    .filter((block): block is Extract<ContentBlock, { type: typeof type }> => block.type === type)
+    .map((block) => block.text)
+    .join("");
+}
+
+function toOpenAIAgentMessages(
+  messages: AgentMessage[],
+  includeReasoning: boolean,
+): OpenAIAgentChatMessage[] {
+  const result: OpenAIAgentChatMessage[] = [];
+
+  for (const message of messages) {
+    if (message.role === "user") {
+      result.push({ role: "user", content: blocksToText(message.content, "text") });
+      continue;
+    }
+
+    if (message.role === "assistant") {
+      const text = blocksToText(message.content, "text");
+      const thinking = blocksToText(message.content, "thinking");
+      const toolUses = message.content.filter(
+        (block): block is Extract<ContentBlock, { type: "tool_use" }> =>
+          block.type === "tool_use",
+      );
+
+      const assistant: Extract<OpenAIAgentChatMessage, { role: "assistant" }> = {
+        role: "assistant",
+        content: text.length > 0 ? text : null,
+      };
+
+      if (includeReasoning && thinking.length > 0) {
+        assistant.reasoning_content = thinking;
+      }
+
+      if (toolUses.length > 0) {
+        assistant.tool_calls = toolUses.map((toolUse) => ({
+          id: toolUse.id,
+          type: "function",
+          function: {
+            name: toolUse.name,
+            arguments: JSON.stringify(toolUse.input ?? {}),
+          },
+        }));
+      }
+
+      result.push(assistant);
+      continue;
+    }
+
+    for (const block of message.content) {
+      if (block.type === "tool_result") {
+        result.push({
+          role: "tool",
+          tool_call_id: block.toolUseId,
+          content: block.content,
+        });
+      }
+    }
+  }
+
+  return result;
+}
+
+function toOpenAITools(tools: ToolSchema[]): unknown[] {
+  return tools.map((tool) => ({
+    type: "function",
+    function: {
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.inputSchema,
+    },
+  }));
+}
+
+function mapFinishReason(
+  reason: string | null | undefined,
+): AssistantMessage["stopReason"] {
+  if (reason === "tool_calls") {
+    return "tool_use";
+  }
+  if (reason === "length") {
+    return "max_tokens";
+  }
+  return "end_turn";
+}
+
+function finalizeToolCall(state: ToolCallState): Extract<ContentBlock, { type: "tool_use" }> {
+  let input: unknown = {};
+  if (state.argumentsBuffer.length > 0) {
+    try {
+      input = JSON.parse(state.argumentsBuffer);
+    } catch {
+      input = {};
+    }
+  }
+  return {
+    type: "tool_use",
+    id: state.id,
+    name: state.name,
+    input,
+  };
+}
+
 export class OpenAICompatibleProvider implements LLMProvider {
   readonly id: string;
 
@@ -54,6 +206,152 @@ export class OpenAICompatibleProvider implements LLMProvider {
       return this.streamChat(opts, deps);
     }
     return this.completeChat(opts, deps);
+  }
+
+  async *runWithTools(
+    req: {
+      messages: AgentMessage[];
+      tools: ToolSchema[];
+      system: string;
+      model?: string;
+      signal?: AbortSignal;
+    },
+    deps?: { fetchFn?: typeof fetch },
+  ): AsyncGenerator<StreamEvent, AssistantMessage> {
+    const fetchFn = deps?.fetchFn ?? globalThis.fetch;
+    const includeReasoning = this.config.id === "deepseek";
+    const effort = resolveDefaultReasoningEffort(this.config);
+
+    const body: Record<string, unknown> = {
+      model: req.model ?? this.config.model,
+      messages: [
+        { role: "system", content: req.system },
+        ...toOpenAIAgentMessages(req.messages, includeReasoning),
+      ],
+      tools: toOpenAITools(req.tools),
+      stream: true,
+    };
+
+    if (effort !== "off") {
+      body.reasoning_effort = effort;
+    }
+
+    if (this.config.id === "deepseek") {
+      body.thinking = { type: effort === "off" ? "disabled" : "enabled" };
+    }
+
+    const serializedBody = JSON.stringify(body);
+    const response = await fetchWithRetry(fetchFn, buildUrl(this.config.baseURL), {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.config.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: serializedBody,
+      signal: req.signal,
+    });
+
+    if (!response.body) {
+      throw new Error("OpenAI stream response missing body");
+    }
+
+    let textBuffer = "";
+    let thinkingBuffer = "";
+    const toolCallsByIndex = new Map<number, ToolCallState>();
+    let stopReason: AssistantMessage["stopReason"] = "end_turn";
+
+    for await (const data of parseSSEStream(response.body)) {
+      const parsed = JSON.parse(data) as OpenAIChatCompletionResponse;
+      const choice = parsed.choices?.[0];
+      const delta = choice?.delta;
+
+      if (choice?.finish_reason) {
+        stopReason = mapFinishReason(choice.finish_reason);
+      }
+
+      if (!delta) {
+        continue;
+      }
+
+      if (delta.reasoning_content) {
+        thinkingBuffer += delta.reasoning_content;
+        yield { type: "thinking_delta", text: delta.reasoning_content };
+      }
+
+      if (delta.content) {
+        textBuffer += delta.content;
+        yield { type: "text_delta", text: delta.content };
+      }
+
+      if (delta.tool_calls) {
+        for (const toolDelta of delta.tool_calls) {
+          const index = toolDelta.index ?? 0;
+          let state = toolCallsByIndex.get(index);
+
+          if (!state && (toolDelta.id || toolDelta.function?.name)) {
+            state = {
+              id: toolDelta.id ?? "",
+              name: toolDelta.function?.name ?? "",
+              argumentsBuffer: "",
+              started: false,
+            };
+            toolCallsByIndex.set(index, state);
+          }
+
+          if (!state) {
+            continue;
+          }
+
+          if (toolDelta.id) {
+            state.id = toolDelta.id;
+          }
+          if (toolDelta.function?.name) {
+            state.name = toolDelta.function.name;
+          }
+
+          if (!state.started && state.id && state.name) {
+            state.started = true;
+            yield { type: "tool_use_start", id: state.id, name: state.name };
+          }
+
+          if (toolDelta.function?.arguments) {
+            state.argumentsBuffer += toolDelta.function.arguments;
+            if (state.id) {
+              yield {
+                type: "tool_use_input_delta",
+                id: state.id,
+                partialJson: toolDelta.function.arguments,
+              };
+            }
+          }
+        }
+      }
+    }
+
+    const content: ContentBlock[] = [];
+    if (thinkingBuffer.length > 0) {
+      content.push({ type: "thinking", text: thinkingBuffer });
+    }
+    if (textBuffer.length > 0) {
+      content.push({ type: "text", text: textBuffer });
+    }
+
+    const sortedToolCalls = [...toolCallsByIndex.entries()].sort(
+      ([left], [right]) => left - right,
+    );
+    for (const [, state] of sortedToolCalls) {
+      if (!state.id || !state.name) {
+        continue;
+      }
+      content.push(finalizeToolCall(state));
+      yield { type: "tool_use_stop", id: state.id };
+    }
+
+    if (stopReason === "end_turn" && sortedToolCalls.length > 0) {
+      stopReason = "tool_use";
+    }
+
+    return { content, stopReason };
   }
 
   private buildBody(opts: ChatOptions, stream: boolean): Record<string, unknown> {
@@ -98,7 +396,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
 
     const json = (await response.json()) as OpenAIChatCompletionResponse;
     const content = json.choices?.[0]?.message?.content;
-    if (content === undefined) {
+    if (content == null) {
       throw new Error("OpenAI response missing content");
     }
     return content;

@@ -121,28 +121,10 @@ describe("artifactsTool", () => {
     expect(stored?.sourceCitations).toEqual(input.sourceCitations);
   });
 
-  it("resolvePermission denies when user rejects approval in default mode", async () => {
+  it("resolvePermission allows in default mode without calling requestApproval", async () => {
     const input = artifactsInputSchema.parse({
       kind: "summary",
-      title: "Denied Summary",
-      content: "Body",
-    });
-
-    const allowed = await resolvePermission({
-      tool: artifactsTool,
-      input,
-      deps: makeDeps({ requestApproval: async () => false }),
-      mode: "default",
-    });
-
-    expect(allowed).toBe("deny");
-    expect(await db.artifacts.count()).toBe(0);
-  });
-
-  it("resolvePermission denies in plan mode without calling requestApproval", async () => {
-    const input = artifactsInputSchema.parse({
-      kind: "summary",
-      title: "Plan Blocked",
+      title: "Auto Allowed",
       content: "Body",
     });
     let approvalCalled = false;
@@ -153,14 +135,31 @@ describe("artifactsTool", () => {
       deps: makeDeps({
         requestApproval: async () => {
           approvalCalled = true;
-          return true;
+          return false;
         },
       }),
-      mode: "plan",
+      mode: "default",
+    });
+
+    expect(allowed).toBe("allow");
+    expect(approvalCalled).toBe(false);
+  });
+
+  it("resolvePermission denies in ask mode when user rejects approval", async () => {
+    const input = artifactsInputSchema.parse({
+      kind: "summary",
+      title: "Denied Summary",
+      content: "Body",
+    });
+
+    const allowed = await resolvePermission({
+      tool: artifactsTool,
+      input,
+      deps: makeDeps({ requestApproval: async () => false }),
+      mode: "ask",
     });
 
     expect(allowed).toBe("deny");
-    expect(approvalCalled).toBe(false);
     expect(await db.artifacts.count()).toBe(0);
   });
 });

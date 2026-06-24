@@ -74,7 +74,7 @@ function buildAgentStoreAdapter(): AgentStore {
       return useAgentStore.getState().runningTools;
     },
     get permissionMode() {
-      return useAgentStore.getState().permissionMode;
+      return useSettingsStore.getState().permissionMode;
     },
     append: (message) => useAgentStore.getState().append(message),
     enqueueApproval: (request) => useAgentStore.getState().enqueueApproval(request),
@@ -88,7 +88,8 @@ function processToolBlocks(
   runningLabel: string,
   toolNameByUseId: Map<string, string>,
 ): void {
-  const { setRunningTool, clearRunningTool, bumpArtifactsVersion } = useAgentStore.getState();
+  const { append, setRunningTool, clearRunningTool, bumpArtifactsVersion } =
+    useAgentStore.getState();
   for (const block of message.content) {
     if (block.type === "tool_use") {
       toolNameByUseId.set(block.id, block.name);
@@ -99,6 +100,29 @@ function processToolBlocks(
       const toolName = toolNameByUseId.get(block.toolUseId);
       if (toolName === "artifacts" && !block.isError) {
         bumpArtifactsVersion();
+        try {
+          const parsed = JSON.parse(block.content) as {
+            artifactId?: string;
+            title?: string;
+            kind?: string;
+          };
+          if (parsed.artifactId && parsed.title && parsed.kind) {
+            append({
+              role: "assistant",
+              llmHidden: true,
+              content: [
+                {
+                  type: "artifact_card",
+                  artifactId: parsed.artifactId,
+                  title: parsed.title,
+                  kind: parsed.kind as "summary" | "compare-table" | "outline" | "note",
+                },
+              ],
+            });
+          }
+        } catch {
+          // Ignore malformed tool output in UI card insertion.
+        }
       }
     }
   }
@@ -349,7 +373,7 @@ export default function AgentChat() {
             <CurrentProjectLabel />
             <div className="flex items-center gap-3">
               <span className="flex h-10 w-10 items-center justify-center rounded-sm border border-[var(--rb-border)] bg-[var(--rb-card-bg)] text-[var(--rb-text-secondary)]">
-                <FeatureIcon id="agent-chat" className="h-5 w-5" />
+                <FeatureIcon id="chat-box" className="h-5 w-5" />
               </span>
               <div>
                 <h1 className="text-2xl font-bold text-[var(--rb-text-primary)]">

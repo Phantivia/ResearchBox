@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { DEFAULT_UI_LOCALE, UiLocaleSchema } from "@/core/i18n";
 import { ColorPaletteSchema } from "@/core/colorPalette";
+import { PermissionModeSchema } from "@/core/agent/types";
 
 export const ViewModeSchema = z.enum(["original", "translation", "bilingual"]);
 
@@ -31,6 +32,7 @@ export const AppSettingsSchema = z.object({
   webSearchProvider: WebSearchProviderSchema.default("tavily"),
   tavilyApiKey: z.string().default(""),
   perplexityApiKey: z.string().default(""),
+  permissionMode: PermissionModeSchema.default("default"),
 });
 
 export type AppSettings = z.infer<typeof AppSettingsSchema>;
@@ -51,4 +53,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
   webSearchProvider: "tavily",
   tavilyApiKey: "",
   perplexityApiKey: "",
+  permissionMode: "default",
 };

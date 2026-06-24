@@ -84,12 +84,12 @@ describe("useAgentStore", () => {
     expect(state.messages).toEqual([]);
     expect(state.pendingApprovals).toEqual([]);
     expect(state.runningTools).toEqual({});
-    expect(state.permissionMode).toBe("default");
     expect(state.boxOpen).toBe(true);
     expect(state.streamingText).toBe("");
     expect(state.streamingThinking).toBe("");
     expect(state.contextChars).toBe(0);
     expect(state.artifactsVersion).toBe(0);
+    expect(state.artifactPanel).toBeNull();
   });
 
   it("bumpArtifactsVersion increments artifactsVersion", () => {

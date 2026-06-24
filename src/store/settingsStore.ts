@@ -44,6 +44,7 @@ interface SettingsState {
   webSearchProvider: AppSettings["webSearchProvider"];
   tavilyApiKey: string;
   perplexityApiKey: string;
+  permissionMode: AppSettings["permissionMode"];
   savedPalettes: SavedPalette[];
   loaded: boolean;
 }
@@ -66,6 +67,7 @@ interface SettingsActions {
   setWebSearchProvider: (provider: AppSettings["webSearchProvider"]) => Promise<void>;
   setTavilyApiKey: (key: string) => Promise<void>;
   setPerplexityApiKey: (key: string) => Promise<void>;
+  setPermissionMode: (mode: AppSettings["permissionMode"]) => Promise<void>;
   savePalette: (name: string, palette: ColorPalette) => Promise<SavedPalette>;
   deleteSavedPalette: (id: string) => Promise<void>;
   loadPalettes: () => Promise<void>;
@@ -108,6 +110,7 @@ export const useSettingsStore = create<SettingsState & SettingsActions>()(
     webSearchProvider: "tavily",
     tavilyApiKey: "",
     perplexityApiKey: "",
+    permissionMode: "default",
     savedPalettes: [],
     loaded: false,
 
@@ -141,6 +144,7 @@ export const useSettingsStore = create<SettingsState & SettingsActions>()(
         webSearchProvider: settings.webSearchProvider,
         tavilyApiKey: settings.tavilyApiKey,
         perplexityApiKey: settings.perplexityApiKey,
+        permissionMode: settings.permissionMode,
         savedPalettes,
         loaded: true,
       });
@@ -241,6 +245,11 @@ export const useSettingsStore = create<SettingsState & SettingsActions>()(
     setPerplexityApiKey: async (key) => {
       const settings = await saveSettings({ perplexityApiKey: key });
       set({ perplexityApiKey: settings.perplexityApiKey });
+    },
+
+    setPermissionMode: async (mode) => {
+      const settings = await saveSettings({ permissionMode: mode });
+      set({ permissionMode: settings.permissionMode });
     },
 
     savePalette: async (name, palette) => {

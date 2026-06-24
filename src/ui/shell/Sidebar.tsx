@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "@/i18n";
-import { useProjectStore, useReaderTocStore, useSettingsStore } from "@/store";
+import { useProjectStore, useReaderTocStore, useSettingsStore, useAgentStore } from "@/store";
 import { BrandCreditsTrigger, MiniLogo } from "@/ui/brand";
 import {
   SETTINGS_SECTION_NAV,
@@ -9,6 +9,7 @@ import {
   type SettingsSectionId,
 } from "@/ui/settings/sections";
 import { FEATURE_NAV } from "./featureNav";
+import { CHATBOX_NAV, isChatBoxRoute } from "./chatBoxNav";
 import { FeatureIcon } from "./featureIcons";
 import { useVisualViewportBox } from "./useVisualViewportBox";
 
@@ -16,7 +17,7 @@ const PANEL_EXPAND_DELAY_MS = 180;
 const DRAWER_TRANSITION_MS = 280;
 const MOBILE_TAP_FEEDBACK_MS = 75;
 
-type DockMode = "features" | "settings";
+type DockMode = "features" | "chatbox" | "settings";
 
 export function Sidebar() {
   const { t } = useTranslation();
@@ -172,10 +173,22 @@ function SidebarContent({ mobile = false, onDismiss }: SidebarContentProps) {
 
   const isSettingsRoute = location.pathname === "/settings";
   const isFeatureActive = FEATURE_NAV.some((item) => item.isActive(location.pathname));
+  const isChatBoxActive = isChatBoxRoute(location.pathname);
 
-  const [dockMode, setDockMode] = useState<DockMode>(isSettingsRoute ? "settings" : "features");
+  const [dockMode, setDockMode] = useState<DockMode>(() => {
+    if (isSettingsRoute) {
+      return "settings";
+    }
+    if (isChatBoxActive) {
+      return "chatbox";
+    }
+    return "features";
+  });
   const [featuresExpanded, setFeaturesExpanded] = useState(
     !isSettingsRoute && isFeatureActive,
+  );
+  const [chatboxExpanded, setChatboxExpanded] = useState(
+    !isSettingsRoute && isChatBoxActive,
   );
   const [settingsExpanded, setSettingsExpanded] = useState(isSettingsRoute);
 
@@ -199,18 +212,30 @@ function SidebarContent({ mobile = false, onDismiss }: SidebarContentProps) {
       if (pathnameChanged) {
         setDockMode("settings");
         setFeaturesExpanded(false);
+        setChatboxExpanded(false);
         const timer = window.setTimeout(() => setSettingsExpanded(true), PANEL_EXPAND_DELAY_MS);
         return () => window.clearTimeout(timer);
       }
       return;
     }
 
+    if (isChatBoxActive) {
+      setDockMode("chatbox");
+      setSettingsExpanded(false);
+      setFeaturesExpanded(false);
+      if (pathnameChanged || isChatBoxActive) {
+        setChatboxExpanded(true);
+      }
+      return;
+    }
+
     setDockMode("features");
     setSettingsExpanded(false);
+    setChatboxExpanded(false);
     if (isFeatureActive) {
       setFeaturesExpanded(true);
     }
-  }, [location.pathname, isSettingsRoute, isFeatureActive]);
+  }, [location.pathname, isSettingsRoute, isFeatureActive, isChatBoxActive]);
 
   function switchTo(projectId: string) {
     setSwitcherOpen(false);
@@ -238,6 +263,7 @@ function SidebarContent({ mobile = false, onDismiss }: SidebarContentProps) {
   function openSettings() {
     runWithDismissFeedback("open-settings", () => {
       setFeaturesExpanded(false);
+      setChatboxExpanded(false);
       setSettingsExpanded(false);
       setDockMode("settings");
       navigate("/settings");
@@ -248,6 +274,7 @@ function SidebarContent({ mobile = false, onDismiss }: SidebarContentProps) {
   function handleFeaturesClick() {
     if (dockMode === "settings") {
       setSettingsExpanded(false);
+      setChatboxExpanded(false);
       setDockMode("features");
       window.setTimeout(() => setFeaturesExpanded(true), PANEL_EXPAND_DELAY_MS);
 
@@ -259,11 +286,50 @@ function SidebarContent({ mobile = false, onDismiss }: SidebarContentProps) {
       return;
     }
 
+    if (dockMode === "chatbox") {
+      setChatboxExpanded(false);
+      setDockMode("features");
+      window.setTimeout(() => setFeaturesExpanded(true), PANEL_EXPAND_DELAY_MS);
+      return;
+    }
+
     setFeaturesExpanded((expanded) => !expanded);
+  }
+
+  function handleChatBoxClick() {
+    if (dockMode === "settings") {
+      setSettingsExpanded(false);
+      setFeaturesExpanded(false);
+      setDockMode("chatbox");
+      window.setTimeout(() => setChatboxExpanded(true), PANEL_EXPAND_DELAY_MS);
+
+      if (!activeProjectId) {
+        runWithDismissFeedback("chatbox-home", () => {
+          navigate("/");
+        });
+      }
+      return;
+    }
+
+    if (dockMode === "features") {
+      setFeaturesExpanded(false);
+      setDockMode("chatbox");
+      window.setTimeout(() => setChatboxExpanded(true), PANEL_EXPAND_DELAY_MS);
+      return;
+    }
+
+    setChatboxExpanded((expanded) => !expanded);
   }
 
   function goToFeature(path: string) {
     runWithDismissFeedback(`feature:${path}`, () => {
+      navigate(path);
+    });
+  }
+
+  function goToChatBox(path: string) {
+    runWithDismissFeedback(`chatbox:${path}`, () => {
+      useAgentStore.getState().reset();
       navigate(path);
     });
   }
@@ -381,6 +447,63 @@ function SidebarContent({ mobile = false, onDismiss }: SidebarContentProps) {
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col px-1.5 pb-2 pt-1">
+        <DockHeaderButton
+          label={t("nav.chatBox")}
+          icon={<ChatBoxDockIcon />}
+          active={isChatBoxActive && !settingsMode}
+          expanded={chatboxExpanded}
+          onClick={handleChatBoxClick}
+        />
+
+        <CollapsiblePanel open={chatboxExpanded} durationMs={300} className="pt-1">
+          <nav aria-label={t("nav.chatBox")} className="mt-0.5 space-y-0.5 border-l border-white/10 pl-2.5">
+            {CHATBOX_NAV.map((item) => {
+              const disabled = item.requiresProject && !activeProjectId;
+              const path = activeProjectId ? item.path(activeProjectId) : "/";
+              const active = item.isActive(location.pathname);
+
+              if (disabled) {
+                return (
+                  <span
+                    key={item.id}
+                    title={t("noProject.title")}
+                    aria-disabled
+                    className="flex cursor-not-allowed items-center gap-2.5 rounded-sm px-2 py-2 text-sm text-gray-600 opacity-60"
+                  >
+                    <FeatureIcon id={item.icon} className="h-4 w-4 shrink-0" />
+                    <span className="truncate">{t(item.labelKey)}</span>
+                  </span>
+                );
+              }
+
+              const chatboxKey = `chatbox:${path}`;
+              const isPressed = pressedKey === chatboxKey;
+
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => goToChatBox(path)}
+                  className={[
+                    "flex w-full items-center gap-2.5 rounded-sm px-2 py-2 text-left text-sm transition-colors",
+                    active
+                      ? "bg-white/5 font-medium text-white"
+                      : isPressed
+                        ? "bg-white/[0.04] text-gray-200"
+                        : "text-gray-400 hover:bg-white/[0.04] hover:text-gray-200",
+                  ].join(" ")}
+                >
+                  <FeatureIcon
+                    id={item.icon}
+                    className={`h-4 w-4 shrink-0 ${active ? "text-white" : "text-gray-500"}`}
+                  />
+                  <span className="truncate">{t(item.labelKey)}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </CollapsiblePanel>
+
         <DockHeaderButton
           label={t("nav.features")}
           icon={<FeaturesIcon />}
@@ -744,6 +867,23 @@ function HomeIcon() {
       <path d="M3 9.5 12 3l9 6.5" />
       <path d="M5 10v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V10" />
       <path d="M9 21v-6h6v6" />
+    </svg>
+  );
+}
+
+function ChatBoxDockIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-5 w-5"
+      aria-hidden
+    >
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     </svg>
   );
 }

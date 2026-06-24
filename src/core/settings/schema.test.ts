@@ -19,6 +19,7 @@ describe("AppSettingsSchema", () => {
     expect(parsed.webSearchProvider).toBe("tavily");
     expect(parsed.tavilyApiKey).toBe("");
     expect(parsed.perplexityApiKey).toBe("");
+    expect(parsed.permissionMode).toBe("default");
   });
 
   it("round-trips academic search api keys", () => {

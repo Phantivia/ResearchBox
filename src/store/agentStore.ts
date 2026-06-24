@@ -11,12 +11,12 @@ interface AgentStoreState {
   messages: AgentMessage[];
   pendingApprovals: PendingApproval[];
   runningTools: Record<string, { name: string; stage: string }>;
-  permissionMode: "default" | "plan" | "autoApproveRead";
   boxOpen: boolean;
   streamingText: string;
   streamingThinking: string;
   contextChars: number;
   artifactsVersion: number;
+  artifactPanel: { artifactId: string } | null;
 }
 
 interface AgentStoreActions {
@@ -28,11 +28,12 @@ interface AgentStoreActions {
   setRunningTool: (id: string, info: { name: string; stage: string }) => void;
   clearRunningTool: (id: string) => void;
   setContextChars: (n: number) => void;
-  setPermissionMode: (mode: AgentStoreState["permissionMode"]) => void;
   setBoxOpen: (open: boolean) => void;
   openBox: () => void;
   closeBox: () => void;
   bumpArtifactsVersion: () => void;
+  openArtifactPanel: (artifactId: string) => void;
+  closeArtifactPanel: () => void;
   reset: () => void;
 }
 
@@ -40,12 +41,12 @@ const initialState: AgentStoreState = {
   messages: [],
   pendingApprovals: [],
   runningTools: {},
-  permissionMode: "default",
   boxOpen: true,
   streamingText: "",
   streamingThinking: "",
   contextChars: 0,
   artifactsVersion: 0,
+  artifactPanel: null,
 };
 
 export const useAgentStore = create<AgentStoreState & AgentStoreActions>()((set) => ({
@@ -114,8 +115,6 @@ export const useAgentStore = create<AgentStoreState & AgentStoreActions>()((set)
 
   setContextChars: (n) => set({ contextChars: n }),
 
-  setPermissionMode: (mode) => set({ permissionMode: mode }),
-
   setBoxOpen: (open) => set({ boxOpen: open }),
 
   openBox: () => set({ boxOpen: true }),
@@ -130,6 +129,10 @@ export const useAgentStore = create<AgentStoreState & AgentStoreActions>()((set)
     set((state) => ({
       artifactsVersion: state.artifactsVersion + 1,
     })),
+
+  openArtifactPanel: (artifactId) => set({ artifactPanel: { artifactId } }),
+
+  closeArtifactPanel: () => set({ artifactPanel: null }),
 
   reset: () => set(initialState),
 }));

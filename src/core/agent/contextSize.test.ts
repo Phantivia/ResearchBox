@@ -29,6 +29,29 @@ describe("estimateChars", () => {
     expect(estimateChars(messages)).toBe(5 + 5 + 2);
   });
 
+  it("excludes llmHidden messages from character count", () => {
+    const messages: AgentMessage[] = [
+      {
+        role: "assistant",
+        llmHidden: true,
+        content: [
+          {
+            type: "artifact_card",
+            artifactId: "a1",
+            title: "ignored",
+            kind: "note",
+          },
+        ],
+      },
+      {
+        role: "user",
+        content: [{ type: "text", text: "hi" }],
+      },
+    ];
+
+    expect(estimateChars(messages)).toBe(2);
+  });
+
   it("includes tool_use input via JSON.stringify length", () => {
     const input = { query: "paper", limit: 3 };
     const messages: AgentMessage[] = [

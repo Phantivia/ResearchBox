@@ -90,12 +90,14 @@ async function mapLimit<T, R>(
 }
 
 function expandResults(results: ExecuteToolResult[]): AgentMessage[] {
-  const messages: AgentMessage[] = [];
+  const toolMessages: AgentMessage[] = [];
+  const contextMessages: AgentMessage[] = [];
   for (const result of results) {
-    messages.push(result.message);
-    messages.push(...result.newMessages);
+    toolMessages.push(result.message);
+    contextMessages.push(...result.newMessages);
   }
-  return messages;
+  // OpenAI 要求 assistant.tool_calls 后紧跟全部 tool 消息，再才允许 user 消息。
+  return [...toolMessages, ...contextMessages];
 }
 
 export async function* executeBatched(

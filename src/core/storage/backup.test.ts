@@ -75,6 +75,7 @@ function makeBackup(overrides: Partial<Backup> = {}): Backup {
       webSearchProvider: "tavily",
       tavilyApiKey: "",
       perplexityApiKey: "",
+      permissionMode: "default",
     },
     ...overrides,
   };

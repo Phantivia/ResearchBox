@@ -8,6 +8,7 @@ import {
   webSearchTool,
   webSearchInputSchema,
   buildWebSearchDescription,
+  formatWebResults,
 } from "./webSearch";
 
 const MOCK_HITS: WebHit[] = [
@@ -81,7 +82,7 @@ describe("webSearchTool", () => {
     });
   });
 
-  it("returns hits and provenance-tagged newMessages with Sources requirement", async () => {
+  it("returns summary string and provenance-tagged newMessages with Sources requirement", async () => {
     vi.spyOn(dbModule, "getSettings").mockResolvedValue({
       activeProviderId: null,
       viewMode: "original",
@@ -98,11 +99,12 @@ describe("webSearchTool", () => {
       webSearchProvider: "tavily",
       tavilyApiKey: "tv-test",
       perplexityApiKey: "",
+      permissionMode: "default",
     });
 
-    const runSpy = vi
-      .spyOn(webAdaptersModule, "runWebSearch")
-      .mockResolvedValue(MOCK_HITS);
+    const runSpy = vi.spyOn(webAdaptersModule, "runWebSearch").mockResolvedValue({
+      hits: MOCK_HITS,
+    });
 
     const result = await callTool(
       { query: "latest AI news", maxResults: 5 },
@@ -117,7 +119,8 @@ describe("webSearchTool", () => {
         tavilyApiKey: "tv-test",
       }),
     );
-    expect(result.data).toEqual(MOCK_HITS);
+    expect(result.data).toContain("Web search results for");
+    expect(result.data).toContain("[Latest AI News](https://example.com/ai-news)");
 
     const text = result.newMessages?.[0]?.content[0];
     expect(text).toEqual({
@@ -133,7 +136,7 @@ describe("webSearchTool", () => {
     expect(body).toContain("[Research Overview](https://example.org/overview)");
   });
 
-  it("fail-open: adapter error returns empty hits without throwing", async () => {
+  it("fail-open: adapter error returns explicit failure summary without throwing", async () => {
     vi.spyOn(dbModule, "getSettings").mockResolvedValue({
       activeProviderId: null,
       viewMode: "original",
@@ -150,24 +153,31 @@ describe("webSearchTool", () => {
       webSearchProvider: "perplexity",
       tavilyApiKey: "",
       perplexityApiKey: "px-test",
+      permissionMode: "default",
     });
 
-    vi.spyOn(webAdaptersModule, "runWebSearch").mockRejectedValue(
-      new Error("network failure"),
-    );
+    vi.spyOn(webAdaptersModule, "runWebSearch").mockResolvedValue({
+      hits: [],
+      failure: {
+        reason: "network_error",
+        provider: "perplexity",
+        detail: "network failure",
+      },
+    });
 
     const result = await callTool(
       { query: "fail test", maxResults: 3 },
       makeDeps(),
     );
 
-    expect(result.data).toEqual([]);
+    expect(result.data).toContain("network error");
+    expect(result.data).toContain("Do NOT invent results");
     const text = result.newMessages?.[0]?.content[0] as { text: string };
     expect(text.text).toContain("[来源: web]");
-    expect(text.text).toContain("returned no results");
+    expect(text.text).toContain("network error");
   });
 
-  it("fail-open: missing key returns empty hits without throwing", async () => {
+  it("fail-open: missing key returns explicit configuration message", async () => {
     vi.spyOn(dbModule, "getSettings").mockResolvedValue({
       activeProviderId: null,
       viewMode: "original",
@@ -184,9 +194,13 @@ describe("webSearchTool", () => {
       webSearchProvider: "tavily",
       tavilyApiKey: "",
       perplexityApiKey: "",
+      permissionMode: "default",
     });
 
-    const runSpy = vi.spyOn(webAdaptersModule, "runWebSearch");
+    const runSpy = vi.spyOn(webAdaptersModule, "runWebSearch").mockResolvedValue({
+      hits: [],
+      failure: { reason: "missing_api_key", provider: "tavily" },
+    });
 
     const result = await callTool(
       { query: "no key test", maxResults: 5 },
@@ -194,19 +208,33 @@ describe("webSearchTool", () => {
     );
 
     expect(runSpy).toHaveBeenCalled();
-    expect(result.data).toEqual([]);
+    expect(result.data).toContain("no API key configured");
+    expect(result.data).toContain("Do NOT claim you searched the web");
 
     const text = result.newMessages?.[0]?.content[0] as { text: string };
     expect(text.text).toContain("[来源: web]");
-    expect(text.text).toContain("returned no results");
-    expect(text.text).toContain("Sources:");
+    expect(text.text).toContain("no API key configured");
   });
 
   it("description includes current month/year and citation requirement", () => {
     const description = buildWebSearchDescription(new Date("2026-06-24T12:00:00Z"));
     expect(description).toContain("June 2026");
     expect(description).toContain("Sources:");
-    expect(description).toContain("fail-open");
+    expect(description).toContain("explicit failure message");
     expect(webSearchTool.description).toContain("Sources:");
+  });
+});
+
+describe("formatWebResults", () => {
+  it("distinguishes empty hits from configuration failure", () => {
+    const emptyHits = formatWebResults({ hits: [] }, "weather");
+    expect(emptyHits).toContain("completed successfully but returned no hits");
+
+    const missingKey = formatWebResults(
+      { hits: [], failure: { reason: "missing_api_key", provider: "tavily" } },
+      "weather",
+    );
+    expect(missingKey).toContain("did NOT run");
+    expect(missingKey).toContain("no API key configured");
   });
 });

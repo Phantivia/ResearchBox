@@ -15,6 +15,29 @@ describe("AgentMessageSchema", () => {
     ]);
   });
 
+  it("parses artifact_card blocks and llmHidden flag", () => {
+    const message = AgentMessageSchema.parse({
+      role: "assistant",
+      llmHidden: true,
+      content: [
+        {
+          type: "artifact_card",
+          artifactId: "art-1",
+          title: "Summary",
+          kind: "summary",
+        },
+      ],
+    });
+
+    expect(message.llmHidden).toBe(true);
+    expect(message.content[0]).toEqual({
+      type: "artifact_card",
+      artifactId: "art-1",
+      title: "Summary",
+      kind: "summary",
+    });
+  });
+
   it("rejects an invalid role", () => {
     const result = AgentMessageSchema.safeParse({
       role: "system",

@@ -4,6 +4,7 @@ import type {
   AgentStore,
   ApprovalFn,
   ApprovalRequest,
+  PermissionMode,
   Tool,
 } from "./types";
 
@@ -18,7 +19,7 @@ export async function resolvePermission(args: {
   tool: Tool<z.ZodTypeAny, unknown>;
   input: unknown;
   deps: AgentDeps;
-  mode: "default" | "plan" | "autoApproveRead";
+  mode: PermissionMode;
 }): Promise<"allow" | "deny"> {
   const { tool, input, deps, mode } = args;
   try {
@@ -34,16 +35,7 @@ export async function resolvePermission(args: {
       return "allow";
     }
 
-    if (mode === "plan") {
-      return tool.isReadOnly(input as z.infer<typeof tool.inputSchema>)
-        ? "allow"
-        : "deny";
-    }
-
-    if (
-      mode === "autoApproveRead" &&
-      tool.isReadOnly(input as z.infer<typeof tool.inputSchema>)
-    ) {
+    if (mode === "default") {
       return "allow";
     }
 
