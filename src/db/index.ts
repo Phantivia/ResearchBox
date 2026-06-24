@@ -383,4 +383,6 @@ export {
   getAgentSession,
   listAgentSessions,
   deleteAgentSession,
+  updateAgentSessionTitle,
+  setAgentSessionPinned,
 } from "./agentSessions";

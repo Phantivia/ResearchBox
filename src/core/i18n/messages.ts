@@ -2,7 +2,7 @@ import type { UiLocale } from "./schema";
 
 export const UI_MESSAGES = {
   zh: {
-    "nav.features": "功能",
+    "nav.features": "库",
     "nav.home": "首页",
     "nav.paperBox": "Paper Box",
     "nav.chatBox": "ChatBox",
@@ -155,6 +155,11 @@ export const UI_MESSAGES = {
     "agent.history.noResults": "没有匹配的对话",
     "agent.history.searchLabel": "搜索历史对话",
     "agent.history.searchPlaceholder": "搜索对话…",
+    "agent.history.sessionMenu": "对话操作",
+    "agent.history.pin": "置顶",
+    "agent.history.unpin": "取消置顶",
+    "agent.history.rename": "编辑名称",
+    "agent.history.deleteConfirm": "确定删除对话「{title}」吗？此操作无法撤销。",
     "noProject.title": "当前无项目",
     "noProject.body": "请先在首页创建或选择一个项目，再使用该功能。",
     "noProject.cta": "前往项目管理",
@@ -388,7 +393,7 @@ export const UI_MESSAGES = {
     "brand.close": "关闭",
   },
   en: {
-    "nav.features": "Features",
+    "nav.features": "Library",
     "nav.home": "Home",
     "nav.paperBox": "Paper Box",
     "nav.chatBox": "ChatBox",
@@ -547,6 +552,12 @@ export const UI_MESSAGES = {
     "agent.history.noResults": "No matching chats",
     "agent.history.searchLabel": "Search chat history",
     "agent.history.searchPlaceholder": "Search chats…",
+    "agent.history.sessionMenu": "Chat actions",
+    "agent.history.pin": "Pin",
+    "agent.history.unpin": "Unpin",
+    "agent.history.rename": "Rename",
+    "agent.history.deleteConfirm":
+      "Delete chat \"{title}\"? This action cannot be undone.",
     "noProject.title": "No project selected",
     "noProject.body":
       "Create or select a project on the home page to use this feature.",

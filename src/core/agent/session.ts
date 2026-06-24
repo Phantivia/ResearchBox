@@ -8,6 +8,7 @@ export const AgentSessionSchema = z.object({
   messages: z.array(AgentMessageSchema),
   createdAt: z.number(),
   updatedAt: z.number(),
+  pinnedAt: z.number().optional(),
 });
 
 export type AgentSession = z.infer<typeof AgentSessionSchema>;
@@ -43,6 +44,21 @@ export function deriveSessionTitle(messages: AgentMessage[]): string {
   return DEFAULT_TITLE;
 }
 
+export function compareAgentSessions(a: AgentSession, b: AgentSession): number {
+  const aPinned = a.pinnedAt != null && a.pinnedAt > 0;
+  const bPinned = b.pinnedAt != null && b.pinnedAt > 0;
+
+  if (aPinned !== bPinned) {
+    return aPinned ? -1 : 1;
+  }
+
+  if (aPinned && bPinned) {
+    return (b.pinnedAt ?? 0) - (a.pinnedAt ?? 0);
+  }
+
+  return b.updatedAt - a.updatedAt;
+}
+
 export function searchSessions(sessions: AgentSession[], query: string): AgentSession[] {
   const normalized = query.trim().toLowerCase();
   const filtered =
@@ -55,5 +71,5 @@ export function searchSessions(sessions: AgentSession[], query: string): AgentSe
           return extractSearchableText(session.messages).toLowerCase().includes(normalized);
         });
 
-  return [...filtered].sort((a, b) => b.updatedAt - a.updatedAt);
+  return [...filtered].sort(compareAgentSessions);
 }

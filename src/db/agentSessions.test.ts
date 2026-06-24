@@ -8,6 +8,8 @@ import {
   getAgentSession,
   listAgentSessions,
   deleteAgentSession,
+  updateAgentSessionTitle,
+  setAgentSessionPinned,
 } from "./index";
 
 function userMessage(text: string): AgentMessage {
@@ -88,5 +90,56 @@ describe("deleteAgentSession", () => {
     const id = await saveAgentSession(makeSession());
     await deleteAgentSession(id);
     expect(await getAgentSession(id)).toBeUndefined();
+  });
+});
+
+describe("updateAgentSessionTitle", () => {
+  it("updates the title", async () => {
+    const id = await saveAgentSession(makeSession({ title: "Original" }));
+    await updateAgentSessionTitle(id, "Renamed");
+
+    expect((await getAgentSession(id))?.title).toBe("Renamed");
+  });
+
+  it("ignores blank titles", async () => {
+    const id = await saveAgentSession(makeSession({ title: "Original" }));
+    await updateAgentSessionTitle(id, "   ");
+
+    expect((await getAgentSession(id))?.title).toBe("Original");
+  });
+});
+
+describe("setAgentSessionPinned", () => {
+  it("pins and unpins a session", async () => {
+    const id = await saveAgentSession(makeSession());
+    await setAgentSessionPinned(id, true);
+
+    const pinned = await getAgentSession(id);
+    expect(pinned?.pinnedAt).toBeGreaterThan(0);
+
+    await setAgentSessionPinned(id, false);
+    expect((await getAgentSession(id))?.pinnedAt).toBeUndefined();
+  });
+});
+
+describe("saveAgentSession pinnedAt preservation", () => {
+  it("preserves pinnedAt when upserting without pinnedAt in payload", async () => {
+    const createdAt = 1_000;
+    const id = await saveAgentSession(
+      makeSession({ createdAt, pinnedAt: 2_000, title: "Pinned chat" }),
+    );
+
+    await saveAgentSession({
+      id,
+      projectId: "proj-1",
+      title: "Updated title",
+      messages: [userMessage("updated")],
+      createdAt,
+      updatedAt: createdAt,
+    });
+
+    const stored = await getAgentSession(id);
+    expect(stored?.title).toBe("Updated title");
+    expect(stored?.pinnedAt).toBe(2_000);
   });
 });

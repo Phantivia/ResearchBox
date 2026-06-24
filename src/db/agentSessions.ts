@@ -17,6 +17,7 @@ export async function saveAgentSession(session: AgentSession): Promise<number> {
       ...session,
       createdAt: existing?.createdAt ?? session.createdAt ?? now,
       updatedAt: now,
+      pinnedAt: session.pinnedAt ?? existing?.pinnedAt,
     };
     await db.agentSessions.put(row);
     return session.id;
@@ -49,4 +50,37 @@ export async function listAgentSessions(projectId: string): Promise<AgentSession
 
 export async function deleteAgentSession(id: number): Promise<void> {
   await db.agentSessions.delete(id);
+}
+
+export async function updateAgentSessionTitle(id: number, title: string): Promise<void> {
+  const existing = await db.agentSessions.get(id);
+  if (!existing) {
+    return;
+  }
+
+  const trimmed = title.trim();
+  if (!trimmed) {
+    return;
+  }
+
+  const row = parseAgentSession(existing);
+  await db.agentSessions.put({
+    ...row,
+    title: trimmed,
+    updatedAt: Date.now(),
+  });
+}
+
+export async function setAgentSessionPinned(id: number, pinned: boolean): Promise<void> {
+  const existing = await db.agentSessions.get(id);
+  if (!existing) {
+    return;
+  }
+
+  const row = parseAgentSession(existing);
+  await db.agentSessions.put({
+    ...row,
+    pinnedAt: pinned ? Date.now() : undefined,
+    updatedAt: Date.now(),
+  });
 }

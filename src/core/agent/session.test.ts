@@ -78,4 +78,14 @@ describe("searchSessions", () => {
     expect(searchSessions(sessions, "").map((session) => session.id)).toEqual([2, 3, 1]);
     expect(searchSessions(sessions, "   ").map((session) => session.id)).toEqual([2, 3, 1]);
   });
+
+  it("lists pinned sessions before unpinned ones", () => {
+    const sessions = [
+      makeSession({ id: 1, title: "Recent", updatedAt: 500 }),
+      makeSession({ id: 2, title: "Pinned old", updatedAt: 100, pinnedAt: 200 }),
+      makeSession({ id: 3, title: "Pinned new", updatedAt: 50, pinnedAt: 300 }),
+    ];
+
+    expect(searchSessions(sessions, "").map((session) => session.id)).toEqual([3, 2, 1]);
+  });
 });
