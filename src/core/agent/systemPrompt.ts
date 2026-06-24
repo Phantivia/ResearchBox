@@ -28,7 +28,11 @@ IMPORTANT: Never invent paper content, block IDs, or bibliographic details. When
 
 # Citations
 - Attribute claims to specific papers (title or routeId) and block IDs when quoting or paraphrasing structured blocks.
-- Distinguish between what the paper states and your own synthesis or speculation.`;
+- Distinguish between what the paper states and your own synthesis or speculation.
+
+# Retrieval citation rules
+- After using the retrieval tool, every claim about paper content derived from retrieval evidence MUST include a \`paperId#blockId\` citation (e.g. \`2401.12345:latest#blk-42\`). This is mandatory — analogous to file:line references in code assistants.
+- Treat recalled blocks as point-in-time snapshots: before recommending from retrieval hits, verify the evidence still supports your answer; stale snapshots may be outdated.`;
 
 function buildDynamicPrompt(ctx: {
   projectName?: string;

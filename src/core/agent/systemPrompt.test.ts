@@ -20,5 +20,7 @@ describe("buildAgentSystemPrompt", () => {
     expect(roleIndex).toBeLessThan(boundaryIndex);
     expect(projectIndex).toBeGreaterThan(boundaryIndex);
     expect(prompt).toContain("Today's date: 2026-06-23");
+    expect(prompt).toContain("paperId#blockId");
+    expect(prompt).toContain("retrieval tool");
   });
 });
