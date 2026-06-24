@@ -4,21 +4,13 @@ import { extractToc } from "@/core/toc/extractToc";
 import type { AgentDeps, Tool } from "../types";
 
 export const paperboxReadInputSchema = z.strictObject({
-  mode: z.enum(["list", "paper"]),
-  routeId: z.string().optional(),
+  routeId: z.string(),
   section: z
     .enum(["meta", "abstract", "outline", "full"])
     .default("meta"),
 });
 
 export type PaperboxReadInput = z.infer<typeof paperboxReadInputSchema>;
-
-export type PaperboxListItem = {
-  routeId: string;
-  title: string;
-  authors: string[];
-  status: string;
-};
 
 export type PaperboxBlockSummary = {
   id: string;
@@ -28,9 +20,7 @@ export type PaperboxBlockSummary = {
 };
 
 export type PaperboxReadOutput =
-  | { mode: "list"; papers: PaperboxListItem[] }
   | {
-      mode: "paper";
       routeId: string;
       section: "meta";
       meta: {
@@ -46,19 +36,16 @@ export type PaperboxReadOutput =
       };
     }
   | {
-      mode: "paper";
       routeId: string;
       section: "abstract";
       blocks: PaperboxBlockSummary[];
     }
   | {
-      mode: "paper";
       routeId: string;
       section: "outline";
       outline: Array<{ id: string; title: string; level: number }>;
     }
   | {
-      mode: "paper";
       routeId: string;
       section: "full";
       abstractBlocks: PaperboxBlockSummary[];
@@ -86,21 +73,17 @@ export const paperboxReadTool: Tool<
   PaperboxReadOutput
 > = {
   name: "paperbox_read",
-  description: `Read papers from the current project's Paper Box (IndexedDB).
+  description: `Read one paper from the current project's Paper Box (IndexedDB) in depth.
 
-Use this tool to discover which papers are available and to fetch structured content before answering research questions.
+Use paperbox_list first to see what is in the box and pick a routeId. Then use this tool to fetch structured content for a single paper before answering research questions.
 
-Modes:
-- list: Returns a compact catalog of all papers in the active project (title, authors, status, routeId). Use first when you need to know what is available or to pick a routeId.
-- paper: Loads one paper by routeId (required). Combine with section to control how much content is returned.
-
-Sections (only for mode=paper):
+Sections:
 - meta (default): Bibliographic metadata and raw abstract HTML — lightweight overview.
 - abstract: Structured abstractBlocks only.
 - outline: Heading-only table of contents derived from body blocks.
 - full: All abstractBlocks plus all body blocks (can be large; prefer abstract or outline when a quick scan suffices).
 
-routeId examples: "2401.12345" (latest) or "2401.12345v2". Obtain routeId from list mode.`,
+routeId examples: "2401.12345" (latest) or "2401.12345v2". Obtain routeId from paperbox_list.`,
   inputSchema: paperboxReadInputSchema,
   isReadOnly: () => true,
   isConcurrencySafe: () => true,
@@ -113,30 +96,6 @@ routeId examples: "2401.12345" (latest) or "2401.12345v2". Obtain routeId from l
     yield { stage: "reading paper box" };
 
     const projectId = requireProjectId(deps);
-
-    if (input.mode === "list") {
-      const entries = await deps.db.paperEntries
-        .where("projectId")
-        .equals(projectId)
-        .toArray();
-      entries.sort((a, b) => b.updatedAt - a.updatedAt);
-
-      return {
-        data: {
-          mode: "list",
-          papers: entries.map((entry) => ({
-            routeId: entry.routeId,
-            title: entry.title,
-            authors: entry.authors,
-            status: entry.status,
-          })),
-        },
-      };
-    }
-
-    if (!input.routeId) {
-      throw new Error('routeId is required when mode is "paper"');
-    }
 
     const entry = await deps.db.paperEntries.get([projectId, input.routeId]);
     if (!entry) {
@@ -157,7 +116,6 @@ routeId examples: "2401.12345" (latest) or "2401.12345v2". Obtain routeId from l
     if (section === "meta") {
       return {
         data: {
-          mode: "paper",
           routeId: input.routeId,
           section: "meta",
           meta: {
@@ -178,7 +136,6 @@ routeId examples: "2401.12345" (latest) or "2401.12345v2". Obtain routeId from l
     if (section === "abstract") {
       return {
         data: {
-          mode: "paper",
           routeId: input.routeId,
           section: "abstract",
           blocks: ir.abstractBlocks.map(summarizeBlock),
@@ -189,7 +146,6 @@ routeId examples: "2401.12345" (latest) or "2401.12345v2". Obtain routeId from l
     if (section === "outline") {
       return {
         data: {
-          mode: "paper",
           routeId: input.routeId,
           section: "outline",
           outline: extractToc(ir),
@@ -199,7 +155,6 @@ routeId examples: "2401.12345" (latest) or "2401.12345v2". Obtain routeId from l
 
     return {
       data: {
-        mode: "paper",
         routeId: input.routeId,
         section: "full",
         abstractBlocks: ir.abstractBlocks.map(summarizeBlock),

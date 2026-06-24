@@ -110,84 +110,38 @@ beforeEach(async () => {
 
 describe("paperboxReadTool", () => {
   it("is read-only and concurrency-safe", () => {
-    expect(paperboxReadTool.isReadOnly({ mode: "list", section: "meta" })).toBe(
-      true,
-    );
     expect(
-      paperboxReadTool.isConcurrencySafe({ mode: "list", section: "meta" }),
+      paperboxReadTool.isReadOnly({ routeId: "2401.12345", section: "meta" }),
+    ).toBe(true);
+    expect(
+      paperboxReadTool.isConcurrencySafe({
+        routeId: "2401.12345",
+        section: "meta",
+      }),
     ).toBe(true);
   });
 
   it("checkPermissions always allows", async () => {
     const result = await paperboxReadTool.checkPermissions(
-      { mode: "list", section: "meta" },
+      { routeId: "2401.12345", section: "meta" },
       makeDeps(PROJECT_ID),
     );
     expect(result).toEqual({
       behavior: "allow",
-      updatedInput: { mode: "list", section: "meta" },
+      updatedInput: { routeId: "2401.12345", section: "meta" },
     });
   });
 
-  it("lists paper entries for the active project", async () => {
-    const base = Date.now();
-    await putPaperEntry(
-      makePaperEntry({ updatedAt: base + 100, createdAt: base + 100 }),
-    );
-    await putPaperEntry(
-      makePaperEntry({
-        routeId: "2401.99999",
-        arxivId: "2401.99999",
-        source: "2401.99999",
-        title: "Second Paper",
-        authors: ["Carol"],
-        status: "ready",
-        updatedAt: base + 200,
-        createdAt: base + 200,
-      }),
-    );
-    await putPaperEntry(
-      makePaperEntry({
-        projectId: "other-project",
-        routeId: "2401.88888",
-        arxivId: "2401.88888",
-        source: "2401.88888",
-        title: "Other Project Paper",
-      }),
-    );
-
-    const data = await callTool({ mode: "list", section: "meta" }, makeDeps(PROJECT_ID));
-
-    expect(data).toEqual({
-      mode: "list",
-      papers: [
-        {
-          routeId: "2401.99999",
-          title: "Second Paper",
-          authors: ["Carol"],
-          status: "ready",
-        },
-        {
-          routeId: "2401.12345",
-          title: "Attention Is All You Need",
-          authors: ["Alice", "Bob"],
-          status: "done",
-        },
-      ],
-    });
-  });
-
-  it("returns full block text from PaperIR.blocks for mode=paper section=full", async () => {
+  it("returns full block text from PaperIR.blocks for section=full", async () => {
     await putPaperEntry(makePaperEntry());
     await savePaper(makePaperIr());
 
     const data = await callTool(
-      { mode: "paper", routeId: "2401.12345", section: "full" },
+      { routeId: "2401.12345", section: "full" },
       makeDeps(PROJECT_ID),
     );
 
     expect(data).toEqual({
-      mode: "paper",
       routeId: "2401.12345",
       section: "full",
       abstractBlocks: [
@@ -215,7 +169,7 @@ describe("paperboxReadTool", () => {
 
   it("throws when projectId is missing from deps", async () => {
     await expect(
-      callTool({ mode: "list", section: "meta" }, makeDeps()),
+      callTool({ routeId: "2401.12345", section: "meta" }, makeDeps()),
     ).rejects.toThrow("No active project");
   });
 });
