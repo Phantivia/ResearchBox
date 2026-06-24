@@ -32,6 +32,9 @@ export default defineConfig(({ mode }) => ({
       "@": resolve(__dirname, "src"),
     },
   },
+  optimizeDeps: {
+    exclude: ["pyodide"],
+  },
   test: {
     environment: "jsdom",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],

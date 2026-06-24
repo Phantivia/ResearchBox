@@ -22,6 +22,7 @@
     "dexie": "^4.4.4",
     "dompurify": "^3.4.11",
     "katex": "^0.17.0",
+    "pyodide": "^314.0.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-markdown": "^10.1.0",
