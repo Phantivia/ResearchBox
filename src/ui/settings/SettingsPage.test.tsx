@@ -46,6 +46,11 @@ beforeEach(async () => {
     loaded: false,
     semanticScholarApiKey: "",
     openAlexApiKey: "",
+    allowWeb: false,
+    allowCode: false,
+    webSearchProvider: "tavily",
+    tavilyApiKey: "",
+    perplexityApiKey: "",
   });
 });
 
@@ -152,6 +157,49 @@ describe("SettingsPage", () => {
 
     await waitFor(() => {
       expect(useSettingsStore.getState().openAlexApiKey).toBe("oa-user-key");
+    });
+  });
+
+  it("renders the agent capabilities section and persists settings", async () => {
+    render(
+      <HashRouter>
+        <SettingsPage />
+      </HashRouter>,
+    );
+
+    await waitFor(() => {
+      expect(useSettingsStore.getState().loaded).toBe(true);
+    });
+
+    expect(screen.getByRole("heading", { name: "Agent 能力" })).toBeInTheDocument();
+
+    const allowWebCheckbox = screen.getByRole("checkbox", { name: "允许联网搜索" });
+    fireEvent.click(allowWebCheckbox);
+
+    await waitFor(() => {
+      expect(useSettingsStore.getState().allowWeb).toBe(true);
+    });
+
+    const allowCodeCheckbox = screen.getByRole("checkbox", { name: "允许执行代码" });
+    fireEvent.click(allowCodeCheckbox);
+
+    await waitFor(() => {
+      expect(useSettingsStore.getState().allowCode).toBe(true);
+    });
+
+    fireEvent.change(screen.getByLabelText("网页搜索 Provider"), {
+      target: { value: "perplexity" },
+    });
+
+    await waitFor(() => {
+      expect(useSettingsStore.getState().webSearchProvider).toBe("perplexity");
+    });
+
+    const pxInput = screen.getByLabelText("Perplexity API Key");
+    fireEvent.change(pxInput, { target: { value: "px-user-key" } });
+
+    await waitFor(() => {
+      expect(useSettingsStore.getState().perplexityApiKey).toBe("px-user-key");
     });
   });
 });

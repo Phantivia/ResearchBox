@@ -39,6 +39,11 @@ interface SettingsState {
   customPalette: ColorPalette | null;
   semanticScholarApiKey: string;
   openAlexApiKey: string;
+  allowWeb: boolean;
+  allowCode: boolean;
+  webSearchProvider: AppSettings["webSearchProvider"];
+  tavilyApiKey: string;
+  perplexityApiKey: string;
   savedPalettes: SavedPalette[];
   loaded: boolean;
 }
@@ -56,6 +61,11 @@ interface SettingsActions {
   setCustomPalette: (palette: ColorPalette) => Promise<void>;
   setSemanticScholarApiKey: (key: string) => Promise<void>;
   setOpenAlexApiKey: (key: string) => Promise<void>;
+  setAllowWeb: (enabled: boolean) => Promise<void>;
+  setAllowCode: (enabled: boolean) => Promise<void>;
+  setWebSearchProvider: (provider: AppSettings["webSearchProvider"]) => Promise<void>;
+  setTavilyApiKey: (key: string) => Promise<void>;
+  setPerplexityApiKey: (key: string) => Promise<void>;
   savePalette: (name: string, palette: ColorPalette) => Promise<SavedPalette>;
   deleteSavedPalette: (id: string) => Promise<void>;
   loadPalettes: () => Promise<void>;
@@ -93,6 +103,11 @@ export const useSettingsStore = create<SettingsState & SettingsActions>()(
     customPalette: null,
     semanticScholarApiKey: "",
     openAlexApiKey: "",
+    allowWeb: false,
+    allowCode: false,
+    webSearchProvider: "tavily",
+    tavilyApiKey: "",
+    perplexityApiKey: "",
     savedPalettes: [],
     loaded: false,
 
@@ -121,6 +136,11 @@ export const useSettingsStore = create<SettingsState & SettingsActions>()(
         customPalette: settings.customPalette,
         semanticScholarApiKey: settings.semanticScholarApiKey,
         openAlexApiKey: settings.openAlexApiKey,
+        allowWeb: settings.allowWeb,
+        allowCode: settings.allowCode,
+        webSearchProvider: settings.webSearchProvider,
+        tavilyApiKey: settings.tavilyApiKey,
+        perplexityApiKey: settings.perplexityApiKey,
         savedPalettes,
         loaded: true,
       });
@@ -196,6 +216,31 @@ export const useSettingsStore = create<SettingsState & SettingsActions>()(
     setOpenAlexApiKey: async (key) => {
       const settings = await saveSettings({ openAlexApiKey: key });
       set({ openAlexApiKey: settings.openAlexApiKey });
+    },
+
+    setAllowWeb: async (enabled) => {
+      const settings = await saveSettings({ allowWeb: enabled });
+      set({ allowWeb: settings.allowWeb });
+    },
+
+    setAllowCode: async (enabled) => {
+      const settings = await saveSettings({ allowCode: enabled });
+      set({ allowCode: settings.allowCode });
+    },
+
+    setWebSearchProvider: async (provider) => {
+      const settings = await saveSettings({ webSearchProvider: provider });
+      set({ webSearchProvider: settings.webSearchProvider });
+    },
+
+    setTavilyApiKey: async (key) => {
+      const settings = await saveSettings({ tavilyApiKey: key });
+      set({ tavilyApiKey: settings.tavilyApiKey });
+    },
+
+    setPerplexityApiKey: async (key) => {
+      const settings = await saveSettings({ perplexityApiKey: key });
+      set({ perplexityApiKey: settings.perplexityApiKey });
     },
 
     savePalette: async (name, palette) => {

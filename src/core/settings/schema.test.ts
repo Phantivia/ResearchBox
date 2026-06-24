@@ -14,6 +14,11 @@ describe("AppSettingsSchema", () => {
 
     expect(parsed.semanticScholarApiKey).toBe("");
     expect(parsed.openAlexApiKey).toBe("");
+    expect(parsed.allowWeb).toBe(false);
+    expect(parsed.allowCode).toBe(false);
+    expect(parsed.webSearchProvider).toBe("tavily");
+    expect(parsed.tavilyApiKey).toBe("");
+    expect(parsed.perplexityApiKey).toBe("");
   });
 
   it("round-trips academic search api keys", () => {
@@ -25,5 +30,22 @@ describe("AppSettingsSchema", () => {
 
     expect(parsed.semanticScholarApiKey).toBe("ss-key");
     expect(parsed.openAlexApiKey).toBe("oa-key");
+  });
+
+  it("round-trips agent capability settings", () => {
+    const parsed = AppSettingsSchema.parse({
+      ...DEFAULT_SETTINGS,
+      allowWeb: true,
+      allowCode: true,
+      webSearchProvider: "perplexity",
+      tavilyApiKey: "tv-key",
+      perplexityApiKey: "px-key",
+    });
+
+    expect(parsed.allowWeb).toBe(true);
+    expect(parsed.allowCode).toBe(true);
+    expect(parsed.webSearchProvider).toBe("perplexity");
+    expect(parsed.tavilyApiKey).toBe("tv-key");
+    expect(parsed.perplexityApiKey).toBe("px-key");
   });
 });

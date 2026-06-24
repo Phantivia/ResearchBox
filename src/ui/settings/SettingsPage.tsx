@@ -23,6 +23,7 @@ import type { ViewMode } from "@/store";
 import { useSettingsStore, useStorageStore, useTranslationJobStore } from "@/store";
 import { AboutSection } from "./AboutSection";
 import { AcademicSearchSection } from "./AcademicSearchSection";
+import { AgentCapabilitiesSection } from "./AgentCapabilitiesSection";
 import { DataManagementSection } from "./DataManagementSection";
 import { ColorPaletteSection } from "./ColorPaletteSection";
 import { OpenRouterMetaPanel } from "./OpenRouterMetaPanel";
@@ -839,6 +840,8 @@ export function SettingsPage() {
         )}
 
         <AcademicSearchSection />
+
+        <AgentCapabilitiesSection />
 
         <section
           id={SETTINGS_SECTION_IDS.readingPrefs}

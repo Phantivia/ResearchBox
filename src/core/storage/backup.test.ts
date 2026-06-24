@@ -70,6 +70,11 @@ function makeBackup(overrides: Partial<Backup> = {}): Backup {
       customPalette: null,
       semanticScholarApiKey: "",
       openAlexApiKey: "",
+      allowWeb: false,
+      allowCode: false,
+      webSearchProvider: "tavily",
+      tavilyApiKey: "",
+      perplexityApiKey: "",
     },
     ...overrides,
   };

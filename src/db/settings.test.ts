@@ -95,6 +95,11 @@ describe("settings helpers", () => {
       customPalette: null,
       semanticScholarApiKey: "",
       openAlexApiKey: "",
+      allowWeb: false,
+      allowCode: false,
+      webSearchProvider: "tavily",
+      tavilyApiKey: "",
+      perplexityApiKey: "",
     });
 
     const reloaded = await getSettings();

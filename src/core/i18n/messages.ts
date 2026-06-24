@@ -203,6 +203,22 @@ export const UI_MESSAGES = {
     "settings.openAlexApiKey": "OpenAlex API Key",
     "settings.openAlexApiKeyHint":
       "OpenAlex 自 2026 年起强制要求 API Key（免费，请在 openalex.org/settings/api 注册）。未填写时 OpenAlex 不可用，学术检索将自动回落到 Semantic Scholar。",
+    "settings.agentCapabilities": "Agent 能力",
+    "settings.allowWeb": "允许联网搜索",
+    "settings.allowWebRisk":
+      "开启后 Agent 可调用网页搜索工具访问开放域信息；结果可能包含未经验证的内容，请自行甄别。",
+    "settings.allowCode": "允许执行代码",
+    "settings.allowCodeRisk":
+      "开启后 Agent 可执行 Python 代码（P9）；代码在本地沙箱中运行，但仍可能读取或处理本机数据，请勿在不可信环境下开启。",
+    "settings.webSearchProvider": "网页搜索 Provider",
+    "settings.webSearchProviderHint":
+      "需自备 API Key，二选一；未配置 Key 时网页搜索工具不会注入 Agent 工具池。",
+    "settings.webSearchProvider.tavily": "Tavily",
+    "settings.webSearchProvider.perplexity": "Perplexity",
+    "settings.tavilyApiKey": "Tavily API Key",
+    "settings.tavilyApiKeyHint": "在 tavily.com 注册获取 API Key。",
+    "settings.perplexityApiKey": "Perplexity API Key",
+    "settings.perplexityApiKeyHint": "在 perplexity.ai 获取 API Key。",
     "settings.readingPrefs": "阅读偏好",
     "settings.targetLang": "译文目标语言",
     "settings.defaultViewMode": "默认视图模式",
@@ -544,6 +560,22 @@ export const UI_MESSAGES = {
     "settings.openAlexApiKey": "OpenAlex API Key",
     "settings.openAlexApiKeyHint":
       "OpenAlex requires an API key since 2026 (free — register at openalex.org/settings/api). Without a key, OpenAlex is unavailable and search falls back to Semantic Scholar.",
+    "settings.agentCapabilities": "Agent capabilities",
+    "settings.allowWeb": "Allow web search",
+    "settings.allowWebRisk":
+      "When enabled, the Agent can call web search for open-domain information; results may be unverified—use your judgment.",
+    "settings.allowCode": "Allow code execution",
+    "settings.allowCodeRisk":
+      "When enabled, the Agent can run Python code (P9) in a local sandbox; it may still access local data—do not enable on untrusted devices.",
+    "settings.webSearchProvider": "Web search provider",
+    "settings.webSearchProviderHint":
+      "Bring your own API key; pick one provider. Without a key, the web search tool is not injected into the Agent tool pool.",
+    "settings.webSearchProvider.tavily": "Tavily",
+    "settings.webSearchProvider.perplexity": "Perplexity",
+    "settings.tavilyApiKey": "Tavily API Key",
+    "settings.tavilyApiKeyHint": "Register at tavily.com to obtain an API key.",
+    "settings.perplexityApiKey": "Perplexity API Key",
+    "settings.perplexityApiKeyHint": "Obtain an API key from perplexity.ai.",
     "settings.readingPrefs": "Reading preferences",
     "settings.targetLang": "Translation target language",
     "settings.defaultViewMode": "Default view mode",

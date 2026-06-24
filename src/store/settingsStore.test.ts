@@ -23,6 +23,11 @@ beforeEach(async () => {
     loaded: false,
     semanticScholarApiKey: "",
     openAlexApiKey: "",
+    allowWeb: false,
+    allowCode: false,
+    webSearchProvider: "tavily",
+    tavilyApiKey: "",
+    perplexityApiKey: "",
   });
 });
 
@@ -84,6 +89,31 @@ describe("useSettingsStore", () => {
     expect(state.openAlexApiKey).toBe("oa-test-key");
     expect((await getSettings()).semanticScholarApiKey).toBe("ss-test-key");
     expect((await getSettings()).openAlexApiKey).toBe("oa-test-key");
+  });
+
+  it("persists agent capability settings", async () => {
+    const store = useSettingsStore.getState();
+    await store.setAllowWeb(true);
+    await store.setAllowCode(true);
+    await store.setWebSearchProvider("perplexity");
+    await store.setTavilyApiKey("tv-test-key");
+    await store.setPerplexityApiKey("px-test-key");
+
+    useSettingsStore.setState({ loaded: false });
+    await useSettingsStore.getState().load();
+
+    const state = useSettingsStore.getState();
+    expect(state.allowWeb).toBe(true);
+    expect(state.allowCode).toBe(true);
+    expect(state.webSearchProvider).toBe("perplexity");
+    expect(state.tavilyApiKey).toBe("tv-test-key");
+    expect(state.perplexityApiKey).toBe("px-test-key");
+    const persisted = await getSettings();
+    expect(persisted.allowWeb).toBe(true);
+    expect(persisted.allowCode).toBe(true);
+    expect(persisted.webSearchProvider).toBe("perplexity");
+    expect(persisted.tavilyApiKey).toBe("tv-test-key");
+    expect(persisted.perplexityApiKey).toBe("px-test-key");
   });
 
   it("reports whether an active provider is configured", async () => {
