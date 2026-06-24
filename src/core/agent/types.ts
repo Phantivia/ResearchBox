@@ -77,7 +77,7 @@ export interface AgentStore {
   runningTools: Record<string, { name: string; stage: string }>;
   permissionMode: "default" | "plan" | "autoApproveRead";
   append(m: AgentMessage): void;
-  enqueueApproval(r: ApprovalRequest): void;
+  enqueueApproval(r: ApprovalRequest & { resolve: (ok: boolean) => void }): string | void;
 }
 
 export interface AgentDeps {
