@@ -1,5 +1,6 @@
 import {
   AgentSessionSchema,
+  agentMessagesEqual,
   type AgentSession,
 } from "@/core/agent/session";
 import { db } from "./index";
@@ -13,11 +14,14 @@ export async function saveAgentSession(session: AgentSession): Promise<number> {
 
   if (session.id != null) {
     const existing = await db.agentSessions.get(session.id);
+    const existingRow = existing ? parseAgentSession(existing) : undefined;
+    const messagesChanged =
+      existingRow == null || !agentMessagesEqual(existingRow.messages, session.messages);
     const row: AgentSession = {
       ...session,
-      createdAt: existing?.createdAt ?? session.createdAt ?? now,
-      updatedAt: now,
-      pinnedAt: session.pinnedAt ?? existing?.pinnedAt,
+      createdAt: existingRow?.createdAt ?? session.createdAt ?? now,
+      updatedAt: messagesChanged ? now : (existingRow?.updatedAt ?? now),
+      pinnedAt: session.pinnedAt ?? existingRow?.pinnedAt,
     };
     await db.agentSessions.put(row);
     return session.id;

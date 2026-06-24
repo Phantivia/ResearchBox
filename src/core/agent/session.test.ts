@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveSessionTitle, searchSessions, type AgentSession } from "./session";
+import { deriveSessionTitle, agentMessagesEqual, searchSessions, type AgentSession } from "./session";
 import type { AgentMessage } from "@/core/agent/types";
 
 function makeSession(overrides: Partial<AgentSession> = {}): AgentSession {
@@ -23,6 +23,17 @@ describe("deriveSessionTitle", () => {
     expect(deriveSessionTitle([userMessage("Explain transformers")])).toBe(
       "Explain transformers",
     );
+  });
+});
+
+describe("agentMessagesEqual", () => {
+  it("returns true for identical message arrays", () => {
+    const messages = [userMessage("hello")];
+    expect(agentMessagesEqual(messages, [...messages])).toBe(true);
+  });
+
+  it("returns false when message content differs", () => {
+    expect(agentMessagesEqual([userMessage("hello")], [userMessage("world")])).toBe(false);
   });
 });
 

@@ -15,6 +15,10 @@ export type AgentSession = z.infer<typeof AgentSessionSchema>;
 
 const DEFAULT_TITLE = "New conversation";
 
+export function agentMessagesEqual(a: AgentMessage[], b: AgentMessage[]): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
 function extractSearchableText(messages: AgentMessage[]): string {
   const parts: string[] = [];
   for (const message of messages) {

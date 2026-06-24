@@ -99,7 +99,16 @@ function SessionHistoryItem({
 
   return (
     <li className="relative">
-      <div className="flex items-stretch gap-0.5">
+      <div
+        className={[
+          "group flex min-w-0 items-stretch rounded-sm transition-colors",
+          editing
+            ? ""
+            : isActive
+              ? "bg-white/5"
+              : "hover:bg-white/[0.04]",
+        ].join(" ")}
+      >
         {editing ? (
           <input
             type="text"
@@ -122,10 +131,8 @@ function SessionHistoryItem({
             type="button"
             onClick={() => onSelect(session)}
             className={[
-              "flex min-w-0 flex-1 flex-col rounded-sm px-2 py-1.5 text-left transition-colors",
-              isActive
-                ? "bg-white/5 text-white"
-                : "text-gray-400 hover:bg-white/[0.04] hover:text-gray-200",
+              "flex min-w-0 flex-1 flex-col px-2 py-1.5 text-left transition-colors",
+              isActive ? "text-white" : "text-gray-400 group-hover:text-gray-200",
             ].join(" ")}
           >
             <span className="flex min-w-0 items-center gap-1 truncate text-sm">
@@ -141,7 +148,7 @@ function SessionHistoryItem({
         )}
 
         {!editing ? (
-          <div ref={menuRef} className="relative shrink-0">
+          <div ref={menuRef} className="relative flex shrink-0 items-center pr-0.5">
             <button
               type="button"
               aria-label={t("agent.history.sessionMenu")}
@@ -152,10 +159,10 @@ function SessionHistoryItem({
                 onToggleMenu(menuOpen ? null : sessionId);
               }}
               className={[
-                "flex h-full items-center rounded-sm px-1.5 transition-colors",
+                "flex h-7 w-7 items-center justify-center rounded-full transition-colors",
                 menuOpen
                   ? "bg-white/10 text-white"
-                  : "text-gray-500 hover:bg-white/[0.06] hover:text-gray-300",
+                  : "text-gray-500 hover:bg-white/10 hover:text-gray-300",
               ].join(" ")}
             >
               <MoreIcon className="h-4 w-4" />

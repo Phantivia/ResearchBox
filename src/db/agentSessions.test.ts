@@ -63,6 +63,25 @@ describe("saveAgentSession / getAgentSession", () => {
     expect(stored?.createdAt).toBe(createdAt);
     expect(stored?.updatedAt).toBeGreaterThan(createdAt);
   });
+
+  it("preserves updatedAt when messages are unchanged", async () => {
+    const messages = [userMessage("hello")];
+    const id = await saveAgentSession(makeSession({ messages, title: "Original" }));
+    const originalUpdatedAt = (await getAgentSession(id))!.updatedAt;
+
+    await saveAgentSession({
+      id,
+      projectId: "proj-1",
+      title: "Renamed without new messages",
+      messages,
+      createdAt: (await getAgentSession(id))!.createdAt,
+      updatedAt: originalUpdatedAt,
+    });
+
+    const stored = await getAgentSession(id);
+    expect(stored?.title).toBe("Renamed without new messages");
+    expect(stored?.updatedAt).toBe(originalUpdatedAt);
+  });
 });
 
 describe("listAgentSessions", () => {
