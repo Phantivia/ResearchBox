@@ -44,6 +44,12 @@ export interface SecretRow {
   encryptedKey: string;
 }
 
+export interface ToolResultRow {
+  id: string;
+  content: string;
+  createdAt: number;
+}
+
 export const SETTINGS_KEY = "app";
 
 export const DEFAULT_PROJECT_ID = "default";
@@ -63,6 +69,7 @@ const db = new Dexie("researchbox") as Dexie & {
   secrets: EntityTable<SecretRow, "provider">;
   palettes: EntityTable<SavedPalette, "id">;
   artifacts: EntityTable<Artifact, "id">;
+  toolResults: EntityTable<ToolResultRow, "id">;
 };
 
 db.version(1).stores({
@@ -170,6 +177,11 @@ db.version(5).stores({
   artifacts: "id, projectId, updatedAt, kind",
 });
 
+// v6：新增 toolResults 表，存储超阈值工具输出的全文（回话只保留预览 + resultId）。
+db.version(6).stores({
+  toolResults: "id, createdAt",
+});
+
 // ── Helpers ──
 
 export async function putPalette(palette: SavedPalette): Promise<void> {
@@ -206,6 +218,20 @@ export async function listArtifacts(projectId: string): Promise<Artifact[]> {
 
 export async function deleteArtifact(id: string): Promise<void> {
   await db.artifacts.delete(id);
+}
+
+export async function addToolResult(args: { content: string }): Promise<string> {
+  const id = crypto.randomUUID();
+  await db.toolResults.put({
+    id,
+    content: args.content,
+    createdAt: Date.now(),
+  });
+  return id;
+}
+
+export async function getToolResult(id: string): Promise<ToolResultRow | undefined> {
+  return db.toolResults.get(id);
 }
 
 export async function savePaper(ir: PaperIR): Promise<void> {

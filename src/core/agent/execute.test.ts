@@ -1,7 +1,10 @@
-import { describe, it, expect, vi } from "vitest";
+import "fake-indexeddb/auto";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { z } from "zod";
+import { db, getToolResult } from "@/db";
 import { executeBatched } from "./orchestrate";
 import { executeTool } from "./execute";
+import { MAX_RESULT_CHARS } from "./resultBudget";
 import type { AgentDeps, AgentMessage, AgentStore, Tool } from "./types";
 import type { LLMProvider } from "@/core/llm/types";
 
@@ -31,7 +34,7 @@ function makeDeps(overrides: Partial<Omit<AgentDeps, "store">> & {
     ...storeOverrides,
   });
   return {
-    db: {} as AgentDeps["db"],
+    db,
     llm: {
       id: "fake",
       chat: () => Promise.resolve(""),
@@ -75,6 +78,10 @@ async function drainExecuteTool(
   }
   return { result: step.value, progress };
 }
+
+beforeEach(async () => {
+  await db.toolResults.clear();
+});
 
 describe("executeTool", () => {
   it("returns isError tool_result for unknown tool", async () => {
@@ -137,6 +144,57 @@ describe("executeTool", () => {
       isError: true,
     });
     expect(result.denied).toBe("echo");
+  });
+
+  it("returns small results unchanged", async () => {
+    const small = "x".repeat(MAX_RESULT_CHARS);
+    const tool = makeTool({
+      name: "echo",
+      call: async function* () {
+        return { data: small };
+      },
+    });
+    const { result } = await drainExecuteTool(
+      { id: "t1", name: "echo", input: { text: "hi" } },
+      [tool],
+      makeDeps(),
+    );
+
+    expect(result.message.content[0]).toEqual({
+      type: "tool_result",
+      toolUseId: "t1",
+      content: small,
+    });
+    expect(await db.toolResults.count()).toBe(0);
+  });
+
+  it("persists oversized results and returns preview with resultId", async () => {
+    const large = "y".repeat(MAX_RESULT_CHARS + 1);
+    const tool = makeTool({
+      name: "echo",
+      call: async function* () {
+        return { data: large };
+      },
+    });
+    const { result } = await drainExecuteTool(
+      { id: "t1", name: "echo", input: { text: "hi" } },
+      [tool],
+      makeDeps(),
+    );
+
+    const block = result.message.content[0];
+    expect(block?.type).toBe("tool_result");
+    if (block?.type !== "tool_result") {
+      throw new Error("expected tool_result block");
+    }
+    expect(block.content).toContain("<persisted_output>");
+    expect(block.content).toContain("fetch_result");
+    expect(block.content).toContain("y".repeat(2000));
+
+    const match = block.content.match(/resultId: ([0-9a-f-]{36})/i);
+    expect(match).not.toBeNull();
+    const stored = await getToolResult(match![1]!);
+    expect(stored?.content).toBe(large);
   });
 
   it("returns serialized data and forwards newMessages on successful call", async () => {

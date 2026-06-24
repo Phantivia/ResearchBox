@@ -7,6 +7,7 @@ import { paperboxReadTool } from "./paperboxRead";
 import { retrievalTool } from "./retrieval";
 import { createWebSearchTool } from "./webSearch";
 import { pythonTool } from "./python";
+import { fetchResultTool } from "./fetchResult";
 
 export { academicSearchTool } from "./academicSearch";
 export { artifactsTool } from "./artifacts";
@@ -15,6 +16,7 @@ export { paperboxReadTool } from "./paperboxRead";
 export { pythonTool } from "./python";
 export { retrievalTool } from "./retrieval";
 export { createWebSearchTool, webSearchTool } from "./webSearch";
+export { fetchResultTool } from "./fetchResult";
 
 export function buildResearchTools(opts: {
   allowWeb: boolean;
@@ -23,6 +25,7 @@ export function buildResearchTools(opts: {
   return [
     paperboxListTool,
     paperboxReadTool,
+    fetchResultTool,
     retrievalTool,
     academicSearchTool,
     artifactsTool,

@@ -1,5 +1,10 @@
 import { z } from "zod";
+import { addToolResult } from "@/db";
 import { resolvePermission } from "./approval";
+import {
+  buildLargeToolResultMessage,
+  MAX_RESULT_CHARS,
+} from "./resultBudget";
 import type { AgentDeps, AgentMessage, Tool } from "./types";
 
 export type ToolCall = {
@@ -128,8 +133,16 @@ export async function* executeTool(
     }
 
     const result = step.value;
+    const serialized = serializeData(result.data);
+    const content =
+      serialized.length > MAX_RESULT_CHARS
+        ? buildLargeToolResultMessage(
+            serialized,
+            await addToolResult({ content: serialized }),
+          )
+        : serialized;
     return {
-      message: toolResultMessage(call.id, serializeData(result.data)),
+      message: toolResultMessage(call.id, content),
       newMessages: result.newMessages ?? [],
     };
   } catch (error) {
