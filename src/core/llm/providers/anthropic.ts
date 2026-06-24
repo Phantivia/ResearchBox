@@ -85,6 +85,15 @@ function mapContentBlockToAnthropic(block: ContentBlock): unknown {
   switch (block.type) {
     case "text":
       return { type: "text", text: block.text };
+    case "image":
+      return {
+        type: "image",
+        source: {
+          type: "base64",
+          media_type: block.mediaType,
+          data: block.data,
+        },
+      };
     case "thinking":
       return { type: "thinking", thinking: block.text };
     case "tool_use":

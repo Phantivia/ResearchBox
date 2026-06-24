@@ -23,9 +23,13 @@ type OpenAIToolCall = {
   function: { name: string; arguments: string };
 };
 
+type OpenAIUserContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
 type OpenAIAgentChatMessage =
   | { role: "system"; content: string }
-  | { role: "user"; content: string }
+  | { role: "user"; content: string | OpenAIUserContentPart[] }
   | {
       role: "assistant";
       content: string | null;
@@ -93,6 +97,37 @@ function blocksToText(
     .join("");
 }
 
+function toOpenAIUserContent(
+  blocks: ContentBlock[],
+): string | OpenAIUserContentPart[] {
+  const images = blocks.filter(
+    (block): block is Extract<ContentBlock, { type: "image" }> => block.type === "image",
+  );
+  const text = blocksToText(blocks, "text");
+
+  if (images.length === 0) {
+    return text;
+  }
+
+  const parts: OpenAIUserContentPart[] = [];
+  if (text.length > 0) {
+    parts.push({ type: "text", text });
+  }
+
+  for (const block of blocks) {
+    if (block.type === "image") {
+      parts.push({
+        type: "image_url",
+        image_url: {
+          url: `data:${block.mediaType};base64,${block.data}`,
+        },
+      });
+    }
+  }
+
+  return parts;
+}
+
 function toOpenAIAgentMessages(
   messages: AgentMessage[],
   includeReasoning: boolean,
@@ -101,7 +136,7 @@ function toOpenAIAgentMessages(
 
   for (const message of messages) {
     if (message.role === "user") {
-      result.push({ role: "user", content: blocksToText(message.content, "text") });
+      result.push({ role: "user", content: toOpenAIUserContent(message.content) });
       continue;
     }
 

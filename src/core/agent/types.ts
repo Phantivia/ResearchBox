@@ -13,6 +13,11 @@ export const ContentBlockSchema = z.discriminatedUnion("type", [
     text: z.string(),
   }),
   z.object({
+    type: z.literal("image"),
+    mediaType: z.enum(["image/png", "image/jpeg", "image/gif", "image/webp"]),
+    data: z.string(),
+  }),
+  z.object({
     type: z.literal("thinking"),
     text: z.string(),
   }),

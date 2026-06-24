@@ -8,6 +8,8 @@ function blockText(block: ContentBlock): string {
     case "text":
     case "thinking":
       return block.text;
+    case "image":
+      return `[image:${block.mediaType}]`;
     case "tool_result":
       return block.content;
     case "tool_use":

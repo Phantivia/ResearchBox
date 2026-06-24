@@ -6,6 +6,8 @@ import { executeBatched } from "@/core/agent/orchestrate";
 import { deriveSessionTitle } from "@/core/agent/session";
 import { buildAgentSystemPrompt } from "@/core/agent/systemPrompt";
 import { buildResearchTools } from "@/core/agent/tools";
+import { buildUserMessageBlocks, modelSupportsImageInput } from "@/core/agent/multimodal";
+import { ocrImages } from "@/ui/ai-panel/tesseractOcr";
 import type { AgentDeps, AgentMessage, AgentStore, ContentBlock, Terminal } from "@/core/agent/types";
 import { estimateContextBreakdown } from "@/core/agent/contextSize";
 import { toToolSchema } from "@/core/agent/schema";
@@ -14,6 +16,7 @@ import { db, listAgentSessions, saveAgentSession } from "@/db";
 import { useTranslation } from "@/i18n";
 import { useAgentStore, usePaperStore, useProjectStore, useSettingsStore } from "@/store";
 import { AgentChatPanel } from "@/ui/ai-panel";
+import type { ChatSendPayload } from "@/ui/ai-panel/ChatComposer";
 import { CurrentProjectLabel } from "@/ui/shell/CurrentProjectLabel";
 import { FeatureIcon } from "@/ui/shell/featureIcons";
 
@@ -222,7 +225,10 @@ export default function AgentChat() {
     let cancelled = false;
     void listAgentSessions(projectId).then((sessions) => {
       if (!cancelled && sessions.length > 0) {
-        useAgentStore.getState().loadSession(sessions[0]!);
+        const { currentSessionId, messages } = useAgentStore.getState();
+        if (currentSessionId === null && messages.length === 0) {
+          useAgentStore.getState().loadSession(sessions[0]!);
+        }
       }
     });
 
@@ -340,9 +346,49 @@ export default function AgentChat() {
   }, [stopping]);
 
   const handleSend = useCallback(
-    async (text: string) => {
+    async (payload: ChatSendPayload) => {
       const config = getActiveProvider();
       if (!config || !hasActiveProvider() || sending) {
+        return;
+      }
+
+      const sendImagesDirectly = modelSupportsImageInput(config.openRouterMeta);
+      let ocrTexts: string[] | undefined;
+      if (payload.images.length > 0 && !sendImagesDirectly) {
+        setSending(true);
+        try {
+          ocrTexts = await ocrImages(
+            payload.images.map(
+              (image) => `data:${image.mediaType};base64,${image.data}`,
+            ),
+          );
+        } catch (error) {
+          append({
+            role: "assistant",
+            content: [
+              {
+                type: "text",
+                text: t("agent.error.generic", {
+                  message: errorMessage(error),
+                }),
+              },
+            ],
+          });
+          setSending(false);
+          return;
+        }
+      }
+
+      const content = buildUserMessageBlocks({
+        text: payload.text,
+        images: payload.images,
+        sendImagesDirectly,
+        ocrTexts,
+      });
+      if (content.length === 0) {
+        if (payload.images.length > 0 && !sendImagesDirectly) {
+          setSending(false);
+        }
         return;
       }
 
@@ -352,7 +398,7 @@ export default function AgentChat() {
 
       const userMessage: AgentMessage = {
         role: "user",
-        content: [{ type: "text", text }],
+        content,
       };
       append(userMessage);
       setStreaming({ text: "", thinking: "" });

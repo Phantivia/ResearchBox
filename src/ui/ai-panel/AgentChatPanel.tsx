@@ -5,7 +5,7 @@ import { useAgentStore } from "@/store";
 import { AssistantAvatar } from "./AssistantAvatar";
 import { ArtifactCard } from "./ArtifactCard";
 import { ArtifactDetailPanel } from "./ArtifactDetailPanel";
-import { ChatComposer } from "./ChatComposer";
+import { ChatComposer, type ChatSendPayload } from "./ChatComposer";
 import { MessageBubble } from "./MessageBubble";
 import { StreamingPythonToolCard } from "./StreamingPythonToolCard";
 import { ThinkingBlock } from "./ThinkingBlock";
@@ -15,7 +15,7 @@ export interface AgentChatPanelProps {
   contextWindow: number;
   disabled: boolean;
   projectId: string;
-  onSend: (text: string) => void;
+  onSend: (payload: ChatSendPayload) => void | Promise<void>;
   onStop?: () => void;
   stopping?: boolean;
 }
@@ -141,6 +141,9 @@ function renderMessage(
   const textBlocks = message.content
     .filter((block): block is Extract<ContentBlock, { type: "text" }> => block.type === "text")
     .map((block) => block.text);
+  const imageBlocks = message.content.filter(
+    (block): block is Extract<ContentBlock, { type: "image" }> => block.type === "image",
+  );
   const text = textBlocks.join("\n\n");
   const isBoundaryMarker = text.startsWith("【盒子已关闭】");
 
@@ -154,6 +157,18 @@ function renderMessage(
         ) : (
           <MessageBubble role="user">{text}</MessageBubble>
         )
+      ) : null}
+      {imageBlocks.length > 0 ? (
+        <div className={`flex flex-wrap gap-2 ${text ? "mt-2" : ""}`}>
+          {imageBlocks.map((block, imageIndex) => (
+            <img
+              key={`${index}-image-${imageIndex}`}
+              src={`data:${block.mediaType};base64,${block.data}`}
+              alt=""
+              className="max-h-48 max-w-full rounded-lg border border-[var(--rb-border)] object-contain"
+            />
+          ))}
+        </div>
       ) : null}
     </div>
   );
@@ -186,8 +201,16 @@ export function AgentChatPanel({
   );
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingText, streamingThinking, runningTools, streamingToolCalls]);
+    const scroll = () => {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+    if (!isStreaming) {
+      scroll();
+      return;
+    }
+    const timer = window.setTimeout(scroll, 120);
+    return () => window.clearTimeout(timer);
+  }, [messages, streamingText, streamingThinking, runningTools, streamingToolCalls, isStreaming]);
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--rb-page-bg)] md:flex-row">
