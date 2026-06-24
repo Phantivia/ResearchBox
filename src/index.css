@@ -329,8 +329,49 @@
     overflow-wrap: anywhere;
   }
 
-  .rb-markdown pre {
+  /* GitHub Light–inspired code styling: light block panel + dark text for WCAG contrast.
+     prose-code must not target pre > code — typography defaults use a dark pre background. */
+  .rb-markdown.prose :not(pre) > code {
+    color: var(--rb-text-primary);
+    background-color: color-mix(in srgb, var(--rb-border) 55%, var(--rb-card-bg));
+    padding: 0.15em 0.4em;
+    border-radius: 0.3rem;
+    font-size: 0.875em;
+    font-weight: 500;
+    border: 1px solid color-mix(in srgb, var(--rb-border) 70%, transparent);
+  }
+
+  .rb-markdown.prose :not(pre) > code::before,
+  .rb-markdown.prose :not(pre) > code::after {
+    content: none;
+  }
+
+  .rb-markdown.prose pre {
+    margin-top: 0.875em;
+    margin-bottom: 0.875em;
+    padding: 0.875rem 1rem;
     overflow-x: auto;
+    border-radius: 0.5rem;
+    border: 1px solid var(--rb-border);
+    background-color: color-mix(in srgb, var(--rb-border) 38%, var(--rb-page-bg));
+    color: var(--rb-text-primary);
+  }
+
+  .rb-markdown.prose pre code {
+    color: var(--rb-text-primary);
+    background-color: transparent;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    font-size: 0.8125rem;
+    line-height: 1.65;
+    font-weight: 400;
+    white-space: pre;
+  }
+
+  .rb-markdown.prose pre code::before,
+  .rb-markdown.prose pre code::after {
+    content: none;
   }
 
   .rb-markdown table {

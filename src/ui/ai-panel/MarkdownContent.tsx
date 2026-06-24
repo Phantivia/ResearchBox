@@ -7,7 +7,7 @@ import { MathBlock } from "@/ui/reader/MathBlock";
 import { linkifyArtifactCitations, splitMarkdownWithMath } from "./artifactMarkdown";
 
 const PROSE_CLASS =
-  "prose prose-sm max-w-none text-[var(--rb-text-primary)] prose-headings:text-[var(--rb-text-primary)] prose-p:text-[var(--rb-text-primary)] prose-strong:text-[var(--rb-text-primary)] prose-code:text-[var(--rb-text-primary)] prose-table:text-[var(--rb-text-primary)] prose-a:text-[var(--rb-primary)]";
+  "prose prose-sm max-w-none text-[var(--rb-text-primary)] prose-headings:text-[var(--rb-text-primary)] prose-p:text-[var(--rb-text-primary)] prose-strong:text-[var(--rb-text-primary)] prose-table:text-[var(--rb-text-primary)] prose-a:text-[var(--rb-primary)]";
 
 export interface MarkdownContentProps {
   content: string;

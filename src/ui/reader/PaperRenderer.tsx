@@ -648,7 +648,7 @@ const BlockRenderer = memo(function BlockRenderer({
         <BlockContainer blockId={block.id} className="my-4">
           <OverflowContainer
             as="pre"
-            className="rounded-lg bg-gray-100 p-4 text-sm whitespace-pre"
+            className="rounded-lg border border-[var(--rb-border)] bg-[color-mix(in_srgb,var(--rb-border)_38%,var(--rb-page-bg))] p-4 text-sm text-[var(--rb-text-primary)] whitespace-pre"
           >
             <code>{block.content}</code>
           </OverflowContainer>
