@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { buildBoundaryMarker } from "@/core/agent/boundary";
 import type { AgentMessage, ApprovalRequest, ContentBlock } from "@/core/agent/types";
 
 export type PendingApproval = ApprovalRequest & {
@@ -11,6 +12,7 @@ interface AgentStoreState {
   pendingApprovals: PendingApproval[];
   runningTools: Record<string, { name: string; stage: string }>;
   permissionMode: "default" | "plan" | "autoApproveRead";
+  boxOpen: boolean;
   streamingText: string;
   streamingThinking: string;
   contextChars: number;
@@ -26,6 +28,9 @@ interface AgentStoreActions {
   clearRunningTool: (id: string) => void;
   setContextChars: (n: number) => void;
   setPermissionMode: (mode: AgentStoreState["permissionMode"]) => void;
+  setBoxOpen: (open: boolean) => void;
+  openBox: () => void;
+  closeBox: () => void;
   reset: () => void;
 }
 
@@ -34,6 +39,7 @@ const initialState: AgentStoreState = {
   pendingApprovals: [],
   runningTools: {},
   permissionMode: "default",
+  boxOpen: true,
   streamingText: "",
   streamingThinking: "",
   contextChars: 0,
@@ -106,6 +112,16 @@ export const useAgentStore = create<AgentStoreState & AgentStoreActions>()((set)
   setContextChars: (n) => set({ contextChars: n }),
 
   setPermissionMode: (mode) => set({ permissionMode: mode }),
+
+  setBoxOpen: (open) => set({ boxOpen: open }),
+
+  openBox: () => set({ boxOpen: true }),
+
+  closeBox: () =>
+    set((state) => ({
+      boxOpen: false,
+      messages: [...state.messages, buildBoundaryMarker()],
+    })),
 
   reset: () => set(initialState),
 }));

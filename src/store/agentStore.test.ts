@@ -69,13 +69,14 @@ describe("useAgentStore", () => {
     expect(state.streamingThinking).toBe("");
   });
 
-  it("reset restores initial state", () => {
+  it("reset restores initial state including boxOpen", () => {
     useAgentStore.getState().append({
       role: "user",
       content: [{ type: "text", text: "hi" }],
     });
     useAgentStore.getState().setStreaming({ text: "partial" });
     useAgentStore.getState().setContextChars(42);
+    useAgentStore.getState().closeBox();
 
     useAgentStore.getState().reset();
 
@@ -84,8 +85,62 @@ describe("useAgentStore", () => {
     expect(state.pendingApprovals).toEqual([]);
     expect(state.runningTools).toEqual({});
     expect(state.permissionMode).toBe("default");
+    expect(state.boxOpen).toBe(true);
     expect(state.streamingText).toBe("");
     expect(state.streamingThinking).toBe("");
     expect(state.contextChars).toBe(0);
+  });
+
+  it("defaults boxOpen to true", () => {
+    expect(useAgentStore.getState().boxOpen).toBe(true);
+  });
+
+  it("closeBox sets boxOpen false and appends a boundary marker without removing history", () => {
+    useAgentStore.getState().append({
+      role: "user",
+      content: [{ type: "text", text: "earlier search notes" }],
+    });
+
+    useAgentStore.getState().closeBox();
+
+    const state = useAgentStore.getState();
+    expect(state.boxOpen).toBe(false);
+    expect(state.messages).toHaveLength(2);
+
+    const prior = state.messages[0];
+    expect(prior?.role).toBe("user");
+    expect(prior?.content[0]).toEqual({ type: "text", text: "earlier search notes" });
+
+    const marker = state.messages[1];
+    expect(marker?.role).toBe("user");
+    const markerText =
+      marker?.content[0]?.type === "text" ? marker.content[0].text : "";
+    expect(markerText).toContain("盒子已关闭");
+    expect(markerText).toContain("绝对优先使用盒内");
+  });
+
+  it("openBox sets boxOpen true and preserves message history", () => {
+    useAgentStore.getState().append({
+      role: "user",
+      content: [{ type: "text", text: "keep me" }],
+    });
+    useAgentStore.getState().closeBox();
+    const afterClose = useAgentStore.getState().messages;
+
+    useAgentStore.getState().openBox();
+
+    const state = useAgentStore.getState();
+    expect(state.boxOpen).toBe(true);
+    expect(state.messages).toEqual(afterClose);
+    expect(state.messages).toHaveLength(2);
+  });
+
+  it("setBoxOpen toggles boxOpen without appending boundary marker", () => {
+    useAgentStore.getState().setBoxOpen(false);
+    expect(useAgentStore.getState().boxOpen).toBe(false);
+    expect(useAgentStore.getState().messages).toEqual([]);
+
+    useAgentStore.getState().setBoxOpen(true);
+    expect(useAgentStore.getState().boxOpen).toBe(true);
   });
 });
