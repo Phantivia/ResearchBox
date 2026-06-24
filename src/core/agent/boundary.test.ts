@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildBoundaryMarker,
-  IN_BOX_PRIORITY_RULE,
+  CORE_IN_BOX_RULE,
   isBoundaryMarker,
 } from "./boundary";
 
@@ -46,12 +46,11 @@ describe("isBoundaryMarker", () => {
   });
 });
 
-describe("IN_BOX_PRIORITY_RULE", () => {
+describe("CORE_IN_BOX_RULE", () => {
   it("states in-box priority and transparent out-of-box fallback", () => {
-    expect(IN_BOX_PRIORITY_RULE).toContain("盒子关闭后");
-    expect(IN_BOX_PRIORITY_RULE).toContain("绝对优先使用盒内论文内容");
-    expect(IN_BOX_PRIORITY_RULE).toContain("paperId#blockId");
-    expect(IN_BOX_PRIORITY_RULE).toContain("盒内确实没有相关依据");
-    expect(IN_BOX_PRIORITY_RULE).toContain("此点来自盒外、尚未正式纳入盒子");
+    expect(CORE_IN_BOX_RULE).toContain("绝对优先使用盒内论文内容");
+    expect(CORE_IN_BOX_RULE).toContain("paperId#blockId");
+    expect(CORE_IN_BOX_RULE).toContain("盒内确实没有相关依据");
+    expect(CORE_IN_BOX_RULE).toContain("此点来自盒外、尚未正式纳入盒子");
   });
 });

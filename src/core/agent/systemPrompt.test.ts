@@ -3,7 +3,6 @@ import {
   buildAgentSystemPrompt,
   SYSTEM_PROMPT_DYNAMIC_BOUNDARY,
 } from "./systemPrompt";
-import { IN_BOX_PRIORITY_RULE } from "./boundary";
 
 describe("buildAgentSystemPrompt", () => {
   it("places the stable segment before the dynamic boundary and session context", () => {
@@ -24,7 +23,7 @@ describe("buildAgentSystemPrompt", () => {
     expect(prompt).toContain("paperId#blockId");
   });
 
-  it("includes retrieval posture and saturation guidance in the stable segment before the dynamic boundary", () => {
+  it("places retrieval posture and saturation guidance in the dynamic segment after the boundary", () => {
     const prompt = buildAgentSystemPrompt({});
     const boundaryIndex = prompt.indexOf(SYSTEM_PROMPT_DYNAMIC_BOUNDARY);
 
@@ -35,27 +34,37 @@ describe("buildAgentSystemPrompt", () => {
     expect(exploreIndex).toBeGreaterThan(-1);
     expect(exhaustiveIndex).toBeGreaterThan(-1);
     expect(saturationIndex).toBeGreaterThan(-1);
-    expect(exploreIndex).toBeLessThan(boundaryIndex);
-    expect(exhaustiveIndex).toBeLessThan(boundaryIndex);
-    expect(saturationIndex).toBeLessThan(boundaryIndex);
+    expect(exploreIndex).toBeGreaterThan(boundaryIndex);
+    expect(exhaustiveIndex).toBeGreaterThan(boundaryIndex);
+    expect(saturationIndex).toBeGreaterThan(boundaryIndex);
     expect(prompt).toMatch(/default when uncertain/i);
     expect(prompt).toMatch(/retrieval strategy/i);
   });
 
-  it("includes in-box priority rule and citation rules in the stable segment", () => {
+  it("keeps the abstract in-box principle and citation rules in the stable segment", () => {
     const prompt = buildAgentSystemPrompt({});
     const boundaryIndex = prompt.indexOf(SYSTEM_PROMPT_DYNAMIC_BOUNDARY);
 
-    const inBoxIndex = prompt.indexOf(IN_BOX_PRIORITY_RULE);
+    const inBoxIndex = prompt.indexOf("In-box priority (盒内优先)");
     const citationRulesIndex = prompt.indexOf("Citation rules (引用规范)");
 
     expect(inBoxIndex).toBeGreaterThan(-1);
     expect(citationRulesIndex).toBeGreaterThan(-1);
     expect(inBoxIndex).toBeLessThan(boundaryIndex);
     expect(citationRulesIndex).toBeLessThan(boundaryIndex);
-    expect(prompt).toContain("绝对优先使用盒内论文内容");
-    expect(prompt).toContain("此点来自盒外、尚未正式纳入盒子");
+    expect(prompt).toContain("primary source of truth");
     expect(prompt).toMatch(/Every claim about paper content MUST include a `paperId#blockId` citation/);
+  });
+
+  it("places the concrete in-box rule only in the dynamic segment when the box is closed", () => {
+    const closedPrompt = buildAgentSystemPrompt({ boxOpen: false });
+    const openPrompt = buildAgentSystemPrompt({ boxOpen: true });
+    const boundaryIndex = closedPrompt.indexOf(SYSTEM_PROMPT_DYNAMIC_BOUNDARY);
+
+    const coreRuleIndex = closedPrompt.indexOf("绝对优先使用盒内论文内容");
+    expect(coreRuleIndex).toBeGreaterThan(boundaryIndex);
+    expect(closedPrompt).toContain("此点来自盒外、尚未正式纳入盒子");
+    expect(openPrompt).not.toContain("绝对优先使用盒内论文内容");
   });
 
   it("reflects collection phase when boxOpen is true or omitted", () => {

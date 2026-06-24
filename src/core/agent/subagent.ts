@@ -160,7 +160,7 @@ export function buildSubAgentDeps(deps: AgentDeps): AgentDeps {
 function buildUserMessage(input: SubAgentInput): AgentMessage {
   const sections = [input.prompt];
   if (input.paperId) {
-    sections.unshift(`Target paperId: ${input.paperId}`);
+    sections.push(`Target paperId: ${input.paperId}`);
   }
   return {
     role: "user",
