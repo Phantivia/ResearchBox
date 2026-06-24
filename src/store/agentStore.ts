@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { buildBoundaryMarker, isBoundaryMarker } from "@/core/agent/boundary";
+import { abortActiveAgentRun } from "@/core/agent/runController";
 import type { ContextTokenBreakdown } from "@/core/agent/contextSize";
 import { EMPTY_CONTEXT_BREAKDOWN } from "@/core/agent/contextSize";
 import type { AgentSession } from "@/core/agent/session";
@@ -17,6 +18,7 @@ export type StreamingToolCall = {
 
 export type StartNewSessionOptions = {
   revealLogo?: boolean;
+  skipAutoRestore?: boolean;
 };
 
 interface AgentStoreState {
@@ -33,6 +35,9 @@ interface AgentStoreState {
   artifactsVersion: number;
   sessionsVersion: number;
   artifactPanel: { artifactId: string } | null;
+  skipSessionAutoRestore: boolean;
+  agentRunning: boolean;
+  agentStopping: boolean;
 }
 
 interface AgentStoreActions {
@@ -59,6 +64,8 @@ interface AgentStoreActions {
   startNewSession: (options?: StartNewSessionOptions) => void;
   setCurrentSessionId: (id: number | null) => void;
   bumpSessionsVersion: () => void;
+  setAgentRunning: (running: boolean) => void;
+  setAgentStopping: (stopping: boolean) => void;
   reset: () => void;
 }
 
@@ -76,6 +83,9 @@ const initialState: AgentStoreState = {
   artifactsVersion: 0,
   sessionsVersion: 0,
   artifactPanel: null,
+  skipSessionAutoRestore: false,
+  agentRunning: false,
+  agentStopping: false,
 };
 
 export const useAgentStore = create<AgentStoreState & AgentStoreActions>()((set) => ({
@@ -221,7 +231,11 @@ export const useAgentStore = create<AgentStoreState & AgentStoreActions>()((set)
 
   closeArtifactPanel: () => set({ artifactPanel: null }),
 
-  loadSession: (session) =>
+  loadSession: (session) => {
+    const state = useAgentStore.getState();
+    if (state.agentRunning && session.id !== state.currentSessionId) {
+      abortActiveAgentRun();
+    }
     set({
       messages: session.messages,
       currentSessionId: session.id ?? null,
@@ -230,26 +244,43 @@ export const useAgentStore = create<AgentStoreState & AgentStoreActions>()((set)
       streamingToolCalls: {},
       streamingText: "",
       streamingThinking: "",
-    }),
+    });
+  },
 
-  startNewSession: (options) =>
-    set((state) => ({
-      messages: [],
-      currentSessionId: null,
-      pendingApprovals: [],
-      runningTools: {},
-      streamingToolCalls: {},
-      streamingText: "",
-      streamingThinking: "",
-      contextBreakdown: EMPTY_CONTEXT_BREAKDOWN,
-      boxOpen: state.boxOpen,
-      artifactsVersion: state.artifactsVersion,
-      sessionsVersion: state.sessionsVersion,
-      artifactPanel: state.artifactPanel,
-      logoRevealGeneration: options?.revealLogo
-        ? state.logoRevealGeneration + 1
-        : state.logoRevealGeneration,
-    })),
+  startNewSession: (options) => {
+    if (useAgentStore.getState().agentRunning) {
+      abortActiveAgentRun();
+    }
+    set((state) => {
+      const skipSessionAutoRestore =
+        options?.revealLogo === true
+          ? true
+          : options?.skipAutoRestore === false
+            ? false
+            : options?.skipAutoRestore === true
+              ? true
+              : state.skipSessionAutoRestore;
+
+      return {
+        messages: [],
+        currentSessionId: null,
+        pendingApprovals: [],
+        runningTools: {},
+        streamingToolCalls: {},
+        streamingText: "",
+        streamingThinking: "",
+        contextBreakdown: EMPTY_CONTEXT_BREAKDOWN,
+        boxOpen: state.boxOpen,
+        artifactsVersion: state.artifactsVersion,
+        sessionsVersion: state.sessionsVersion,
+        artifactPanel: state.artifactPanel,
+        logoRevealGeneration: options?.revealLogo
+          ? state.logoRevealGeneration + 1
+          : state.logoRevealGeneration,
+        skipSessionAutoRestore,
+      };
+    });
+  },
 
   setCurrentSessionId: (id) => set({ currentSessionId: id }),
 
@@ -257,6 +288,10 @@ export const useAgentStore = create<AgentStoreState & AgentStoreActions>()((set)
     set((state) => ({
       sessionsVersion: state.sessionsVersion + 1,
     })),
+
+  setAgentRunning: (running) => set({ agentRunning: running }),
+
+  setAgentStopping: (stopping) => set({ agentStopping: stopping }),
 
   reset: () => set(initialState),
 }));

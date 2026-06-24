@@ -29,6 +29,7 @@ interface SessionHistoryItemProps {
   locale: string;
   menuOpen: boolean;
   editing: boolean;
+  isRunning: boolean;
   onSelect: (session: AgentSession) => void;
   onToggleMenu: (sessionId: number | null) => void;
   onStartRename: (session: AgentSession) => void;
@@ -44,6 +45,7 @@ function SessionHistoryItem({
   locale,
   menuOpen,
   editing,
+  isRunning,
   onSelect,
   onToggleMenu,
   onStartRename,
@@ -149,26 +151,35 @@ function SessionHistoryItem({
 
         {!editing ? (
           <div ref={menuRef} className="relative flex shrink-0 items-center pr-0.5">
-            <button
-              type="button"
-              aria-label={t("agent.history.sessionMenu")}
-              aria-expanded={menuOpen}
-              aria-haspopup="menu"
-              onClick={(event) => {
-                event.stopPropagation();
-                onToggleMenu(menuOpen ? null : sessionId);
-              }}
-              className={[
-                "flex h-7 w-7 items-center justify-center rounded-full transition-colors",
-                menuOpen
-                  ? "bg-white/10 text-white"
-                  : "text-gray-500 hover:bg-white/10 hover:text-gray-300",
-              ].join(" ")}
-            >
-              <MoreIcon className="h-4 w-4" />
-            </button>
+            {isRunning ? (
+              <span
+                className="flex h-7 w-7 items-center justify-center"
+                aria-label={t("agent.history.running")}
+              >
+                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-gray-600 border-t-gray-300" />
+              </span>
+            ) : (
+              <button
+                type="button"
+                aria-label={t("agent.history.sessionMenu")}
+                aria-expanded={menuOpen}
+                aria-haspopup="menu"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onToggleMenu(menuOpen ? null : sessionId);
+                }}
+                className={[
+                  "flex h-7 w-7 items-center justify-center rounded-full transition-colors",
+                  menuOpen
+                    ? "bg-white/10 text-white"
+                    : "text-gray-500 hover:bg-white/10 hover:text-gray-300",
+                ].join(" ")}
+              >
+                <MoreIcon className="h-4 w-4" />
+              </button>
+            )}
 
-            {menuOpen ? (
+            {menuOpen && !isRunning ? (
               <div
                 role="menu"
                 className="absolute right-0 top-full z-20 mt-0.5 min-w-[8.5rem] overflow-hidden rounded-sm border border-white/10 bg-[#1a1d24] py-0.5 shadow-lg"
@@ -211,6 +222,7 @@ export function HistorySearch({ projectId }: HistorySearchProps) {
   const navigate = useNavigate();
   const sessionsVersion = useAgentStore((state) => state.sessionsVersion);
   const currentSessionId = useAgentStore((state) => state.currentSessionId);
+  const agentRunning = useAgentStore((state) => state.agentRunning);
   const loadSession = useAgentStore((state) => state.loadSession);
   const startNewSession = useAgentStore((state) => state.startNewSession);
   const bumpSessionsVersion = useAgentStore((state) => state.bumpSessionsVersion);
@@ -330,6 +342,11 @@ export function HistorySearch({ projectId }: HistorySearchProps) {
                 key={session.id ?? `${session.updatedAt}-${session.title}`}
                 session={session}
                 isActive={session.id != null && session.id === currentSessionId}
+                isRunning={
+                  agentRunning &&
+                  session.id != null &&
+                  session.id === currentSessionId
+                }
                 locale={locale}
                 menuOpen={session.id != null && session.id === openMenuId}
                 editing={session.id != null && session.id === editingSessionId}

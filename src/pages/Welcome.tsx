@@ -64,7 +64,7 @@ export function Welcome() {
     }
     const project = await create(trimmed);
     setName("");
-    navigate(`/p/${encodeURIComponent(project.id)}/paper-box`);
+    navigate(`/p/${encodeURIComponent(project.id)}/chat-box`);
   }
 
   return (
@@ -122,7 +122,7 @@ export function Welcome() {
                 locale={locale}
                 preview={paperPreviews[project.id]}
                 onOpen={() =>
-                  navigate(`/p/${encodeURIComponent(project.id)}/paper-box`)
+                  navigate(`/p/${encodeURIComponent(project.id)}/chat-box`)
                 }
                 onRename={(value) => void rename(project.id, value)}
                 onRemove={() => {

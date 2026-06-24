@@ -16,7 +16,7 @@ export function App() {
           <Route path="/" element={<Welcome />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/p/:projectId" element={<ProjectScope />}>
-            <Route index element={<Navigate to="paper-box" replace />} />
+            <Route index element={<Navigate to="chat-box" replace />} />
             <Route path="chat-box" element={<AgentChat />} />
             <Route path="chat-box/artifacts" element={<ChatBoxArtifacts />} />
             <Route path="agent" element={<Navigate to="../chat-box" replace />} />

@@ -118,6 +118,9 @@ describe("useAgentStore", () => {
     expect(state.currentSessionId).toBeNull();
     expect(state.artifactPanel).toBeNull();
     expect(state.logoRevealGeneration).toBe(0);
+    expect(state.skipSessionAutoRestore).toBe(false);
+    expect(state.agentRunning).toBe(false);
+    expect(state.agentStopping).toBe(false);
   });
 
   it("startNewSession with revealLogo increments logoRevealGeneration", () => {
@@ -131,6 +134,17 @@ describe("useAgentStore", () => {
 
     useAgentStore.getState().startNewSession({ revealLogo: true });
     expect(useAgentStore.getState().logoRevealGeneration).toBe(2);
+  });
+
+  it("startNewSession with revealLogo sets skipSessionAutoRestore until consumed", () => {
+    useAgentStore.getState().startNewSession({ revealLogo: true });
+    expect(useAgentStore.getState().skipSessionAutoRestore).toBe(true);
+
+    useAgentStore.getState().startNewSession();
+    expect(useAgentStore.getState().skipSessionAutoRestore).toBe(true);
+
+    useAgentStore.getState().startNewSession({ skipAutoRestore: false });
+    expect(useAgentStore.getState().skipSessionAutoRestore).toBe(false);
   });
 
   it("bumpArtifactsVersion increments artifactsVersion", () => {

@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Link, useParams } from "react-router-dom";
 import { runAgent, type BatchExecutor } from "@/core/agent/loop";
 import { makeApprovalFn } from "@/core/agent/approval";
 import { executeBatched } from "@/core/agent/orchestrate";
 import { deriveSessionTitle } from "@/core/agent/session";
+import { abortActiveAgentRun, setActiveAgentAbort } from "@/core/agent/runController";
 import { buildAgentSystemPrompt } from "@/core/agent/systemPrompt";
 import { buildResearchTools } from "@/core/agent/tools";
 import { buildUserMessageBlocks, modelSupportsImageInput, applyOcrTextsToContent } from "@/core/agent/multimodal";
@@ -22,6 +23,9 @@ import { FeatureIcon } from "@/ui/shell/featureIcons";
 
 const DEFAULT_CONTEXT_WINDOW = 200_000;
 const SESSION_SAVE_DEBOUNCE_MS = 800;
+
+let chatMountedProjectId: string | null = null;
+let sessionRestoreGeneration = 0;
 
 function resolveContextWindow(
   openRouterContextLength: number | null | undefined,
@@ -169,14 +173,13 @@ export default function AgentChat() {
   const setCurrentSessionId = useAgentStore((state) => state.setCurrentSessionId);
   const bumpSessionsVersion = useAgentStore((state) => state.bumpSessionsVersion);
   const boxOpen = useAgentStore((state) => state.boxOpen);
+  const agentRunning = useAgentStore((state) => state.agentRunning);
+  const agentStopping = useAgentStore((state) => state.agentStopping);
+  const setAgentRunning = useAgentStore((state) => state.setAgentRunning);
+  const setAgentStopping = useAgentStore((state) => state.setAgentStopping);
   const loadForProject = usePaperStore((state) => state.loadForProject);
 
-  const [sending, setSending] = useState(false);
-  const [stopping, setStopping] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
   const toolNameByUseIdRef = useRef(new Map<string, string>());
-  const prevProjectIdRef = useRef("");
-
   const persistSession = useCallback(async () => {
     if (!projectId) {
       return;
@@ -219,18 +222,30 @@ export default function AgentChat() {
       return;
     }
 
-    if (prevProjectIdRef.current !== projectId) {
-      prevProjectIdRef.current = projectId;
-      useAgentStore.getState().startNewSession();
+    const projectChanged = chatMountedProjectId !== projectId;
+
+    if (projectChanged) {
+      chatMountedProjectId = projectId;
+      useAgentStore.getState().startNewSession({ skipAutoRestore: false });
     }
 
+    const restoreGeneration = ++sessionRestoreGeneration;
     let cancelled = false;
     void listAgentSessions(projectId).then((sessions) => {
-      if (!cancelled && sessions.length > 0) {
-        const { currentSessionId, messages } = useAgentStore.getState();
-        if (currentSessionId === null && messages.length === 0) {
-          useAgentStore.getState().loadSession(sessions[0]!);
-        }
+      const stale = cancelled || restoreGeneration !== sessionRestoreGeneration;
+      const state = useAgentStore.getState();
+      const skipAutoRestore = state.skipSessionAutoRestore;
+      if (!stale && skipAutoRestore) {
+        useAgentStore.setState({ skipSessionAutoRestore: false });
+      }
+      if (
+        !stale &&
+        !skipAutoRestore &&
+        sessions.length > 0 &&
+        state.currentSessionId === null &&
+        state.messages.length === 0
+      ) {
+        useAgentStore.getState().loadSession(sessions[0]!);
       }
     });
 
@@ -256,12 +271,6 @@ export default function AgentChat() {
       void persistSession();
     };
   }, [persistSession]);
-
-  useEffect(() => {
-    return () => {
-      abortRef.current?.abort();
-    };
-  }, []);
 
   const providerConfig = getActiveProvider();
   const contextWindow = resolveContextWindow(
@@ -340,12 +349,12 @@ export default function AgentChat() {
   );
 
   const handleStop = useCallback(() => {
-    if (!abortRef.current || stopping) {
+    if (agentStopping || !useAgentStore.getState().agentRunning) {
       return;
     }
-    setStopping(true);
-    abortRef.current.abort();
-  }, [stopping]);
+    setAgentStopping(true);
+    abortActiveAgentRun();
+  }, [agentStopping, setAgentStopping]);
 
   const runAgentLoop = useCallback(
     async (chatMessages: AgentMessage[]) => {
@@ -354,13 +363,13 @@ export default function AgentChat() {
         return;
       }
 
-      abortRef.current?.abort();
+      abortActiveAgentRun();
       const controller = new AbortController();
-      abortRef.current = controller;
+      setActiveAgentAbort(controller);
 
       setStreaming({ text: "", thinking: "" });
-      setSending(true);
-      setStopping(false);
+      setAgentRunning(true);
+      setAgentStopping(false);
 
       let accumulatedText = "";
       let accumulatedThinking = "";
@@ -445,9 +454,9 @@ export default function AgentChat() {
       } finally {
         setStreaming({ text: "", thinking: "" });
         useAgentStore.getState().clearStreamingTools();
-        setSending(false);
-        setStopping(false);
-        abortRef.current = null;
+        setAgentRunning(false);
+        setAgentStopping(false);
+        setActiveAgentAbort(null);
         await persistSession();
       }
     },
@@ -462,6 +471,8 @@ export default function AgentChat() {
       projectName,
       persistSession,
       setStreaming,
+      setAgentRunning,
+      setAgentStopping,
       t,
     ],
   );
@@ -469,7 +480,7 @@ export default function AgentChat() {
   const handleSend = useCallback(
     async (payload: ChatSendPayload) => {
       const config = getActiveProvider();
-      if (!config || !hasActiveProvider() || sending) {
+      if (!config || !hasActiveProvider() || agentRunning) {
         return;
       }
 
@@ -543,7 +554,7 @@ export default function AgentChat() {
       getActiveProvider,
       hasActiveProvider,
       runAgentLoop,
-      sending,
+      agentRunning,
       t,
       updateMessageAtIndex,
     ],
@@ -551,7 +562,7 @@ export default function AgentChat() {
 
   const handleResendUserMessage = useCallback(
     async (index: number, payload: ChatSendPayload) => {
-      if (sending) {
+      if (agentRunning) {
         return;
       }
       const message = useAgentStore.getState().messages[index];
@@ -561,12 +572,12 @@ export default function AgentChat() {
       truncateMessages(index);
       await handleSend(payload);
     },
-    [handleSend, sending, truncateMessages],
+    [handleSend, agentRunning, truncateMessages],
   );
 
   const handleRetryAssistantMessage = useCallback(
     async (index: number) => {
-      if (sending) {
+      if (agentRunning) {
         return;
       }
       truncateMessages(index);
@@ -577,7 +588,7 @@ export default function AgentChat() {
       }
       await runAgentLoop(chatMessages);
     },
-    [runAgentLoop, sending, truncateMessages],
+    [runAgentLoop, agentRunning, truncateMessages],
   );
 
   const providerReady = hasActiveProvider();
@@ -618,11 +629,11 @@ export default function AgentChat() {
       ) : (
         <AgentChatPanel
           contextWindow={contextWindow}
-          disabled={sending}
+          disabled={agentRunning}
           projectId={projectId}
           onSend={handleSend}
           onStop={handleStop}
-          stopping={stopping}
+          stopping={agentStopping}
           onResendUserMessage={handleResendUserMessage}
           onRetryAssistantMessage={(index) => {
             void handleRetryAssistantMessage(index);

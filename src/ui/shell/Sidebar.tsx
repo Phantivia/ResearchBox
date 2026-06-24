@@ -242,7 +242,7 @@ function SidebarContent({ mobile = false, onDismiss }: SidebarContentProps) {
   function switchTo(projectId: string) {
     setSwitcherOpen(false);
     runWithDismissFeedback(`project:${projectId}`, () => {
-      navigate(`/p/${encodeURIComponent(projectId)}/paper-box`);
+      navigate(`/p/${encodeURIComponent(projectId)}/chat-box`);
     });
   }
 

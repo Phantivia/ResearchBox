@@ -30,9 +30,13 @@ test("readonly flow: create project → add arXiv paper → reader renders conte
 
   await page.goto("/");
 
-  // 创建第一个项目，进入后落在 Paper Box
+  // 创建第一个项目，进入后落在 ChatBox
   await page.getByPlaceholder("项目名称").fill("E2E Project");
   await page.getByRole("button", { name: "新建项目" }).click();
+  await expect(page).toHaveURL(/#\/p\/[^/]+\/chat-box$/);
+
+  // 进入 Paper Box 再导入论文
+  await page.getByRole("button", { name: "Paper Box" }).click();
   await expect(page).toHaveURL(/#\/p\/[^/]+\/paper-box$/);
 
   // Add Paper → 选择 arXiv HTML 导入 → 输入 ID → 导入
