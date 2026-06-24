@@ -8,6 +8,7 @@ export { ArtifactMarkdownContent } from "./ArtifactMarkdownContent";
 export { ArtifactPreview, type ArtifactPreviewProps } from "./ArtifactPreview";
 export { AssistantAvatar } from "./AssistantAvatar";
 export { BoxSwitch } from "./BoxSwitch";
+export { ReasoningEffortSelector } from "./ReasoningEffortSelector";
 export { ChatComposer, type ChatComposerProps, type ChatSendPayload } from "./ChatComposer";
 export { ContextDetailSheet, ContextMeter, type ContextMeterProps } from "./ContextMeter";
 export { MarkdownContent, type MarkdownContentProps } from "./MarkdownContent";

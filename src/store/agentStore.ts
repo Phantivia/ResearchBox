@@ -15,14 +15,6 @@ export type StreamingToolCall = {
   partialJson: string;
 };
 
-export type BoxRippleMode = "closing" | "opening";
-
-export type BoxRippleOrigin = {
-  xPercent: number;
-  yPercent: number;
-  mode: BoxRippleMode;
-};
-
 export type StartNewSessionOptions = {
   revealLogo?: boolean;
 };
@@ -34,7 +26,6 @@ interface AgentStoreState {
   runningTools: Record<string, { name: string; stage: string }>;
   streamingToolCalls: Record<string, StreamingToolCall>;
   boxOpen: boolean;
-  boxRippleOrigin: BoxRippleOrigin | null;
   logoRevealGeneration: number;
   streamingText: string;
   streamingThinking: string;
@@ -59,8 +50,6 @@ interface AgentStoreActions {
   setBoxOpen: (open: boolean) => void;
   openBox: () => void;
   closeBox: () => void;
-  setBoxRippleOrigin: (origin: BoxRippleOrigin) => void;
-  clearBoxRipple: () => void;
   bumpArtifactsVersion: () => void;
   openArtifactPanel: (artifactId: string) => void;
   closeArtifactPanel: () => void;
@@ -78,7 +67,6 @@ const initialState: AgentStoreState = {
   runningTools: {},
   streamingToolCalls: {},
   boxOpen: true,
-  boxRippleOrigin: null,
   logoRevealGeneration: 0,
   streamingText: "",
   streamingThinking: "",
@@ -206,10 +194,6 @@ export const useAgentStore = create<AgentStoreState & AgentStoreActions>()((set)
         messages: [...state.messages, buildBoundaryMarker()],
       };
     }),
-
-  setBoxRippleOrigin: (origin) => set({ boxRippleOrigin: origin }),
-
-  clearBoxRipple: () => set({ boxRippleOrigin: null }),
 
   bumpArtifactsVersion: () =>
     set((state) => ({

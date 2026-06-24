@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { AgentMessage, ContentBlock } from "@/core/agent/types";
 import { BOUNDARY_MARKER_PREFIX } from "@/core/agent/boundary";
 import { extractStreamingPythonCode } from "@/core/agent/streamingToolInput";
@@ -8,7 +8,6 @@ import { AssistantAvatar } from "./AssistantAvatar";
 import { AssistantText } from "./AssistantText";
 import { ArtifactCard } from "./ArtifactCard";
 import { ArtifactDetailPanel } from "./ArtifactDetailPanel";
-import { BoxRippleOverlay } from "./BoxRippleOverlay";
 import { ChatComposer, type ChatSendPayload } from "./ChatComposer";
 import { MessageBubble } from "./MessageBubble";
 import { StreamingPythonToolCard } from "./StreamingPythonToolCard";
@@ -152,8 +151,12 @@ function renderMessage(
     <div key={index}>
       {text ? (
         isBoundaryMarker ? (
-          <div className="rounded-lg bg-[var(--rb-primary-hover)] px-4 py-2.5 text-sm text-white">
-            {boundaryLabel}
+          <div className="my-4 flex items-center gap-3 px-2">
+            <div className="h-px flex-1 bg-[var(--rb-border)]" aria-hidden />
+            <span className="max-w-md shrink-0 text-center text-xs leading-snug text-[var(--rb-text-secondary)]">
+              {boundaryLabel}
+            </span>
+            <div className="h-px flex-1 bg-[var(--rb-border)]" aria-hidden />
           </div>
         ) : (
           <MessageBubble>{text}</MessageBubble>
@@ -186,19 +189,12 @@ export function AgentChatPanel({
   const { t } = useTranslation();
   const messages = useAgentStore((state) => state.messages);
   const boxOpen = useAgentStore((state) => state.boxOpen);
-  const boxRippleOrigin = useAgentStore((state) => state.boxRippleOrigin);
-  const clearBoxRipple = useAgentStore((state) => state.clearBoxRipple);
   const streamingText = useAgentStore((state) => state.streamingText);
   const streamingThinking = useAgentStore((state) => state.streamingThinking);
   const streamingToolCalls = useAgentStore((state) => state.streamingToolCalls);
   const runningTools = useAgentStore((state) => state.runningTools);
   const contextBreakdown = useAgentStore((state) => state.contextBreakdown);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const chatSurfaceRef = useRef<HTMLDivElement>(null);
-
-  const handleRippleComplete = useCallback(() => {
-    clearBoxRipple();
-  }, [clearBoxRipple]);
 
   const toolResults = useMemo(() => buildToolResultMap(messages), [messages]);
   const streamingPythonCalls = useMemo(
@@ -231,19 +227,12 @@ export function AgentChatPanel({
       ].join(" ")}
     >
       <div
-        ref={chatSurfaceRef}
         className={[
           "rb-chat-box-surface relative isolate flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
           boxOpen ? "rb-chat-box-open" : "rb-chat-box-closed",
           isEmptyChat ? "rb-chat-box-empty" : "",
-          boxRippleOrigin ? "rb-chat-box-rippling" : "",
-          boxRippleOrigin?.mode === "opening" ? "rb-box-ripple-opening" : "",
         ].join(" ")}
       >
-        {boxRippleOrigin ? (
-          <BoxRippleOverlay origin={boxRippleOrigin} onComplete={handleRippleComplete} />
-        ) : null}
-
         <div className="relative z-1 flex min-h-0 flex-1 flex-col">
         <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4">
           <div className="mx-auto flex max-w-3xl flex-col gap-4">
@@ -294,7 +283,6 @@ export function AgentChatPanel({
           onSend={onSend}
           onStop={onStop}
           stopping={stopping}
-          rippleContainerRef={chatSurfaceRef}
         />
         </div>
       </div>

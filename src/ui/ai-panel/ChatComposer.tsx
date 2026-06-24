@@ -18,7 +18,6 @@ import {
   type ClipboardEvent,
   type DragEvent,
   type KeyboardEvent,
-  type RefObject,
 } from "react";
 import type { ContextTokenBreakdown } from "@/core/agent/contextSize";
 import { useTranslation } from "@/i18n";
@@ -26,6 +25,7 @@ import { useAgentStore } from "@/store";
 import { ApprovalSheet } from "./ApprovalSheet";
 import { BoxSwitch } from "./BoxSwitch";
 import { ContextDetailSheet, ContextMeter } from "./ContextMeter";
+import { ReasoningEffortSelector } from "./ReasoningEffortSelector";
 import {
   extractImageFilesFromClipboard,
   extractImageFilesFromDataTransfer,
@@ -46,7 +46,6 @@ export interface ChatComposerProps {
   onSend: (payload: ChatSendPayload) => void | Promise<void>;
   onStop?: () => void;
   stopping?: boolean;
-  rippleContainerRef?: RefObject<HTMLElement | null>;
 }
 
 const MAX_ATTACHMENTS = 10;
@@ -58,7 +57,6 @@ export function ChatComposer({
   onSend,
   onStop,
   stopping = false,
-  rippleContainerRef,
 }: ChatComposerProps) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState("");
@@ -89,7 +87,7 @@ export function ChatComposer({
   const { refs, floatingStyles, context } = useFloating({
     open: attachMenuOpen,
     onOpenChange: setAttachMenuOpen,
-    placement: "top-end",
+    placement: "top-start",
     middleware: [offset(8), flip(), shift({ padding: 8 })],
     whileElementsMounted: autoUpdate,
   });
@@ -220,7 +218,7 @@ export function ChatComposer({
       />
 
       {dragActive && !disabled ? (
-        <div className="pointer-events-none absolute inset-3 z-20 flex items-center justify-center rounded-lg border-2 border-dashed border-[var(--rb-primary)] bg-[color-mix(in_srgb,var(--rb-primary)_8%,transparent)] text-sm font-medium text-[var(--rb-primary)]">
+        <div className="pointer-events-none absolute inset-3 z-20 flex items-center justify-center rounded-2xl border-2 border-dashed border-[var(--rb-primary)] bg-[color-mix(in_srgb,var(--rb-primary)_8%,transparent)] text-sm font-medium text-[var(--rb-primary)]">
           {t("agent.attachDropHint")}
         </div>
       ) : null}
@@ -257,60 +255,67 @@ export function ChatComposer({
         </p>
       ) : null}
 
-      <div className="flex items-end gap-2 sm:gap-3">
-        <BoxSwitch rippleContainerRef={rippleContainerRef} />
+      <div className="relative rounded-2xl border border-[var(--rb-border)] bg-[var(--rb-page-bg)] shadow-sm">
         <textarea
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
           disabled={disabled}
-          rows={2}
+          rows={1}
           placeholder={t("agent.inputPlaceholder")}
-          className="min-h-[2.75rem] flex-1 resize-y rounded-lg border border-[var(--rb-border)] bg-[var(--rb-page-bg)] px-3 py-2 text-sm text-[var(--rb-text-primary)] placeholder:text-[var(--rb-text-secondary)] focus:border-[var(--rb-primary)] focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--rb-primary)_25%,transparent)] disabled:cursor-not-allowed disabled:opacity-60"
+          className="block w-full resize-none border-0 bg-transparent px-4 pb-1 pt-3 text-sm text-[var(--rb-text-primary)] placeholder:text-[var(--rb-text-secondary)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+          style={{ minHeight: "2.75rem", maxHeight: "12rem" }}
         />
-        <ContextMeter
-          breakdown={contextBreakdown}
-          contextWindow={contextWindow}
-          open={contextDetailOpen}
-          onOpenChange={setContextDetailOpen}
-        />
-        {showStop ? (
+
+        <div className="flex items-center justify-between gap-2 px-2 pb-2 pt-0.5">
           <button
+            ref={attachButtonRef}
             type="button"
-            onClick={onStop}
-            disabled={stopping}
-            aria-label={stopping ? t("agent.stopping") : t("agent.stop")}
-            title={stopping ? t("agent.stopping") : t("agent.stop")}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--rb-text-primary)] text-[var(--rb-card-bg)] hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--rb-text-primary)_35%,transparent)] disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={disabled}
+            aria-label={t("agent.attach")}
+            aria-expanded={attachMenuOpen}
+            aria-haspopup="menu"
+            title={t("agent.attach")}
+            onClick={() => setAttachMenuOpen((open) => !open)}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--rb-text-secondary)] transition-colors hover:bg-[color-mix(in_srgb,var(--rb-text-primary)_6%,transparent)] hover:text-[var(--rb-text-primary)] focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--rb-primary)_35%,transparent)] disabled:cursor-not-allowed disabled:opacity-40"
           >
-            <StopIcon />
+            <PlusIcon />
           </button>
-        ) : (
-          <button
-            type="button"
-            onClick={handleSend}
-            disabled={!canSend}
-            aria-label={t("agent.send")}
-            title={t("agent.send")}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--rb-primary)] text-white hover:bg-[var(--rb-primary-hover)] focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--rb-primary)_35%,transparent)] disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <SendIcon />
-          </button>
-        )}
-        <button
-          ref={attachButtonRef}
-          type="button"
-          disabled={disabled}
-          aria-label={t("agent.attach")}
-          aria-expanded={attachMenuOpen}
-          aria-haspopup="menu"
-          title={t("agent.attach")}
-          onClick={() => setAttachMenuOpen((open) => !open)}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--rb-border)] bg-[var(--rb-page-bg)] text-[var(--rb-text-primary)] hover:bg-[color-mix(in_srgb,var(--rb-text-primary)_6%,transparent)] focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--rb-primary)_35%,transparent)] disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <PlusIcon />
-        </button>
+
+          <div className="flex min-w-0 items-center gap-0.5 sm:gap-1">
+            <ReasoningEffortSelector />
+            <BoxSwitch />
+            <ContextMeter
+              breakdown={contextBreakdown}
+              contextWindow={contextWindow}
+              open={contextDetailOpen}
+              onOpenChange={setContextDetailOpen}
+            />
+            {showStop ? (
+              <button
+                type="button"
+                onClick={onStop}
+                disabled={stopping}
+                aria-label={stopping ? t("agent.stopping") : t("agent.stop")}
+                title={stopping ? t("agent.stopping") : t("agent.stop")}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[var(--rb-text-primary)] text-[var(--rb-page-bg)] hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--rb-text-primary)_35%,transparent)] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <StopIcon />
+              </button>
+            ) : canSend ? (
+              <button
+                type="button"
+                onClick={handleSend}
+                aria-label={t("agent.send")}
+                title={t("agent.send")}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[var(--rb-primary)] text-white hover:bg-[var(--rb-primary-hover)] focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--rb-primary)_35%,transparent)]"
+              >
+                <SendIcon />
+              </button>
+            ) : null}
+          </div>
+        </div>
       </div>
 
       <input
@@ -372,7 +377,7 @@ export function ChatComposer({
 
 function SendIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5" aria-hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4 w-4" aria-hidden>
       <path d="M12 19V5" strokeLinecap="round" strokeLinejoin="round" />
       <path d="m5 12 7-7 7 7" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
@@ -381,7 +386,7 @@ function SendIcon() {
 
 function StopIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5" aria-hidden>
+    <svg viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3" aria-hidden>
       <rect x="6" y="6" width="12" height="12" rx="1" />
     </svg>
   );

@@ -63,7 +63,7 @@ export function ContextMeter({
   const percent = Math.min(100, Math.round(ratio * 100));
 
   const size = 36;
-  const stroke = 3;
+  const stroke = 4.5;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const strokeOffset = circumference * (1 - ratio);
@@ -74,7 +74,7 @@ export function ContextMeter({
       type="button"
       data-context-meter-trigger
       onClick={() => onOpenChange(!open)}
-      className="relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--rb-primary)_35%,transparent)]"
+      className="relative inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--rb-primary)_35%,transparent)]"
       aria-label={t("agent.contextAria", { percent: String(percent) })}
       aria-expanded={open}
       title={t("agent.contextUsage", {

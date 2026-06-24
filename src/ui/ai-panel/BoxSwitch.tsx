@@ -1,50 +1,15 @@
-import type { MouseEvent, RefObject } from "react";
-import type { BoxRippleOrigin } from "@/store/agentStore";
 import { useTranslation } from "@/i18n";
 import { useAgentStore } from "@/store";
 
-export interface BoxSwitchProps {
-  rippleContainerRef?: RefObject<HTMLElement | null>;
-}
-
-function rippleOriginFromClick(
-  event: MouseEvent<HTMLButtonElement>,
-  container: HTMLElement,
-  mode: BoxRippleOrigin["mode"],
-): BoxRippleOrigin | null {
-  const rect = container.getBoundingClientRect();
-  if (rect.width <= 0 || rect.height <= 0) {
-    return null;
-  }
-  return {
-    xPercent: ((event.clientX - rect.left) / rect.width) * 100,
-    yPercent: ((event.clientY - rect.top) / rect.height) * 100,
-    mode,
-  };
-}
-
-export function BoxSwitch({ rippleContainerRef }: BoxSwitchProps) {
+export function BoxSwitch() {
   const { t } = useTranslation();
   const boxOpen = useAgentStore((state) => state.boxOpen);
   const openBox = useAgentStore((state) => state.openBox);
   const closeBox = useAgentStore((state) => state.closeBox);
-  const setBoxRippleOrigin = useAgentStore((state) => state.setBoxRippleOrigin);
 
   const label = boxOpen ? t("agent.box.collecting") : t("agent.box.researching");
 
-  const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
-    const container = rippleContainerRef?.current;
-    if (container) {
-      const origin = rippleOriginFromClick(
-        event,
-        container,
-        boxOpen ? "closing" : "opening",
-      );
-      if (origin) {
-        setBoxRippleOrigin(origin);
-      }
-    }
-
+  const handleClick = () => {
     if (boxOpen) {
       closeBox();
       return;
@@ -60,40 +25,68 @@ export function BoxSwitch({ rippleContainerRef }: BoxSwitchProps) {
       aria-label={label}
       title={label}
       onClick={handleClick}
-      className={[
-        "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--rb-primary)_45%,transparent)]",
-        boxOpen
-          ? "border-[var(--rb-border)] bg-[var(--rb-page-bg)] text-[var(--rb-text-primary)] hover:bg-[color-mix(in_srgb,var(--rb-text-primary)_6%,var(--rb-page-bg))]"
-          : "border-[var(--rb-primary-hover)] bg-[var(--rb-primary-hover)] text-white hover:bg-[var(--rb-primary)]",
-      ].join(" ")}
+      className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--rb-text-primary)] transition-colors hover:bg-[color-mix(in_srgb,var(--rb-text-primary)_6%,transparent)] focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--rb-primary)_45%,transparent)]"
     >
-      <span
-        className={[
-          "transition-transform duration-300",
-          boxOpen ? "scale-100 rotate-0" : "scale-95 rotate-12",
-        ].join(" ")}
-      >
-        {boxOpen ? <OpenBoxIcon /> : <ClosedBoxIcon />}
-      </span>
+      <BoxIcon open={boxOpen} />
     </button>
   );
 }
 
-function OpenBoxIcon() {
+function BoxIcon({ open }: { open: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5" aria-hidden>
-      <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M3.3 7 12 12l8.7-5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M12 22V12" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function ClosedBoxIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5" aria-hidden>
-      <rect x="3" y="11" width="18" height="10" rx="2" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M7 11V7a5 5 0 0 1 10 0v4" strokeLinecap="round" strokeLinejoin="round" />
+    <svg
+      viewBox="0 0 32 32"
+      fill="none"
+      className="h-7 w-7"
+      aria-hidden
+    >
+      <path
+        d="M7 15 L16 20 L16 27 L7 22 Z"
+        fill="#f3ead6"
+        stroke="#4a3728"
+        strokeWidth="1.1"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M16 20 L25 15 L25 22 L16 27 Z"
+        fill="#e8dcc4"
+        stroke="#4a3728"
+        strokeWidth="1.1"
+        strokeLinejoin="round"
+      />
+      {open ? (
+        <path
+          d="M7 15 L16 20 L25 15 L16 10 Z"
+          fill="#f3ead6"
+          stroke="#4a3728"
+          strokeWidth="1.1"
+          strokeLinejoin="round"
+        />
+      ) : null}
+      <g
+        className="transition-transform duration-500 ease-[cubic-bezier(0.34,1.2,0.64,1)]"
+        style={{
+          transformOrigin: "16px 15px",
+          transform: open
+            ? "translate(5px, 3px) rotate(28deg)"
+            : "translate(0, 0) rotate(0deg)",
+        }}
+      >
+        <path
+          d="M7 11 L16 15 L25 11 L16 7 Z"
+          fill="#8b6914"
+          stroke="#4a3728"
+          strokeWidth="1.1"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M16 7 L25 11 L16 15"
+          fill="#6b4f2a"
+          stroke="#4a3728"
+          strokeWidth="0.8"
+          strokeLinejoin="round"
+        />
+      </g>
     </svg>
   );
 }
