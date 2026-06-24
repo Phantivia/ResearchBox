@@ -105,8 +105,7 @@ describe("academicSearchTool", () => {
     });
 
     const body = (text as { text: string }).text;
-    expect(body).toContain("NOT automatically added to the Paper Box");
-    expect(body).toContain("「纳入」");
+    expect(body).toContain("recommend_papers");
     expect(body).toContain("2401.12345");
     expect(body).toContain("Attention Is All You Need");
     expect(body).toContain("Alice, Bob");
@@ -115,12 +114,9 @@ describe("academicSearchTool", () => {
     expect(body).toContain("Second Paper");
   });
 
-  it("description states results are not auto-imported and notes arxiv HTML limitation", () => {
-    expect(academicSearchTool.description).toContain(
-      "NOT automatically added to the Paper Box",
-    );
-    expect(academicSearchTool.description).toContain("不自动进盒");
-    expect(academicSearchTool.description).toContain("纳入");
+  it("description points agent to recommend_papers and notes arxiv HTML limitation", () => {
+    expect(academicSearchTool.description).toContain("recommend_papers");
+    expect(academicSearchTool.description).toContain("引入论文推荐");
     expect(academicSearchTool.description).toContain("arXiv HTML");
   });
 });

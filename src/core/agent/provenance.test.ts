@@ -48,6 +48,7 @@ describe("provenanceForToolName", () => {
 
   it("maps academic and web tools", () => {
     expect(provenanceForToolName("academic_search")).toBe("academic");
+    expect(provenanceForToolName("recommend_papers")).toBe("academic");
     expect(provenanceForToolName("websearch")).toBe("web");
   });
 

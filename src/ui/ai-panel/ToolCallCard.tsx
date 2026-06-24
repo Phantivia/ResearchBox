@@ -1,13 +1,13 @@
 import { useState } from "react";
-import type { AcademicHit } from "@/core/agent/search/types";
 import {
   parseProvenanceFromContent,
   provenanceForToolName,
 } from "@/core/agent/provenance";
+import { parsePaperRecommendations } from "@/core/agent/recommendation/types";
 import { useTranslation } from "@/i18n";
 import { ProvenanceBadge } from "./ProvenanceBadge";
+import { PaperRecommendationCard } from "./PaperRecommendationCard";
 import { PythonCodePanel } from "./PythonCodePanel";
-import { SearchResultCard } from "./SearchResultCard";
 
 const RESULT_PREVIEW_LINES = 4;
 const RESULT_PREVIEW_CHARS = 240;
@@ -19,31 +19,6 @@ export interface ToolCallCardProps {
   result?: string;
   isError?: boolean;
   projectId?: string;
-}
-
-function parseAcademicSearchHits(result: string): AcademicHit[] | null {
-  const trimmed = result.trim();
-  if (!trimmed.startsWith("[")) {
-    return null;
-  }
-  try {
-    const parsed: unknown = JSON.parse(trimmed);
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-      return parsed === null ? null : [];
-    }
-    return parsed.every(
-      (item) =>
-        item &&
-        typeof item === "object" &&
-        typeof (item as AcademicHit).arxivId === "string" &&
-        typeof (item as AcademicHit).title === "string" &&
-        Array.isArray((item as AcademicHit).authors),
-    )
-      ? (parsed as AcademicHit[])
-      : null;
-  } catch {
-    return null;
-  }
 }
 
 function parsePythonInput(input: unknown): { code: string; purpose?: string } | null {
@@ -125,9 +100,9 @@ export function ToolCallCard({
   const pythonInput = name === "python" ? parsePythonInput(input) : null;
   const inputJson = formatJson(input);
   const formattedResult = result !== undefined ? formatResultText(result) : undefined;
-  const academicHits =
-    name === "academic_search" && formattedResult && !isError
-      ? parseAcademicSearchHits(formattedResult)
+  const paperRecommendations =
+    name === "recommend_papers" && formattedResult && !isError
+      ? parsePaperRecommendations(formattedResult)
       : null;
   const provenance =
     (formattedResult ? parseProvenanceFromContent(formattedResult) : null) ??
@@ -227,15 +202,19 @@ export function ToolCallCard({
         )}
       </div>
 
-      {academicHits && projectId ? (
+      {paperRecommendations && projectId ? (
         <div className="space-y-2 border-t border-[var(--rb-border)] px-3 py-2">
-          {academicHits.map((hit) => (
-            <SearchResultCard key={hit.arxivId} projectId={projectId} hit={hit} />
+          {paperRecommendations.map((recommendation) => (
+            <PaperRecommendationCard
+              key={recommendation.arxivId}
+              projectId={projectId}
+              recommendation={recommendation}
+            />
           ))}
         </div>
       ) : null}
 
-      {formattedResult !== undefined ? (
+      {formattedResult !== undefined && paperRecommendations === null ? (
         <div
           className={`border-t px-3 py-2 ${isError ? "border-red-200 dark:border-red-900" : "border-[var(--rb-border)]"}`}
         >

@@ -23,7 +23,7 @@ export function provenanceForToolName(toolName: string): Provenance | null {
   ) {
     return "paperbox";
   }
-  if (toolName === "academic_search") {
+  if (toolName === "academic_search" || toolName === "recommend_papers") {
     return "academic";
   }
   if (toolName === "websearch") {

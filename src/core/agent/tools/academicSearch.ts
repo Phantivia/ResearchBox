@@ -13,21 +13,17 @@ export const academicSearchInputSchema = z.strictObject({
 export type AcademicSearchInput = z.infer<typeof academicSearchInputSchema>;
 
 function formatHitCatalog(hits: AcademicHit[], query: string): string {
-  const gateNotice =
-    "Results are NOT automatically added to the Paper Box. Ask the user to review each hit and click 「纳入」 for papers they want imported — inclusion is the only legitimate entry for external literature.";
+  const agentNotice =
+    "These results are for your analysis only — they are NOT shown to the user as cards. After curating relevant hits, call recommend_papers with arxivId, abstract, and reason so the user can choose which papers to include.";
 
   if (hits.length === 0) {
-    return [
-      `Academic search for "${query}" returned no hits.`,
-      "",
-      gateNotice,
-    ].join("\n");
+    return [`Academic search for "${query}" returned no hits.`, "", agentNotice].join("\n");
   }
 
   const lines = [
     `Academic search results for "${query}" (${hits.length} hits):`,
     "",
-    gateNotice,
+    agentNotice,
     "",
   ];
 
@@ -62,17 +58,17 @@ export const academicSearchTool: Tool<
   AcademicHit[]
 > = {
   name: "academic_search",
-  description: `Search external academic literature (Semantic Scholar / OpenAlex, arXiv-centric). Returns arxivId, title, authors, and abstract for each hit. Read-only, network access; academic sources have a light threat model — inclusion into the Paper Box is the controlled action.
+  description: `Search external academic literature (Semantic Scholar / OpenAlex, arXiv-centric). Returns arxivId, title, authors, and abstract for each hit. Read-only, network access; results are for agent analysis only — NOT shown to the user as inclusion cards.
 
-IMPORTANT — results are NOT automatically added to the Paper Box. Have the user review each hit and click 「纳入」(include) for relevant papers; per-paper inclusion is the only legitimate entry for external literature into the box.
+After curating relevant hits, call recommend_papers (引入论文推荐) with arxivId, abstract, and reason so the user can review and click 「纳入」 per paper. Inclusion is the only legitimate entry for external literature into the Paper Box.
 
-Note (implementation): import currently supports arXiv papers with arXiv HTML only. When new import paths are added, update this tool description and the agent system prompt accordingly.
+Note (implementation): import currently supports arXiv papers with arXiv HTML only.
 
-中文：外部学术文献搜索（Semantic Scholar / OpenAlex，以 arXiv 为中心），返回 arxivId、标题、作者与摘要。只读、联网；学术来源威胁模型较轻，纳入盒子才是受控动作。
+中文：外部学术文献搜索（Semantic Scholar / OpenAlex，以 arXiv 为中心），返回 arxivId、标题、作者与摘要。只读、联网；结果仅供 agent 分析，**不以卡片形式展示给用户**。
 
-重要：搜索结果**不自动进盒**。请让用户逐篇审查，对相关论文点「纳入」；逐篇纳入是外部文献进入 Paper Box 的唯一合法入口。
+筛选相关文献后，请调用 recommend_papers（引入论文推荐），填写 arxivId、abstract 与推荐理由，由用户逐篇点「纳入」进盒。
 
-注释：当前纳入仅支持有 arXiv HTML 的 arXiv 论文；将来若支持新引入方式，需同步更新本说明与系统提示。`,
+注释：当前纳入仅支持有 arXiv HTML 的 arXiv 论文。`,
   inputSchema: academicSearchInputSchema,
   isReadOnly: () => true,
   isConcurrencySafe: () => true,

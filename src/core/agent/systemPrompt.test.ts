@@ -64,7 +64,7 @@ describe("buildAgentSystemPrompt", () => {
 
     expect(openPrompt).toContain("采集阶段");
     expect(openPrompt).toContain("academic_search / websearch");
-    expect(openPrompt).toContain("逐篇纳入");
+    expect(openPrompt).toContain("recommend_papers");
     expect(defaultPrompt).toContain("采集阶段");
     expect(defaultPrompt).not.toContain("研究阶段 — 优先盒内");
   });

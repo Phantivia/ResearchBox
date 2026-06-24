@@ -9,6 +9,7 @@ import { retrievalTool } from "./retrieval";
 import { createWebSearchTool } from "./webSearch";
 import { pythonTool } from "./python";
 import { fetchResultTool } from "./fetchResult";
+import { recommendPapersTool } from "./recommendPapers";
 
 export { subAgentTool } from "../subagent";
 export { academicSearchTool } from "./academicSearch";
@@ -19,6 +20,7 @@ export { pythonTool } from "./python";
 export { retrievalTool } from "./retrieval";
 export { createWebSearchTool, webSearchTool } from "./webSearch";
 export { fetchResultTool } from "./fetchResult";
+export { recommendPapersTool } from "./recommendPapers";
 
 export function buildResearchTools(opts: {
   allowWeb: boolean;
@@ -30,6 +32,7 @@ export function buildResearchTools(opts: {
     fetchResultTool,
     retrievalTool,
     academicSearchTool,
+    recommendPapersTool,
     artifactsTool,
     subAgentTool,
     ...(opts.allowWeb ? [createWebSearchTool()] : []),

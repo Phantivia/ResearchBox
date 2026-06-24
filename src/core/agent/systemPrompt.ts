@@ -43,6 +43,7 @@ ${IN_BOX_PRIORITY_RULE}
 # Using your tools
 - Use paperbox_list to see what papers are in the box (title, authors, abstract) before retrieval or external search.
 - Use paperbox_read to fetch metadata, abstracts, outlines, or full block text for one paper by routeId.
+- Use academic_search / websearch to discover external literature; curate hits, then call recommend_papers to present inclusion cards to the user.
 - Call independent read-only tools in parallel when there are no dependencies between them.
 - Do not claim to have read a paper without having retrieved its content via tools in this conversation.
 
@@ -60,7 +61,7 @@ function buildDynamicPrompt(ctx: {
   const boxOpen = ctx.boxOpen !== false;
   if (boxOpen) {
     lines.push(
-      "- Paper Box: 采集阶段 — 可用 academic_search / websearch 拉文献进盒，结果需用户逐篇纳入。",
+      "- Paper Box: 采集阶段 — 可用 academic_search / websearch 发现文献，经 recommend_papers 向用户展示推荐卡片并逐篇纳入。",
     );
   } else {
     lines.push("- Paper Box: 研究阶段 — 优先盒内、不主动外搜。");
