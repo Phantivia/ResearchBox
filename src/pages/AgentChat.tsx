@@ -505,6 +505,7 @@ export default function AgentChat() {
         content,
       };
       append(userMessage);
+      useAgentStore.getState().commitRecommendationOnSend();
       const messageIndex = useAgentStore.getState().messages.length - 1;
 
       if (needsOcr) {

@@ -21,10 +21,12 @@ import {
 } from "react";
 import type { ContextTokenBreakdown } from "@/core/agent/contextSize";
 import { modelSupportsImageInput } from "@/core/agent/multimodal";
+import { stripComposerPrefix } from "@/core/agent/recommendation/markers";
 import { useTranslation } from "@/i18n";
 import { useAgentStore } from "@/store";
 import { useSettingsStore } from "@/store/settingsStore";
 import { ApprovalSheet } from "./ApprovalSheet";
+import { RecommendationSheet } from "./RecommendationSheet";
 import { BoxSwitch } from "./BoxSwitch";
 import { ContextDetailSheet, ContextMeter } from "./ContextMeter";
 import { ReasoningEffortSelector } from "./ReasoningEffortSelector";
@@ -46,6 +48,7 @@ export interface ChatComposerProps {
   disabled: boolean;
   contextWindow: number;
   contextBreakdown: ContextTokenBreakdown;
+  projectId: string;
   onSend: (payload: ChatSendPayload) => void | Promise<void>;
   onStop?: () => void;
   stopping?: boolean;
@@ -57,12 +60,15 @@ export function ChatComposer({
   disabled,
   contextWindow,
   contextBreakdown,
+  projectId,
   onSend,
   onStop,
   stopping = false,
 }: ChatComposerProps) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState("");
+  const composerInputPrefix = useAgentStore((state) => state.composerInputPrefix);
+  const hasRecommendationSession = useAgentStore((state) => state.recommendationSession !== null);
   const [attachments, setAttachments] = useState<PendingImageAttachment[]>([]);
   const [contextDetailOpen, setContextDetailOpen] = useState(false);
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
@@ -73,10 +79,22 @@ export function ChatComposer({
   const attachmentsRef = useRef(attachments);
   attachmentsRef.current = attachments;
   const hasPendingApproval = useAgentStore((state) => state.pendingApprovals.length > 0);
+  const prefixRef = useRef(composerInputPrefix);
   const getActiveProvider = useSettingsStore((state) => state.getActiveProvider);
   const imageInputSupported = modelSupportsImageInput(getActiveProvider()?.openRouterMeta);
   const attachmentInputId = useId();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (prefixRef.current === composerInputPrefix) {
+      return;
+    }
+    prefixRef.current = composerInputPrefix;
+    setDraft((current) => {
+      const body = stripComposerPrefix(current);
+      return composerInputPrefix ? `${composerInputPrefix}${body}` : body;
+    });
+  }, [composerInputPrefix]);
 
   useEffect(() => {
     if (hasPendingApproval && contextDetailOpen) {
@@ -216,6 +234,7 @@ export function ChatComposer({
       onDrop={handleDrop}
     >
       <ApprovalSheet />
+      {hasRecommendationSession ? <RecommendationSheet projectId={projectId} /> : null}
       <ContextDetailSheet
         breakdown={contextBreakdown}
         contextWindow={contextWindow}

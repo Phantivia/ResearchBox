@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AgentMessage, ContentBlock } from "@/core/agent/types";
 import { BOUNDARY_MARKER_PREFIX } from "@/core/agent/boundary";
+import { parseRecommendationMarker, isRecommendationMarker } from "@/core/agent/recommendation/markers";
+import { parsePaperRecommendations } from "@/core/agent/recommendation/types";
 import { extractCopyableText } from "@/core/agent/messageText";
 import { extractStreamingPythonCode } from "@/core/agent/streamingToolInput";
 import { useTranslation } from "@/i18n";
@@ -12,6 +14,8 @@ import { ArtifactDetailPanel } from "./ArtifactDetailPanel";
 import { ChatComposer, type ChatSendPayload } from "./ChatComposer";
 import type { PendingImageAttachment } from "./imageAttachments";
 import { BoundaryNotice } from "./BoundaryNotice";
+import { RecommendationNotice } from "./RecommendationNotice";
+import { RecommendationPanel } from "./RecommendationPanel";
 import { ChatMessageActions } from "./ChatMessageActions";
 import { MessageBubble, UserMessageShell } from "./MessageBubble";
 import { StreamingPythonToolCard } from "./StreamingPythonToolCard";
@@ -92,6 +96,7 @@ function renderAssistantContent(
         return (
           <ToolCallCard
             key={block.id}
+            toolUseId={block.id}
             name={block.name}
             input={block.input}
             stage={running?.stage}
@@ -133,6 +138,10 @@ function renderMessage(
   runningTools: Record<string, { name: string; stage: string }>,
   projectId: string,
   boundaryLabel: string,
+  recommendationLabels: {
+    included: (arxivId: string) => string;
+    ignored: (arxivId: string) => string;
+  },
   actionsDisabled: boolean,
   labels: {
     copy: string;
@@ -213,6 +222,21 @@ function renderMessage(
   const display = parseUserMessageDisplay(message);
   const text = display.legacyOcrSections.length > 0 || display.ocrItems.length > 0 ? display.text : rawText;
   const isBoundaryMarker = rawText.startsWith(BOUNDARY_MARKER_PREFIX);
+  const recommendationMarker = isRecommendationMarker(message)
+    ? parseRecommendationMarker(rawText)
+    : null;
+
+  if (recommendationMarker) {
+    const label =
+      recommendationMarker.decision === "included"
+        ? recommendationLabels.included(recommendationMarker.arxivId)
+        : recommendationLabels.ignored(recommendationMarker.arxivId);
+    return (
+      <div key={index}>
+        <RecommendationNotice label={label} />
+      </div>
+    );
+  }
 
   if (isBoundaryMarker) {
     return (
@@ -331,10 +355,38 @@ export function AgentChatPanel({
   const streamingToolCalls = useAgentStore((state) => state.streamingToolCalls);
   const runningTools = useAgentStore((state) => state.runningTools);
   const contextBreakdown = useAgentStore((state) => state.contextBreakdown);
+  const openRecommendationSession = useAgentStore((state) => state.openRecommendationSession);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const openedRecommendationToolsRef = useRef(new Set<string>());
   const [editSession, setEditSession] = useState<UserMessageEditSession | null>(null);
 
   const toolResults = useMemo(() => buildToolResultMap(messages), [messages]);
+
+  useEffect(() => {
+    for (const message of messages) {
+      if (message.role !== "assistant") {
+        continue;
+      }
+      for (const block of message.content) {
+        if (block.type !== "tool_use" || block.name !== "recommend_papers") {
+          continue;
+        }
+        if (openedRecommendationToolsRef.current.has(block.id)) {
+          continue;
+        }
+        const resultEntry = toolResults.get(block.id);
+        if (!resultEntry || resultEntry.isError) {
+          continue;
+        }
+        const papers = parsePaperRecommendations(resultEntry.result);
+        if (!papers || papers.length === 0) {
+          continue;
+        }
+        openedRecommendationToolsRef.current.add(block.id);
+        openRecommendationSession(block.id, papers);
+      }
+    }
+  }, [messages, openRecommendationSession, toolResults]);
   const streamingPythonCalls = useMemo(
     () =>
       Object.entries(streamingToolCalls).filter(([, call]) => call.name === "python"),
@@ -426,6 +478,10 @@ export function AgentChatPanel({
                 runningTools,
                 projectId,
                 t("agent.box.boundaryLabel"),
+                {
+                  included: (arxivId) => t("agent.recommend.noticeIncluded", { arxivId }),
+                  ignored: (arxivId) => t("agent.recommend.noticeIgnored", { arxivId }),
+                },
                 actionsDisabled,
                 actionLabels,
                 editSession,
@@ -500,6 +556,7 @@ export function AgentChatPanel({
           disabled={disabled || isEditingUserMessage}
           contextWindow={contextWindow}
           contextBreakdown={contextBreakdown}
+          projectId={projectId}
           onSend={onSend}
           onStop={onStop}
           stopping={stopping}
@@ -507,6 +564,7 @@ export function AgentChatPanel({
         </div>
       </div>
 
+      <RecommendationPanel projectId={projectId} />
       <ArtifactDetailPanel />
     </div>
   );

@@ -3,8 +3,22 @@ import { buildBoundaryMarker, isBoundaryMarker } from "@/core/agent/boundary";
 import { abortActiveAgentRun } from "@/core/agent/runController";
 import type { ContextTokenBreakdown } from "@/core/agent/contextSize";
 import { EMPTY_CONTEXT_BREAKDOWN } from "@/core/agent/contextSize";
+import {
+  buildComposerPrefix,
+  buildIgnoreMarker,
+  buildIncludeMarker,
+  type RecommendationDecision,
+  removeEditableMarkersForArxiv,
+} from "@/core/agent/recommendation/markers";
+import type { PaperRecommendation } from "@/core/agent/recommendation/types";
 import type { AgentSession } from "@/core/agent/session";
 import type { AgentMessage, ApprovalRequest, ContentBlock } from "@/core/agent/types";
+
+export type RecommendationSession = {
+  toolUseId: string;
+  papers: PaperRecommendation[];
+  decisions: Record<string, RecommendationDecision>;
+};
 
 export type PendingApproval = ApprovalRequest & {
   id: string;
@@ -35,6 +49,8 @@ interface AgentStoreState {
   artifactsVersion: number;
   sessionsVersion: number;
   artifactPanel: { artifactId: string } | null;
+  recommendationSession: RecommendationSession | null;
+  composerInputPrefix: string;
   skipSessionAutoRestore: boolean;
   agentRunning: boolean;
   agentStopping: boolean;
@@ -60,6 +76,13 @@ interface AgentStoreActions {
   bumpArtifactsVersion: () => void;
   openArtifactPanel: (artifactId: string) => void;
   closeArtifactPanel: () => void;
+  openRecommendationSession: (toolUseId: string, papers: PaperRecommendation[]) => void;
+  closeRecommendationSession: () => void;
+  setRecommendationDecision: (
+    arxivId: string,
+    decision: RecommendationDecision | null,
+  ) => void;
+  commitRecommendationOnSend: () => void;
   loadSession: (session: AgentSession) => void;
   startNewSession: (options?: StartNewSessionOptions) => void;
   setCurrentSessionId: (id: number | null) => void;
@@ -83,6 +106,8 @@ const initialState: AgentStoreState = {
   artifactsVersion: 0,
   sessionsVersion: 0,
   artifactPanel: null,
+  recommendationSession: null,
+  composerInputPrefix: "",
   skipSessionAutoRestore: false,
   agentRunning: false,
   agentStopping: false,
@@ -231,6 +256,83 @@ export const useAgentStore = create<AgentStoreState & AgentStoreActions>()((set)
 
   closeArtifactPanel: () => set({ artifactPanel: null }),
 
+  openRecommendationSession: (toolUseId, papers) =>
+    set({
+      recommendationSession: {
+        toolUseId,
+        papers,
+        decisions: {},
+      },
+    }),
+
+  closeRecommendationSession: () =>
+    set({
+      recommendationSession: null,
+    }),
+
+  setRecommendationDecision: (arxivId, decision) =>
+    set((state) => {
+      if (!state.recommendationSession) {
+        return state;
+      }
+
+      let messages = removeEditableMarkersForArxiv(state.messages, arxivId);
+      const decisions = { ...state.recommendationSession.decisions };
+
+      if (decision === null) {
+        delete decisions[arxivId];
+      } else {
+        decisions[arxivId] = decision;
+        messages = [
+          ...messages,
+          decision === "included"
+            ? buildIncludeMarker(arxivId)
+            : buildIgnoreMarker(arxivId),
+        ];
+      }
+
+      return {
+        messages,
+        recommendationSession: {
+          ...state.recommendationSession,
+          decisions,
+        },
+        composerInputPrefix: buildComposerPrefix(decisions),
+      };
+    }),
+
+  commitRecommendationOnSend: () =>
+    set((state) => {
+      if (!state.recommendationSession) {
+        return { composerInputPrefix: "" };
+      }
+
+      const remainingPapers = state.recommendationSession.papers.filter(
+        (paper) => state.recommendationSession!.decisions[paper.arxivId] !== "ignored",
+      );
+      const decisions = Object.fromEntries(
+        Object.entries(state.recommendationSession.decisions).filter(
+          ([arxivId]) => remainingPapers.some((paper) => paper.arxivId === arxivId),
+        ),
+      ) as Record<string, RecommendationDecision>;
+
+      if (remainingPapers.length === 0) {
+        return {
+          recommendationSession: null,
+          composerInputPrefix: "",
+        };
+      }
+
+      return {
+        recommendationSession: {
+          ...state.recommendationSession,
+          papers: remainingPapers,
+          decisions,
+        },
+        composerInputPrefix: "",
+      };
+    }),
+
   loadSession: (session) => {
     const state = useAgentStore.getState();
     if (state.agentRunning && session.id !== state.currentSessionId) {
@@ -244,6 +346,8 @@ export const useAgentStore = create<AgentStoreState & AgentStoreActions>()((set)
       streamingToolCalls: {},
       streamingText: "",
       streamingThinking: "",
+      recommendationSession: null,
+      composerInputPrefix: "",
     });
   },
 
@@ -274,6 +378,8 @@ export const useAgentStore = create<AgentStoreState & AgentStoreActions>()((set)
         artifactsVersion: state.artifactsVersion,
         sessionsVersion: state.sessionsVersion,
         artifactPanel: state.artifactPanel,
+        recommendationSession: null,
+        composerInputPrefix: "",
         logoRevealGeneration: options?.revealLogo
           ? state.logoRevealGeneration + 1
           : state.logoRevealGeneration,

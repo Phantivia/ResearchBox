@@ -5,8 +5,8 @@ import {
 } from "@/core/agent/provenance";
 import { parsePaperRecommendations } from "@/core/agent/recommendation/types";
 import { useTranslation } from "@/i18n";
+import { useAgentStore } from "@/store";
 import { ProvenanceBadge } from "./ProvenanceBadge";
-import { PaperRecommendationCard } from "./PaperRecommendationCard";
 import { ExpandChevron } from "./ExpandChevron";
 import { PythonCodePanel } from "./PythonCodePanel";
 
@@ -26,6 +26,7 @@ export interface ToolCallCardProps {
   result?: string;
   isError?: boolean;
   projectId?: string;
+  toolUseId?: string;
 }
 
 function parsePythonInput(input: unknown): { code: string; purpose?: string } | null {
@@ -99,8 +100,10 @@ export function ToolCallCard({
   result,
   isError = false,
   projectId,
+  toolUseId,
 }: ToolCallCardProps) {
   const { t } = useTranslation();
+  const openRecommendationSession = useAgentStore((state) => state.openRecommendationSession);
   const [cardExpanded, setCardExpanded] = useState(false);
   const [inputExpanded, setInputExpanded] = useState(false);
   const [resultExpanded, setResultExpanded] = useState(false);
@@ -213,15 +216,20 @@ export function ToolCallCard({
         )}
       </div>
 
-      {paperRecommendations && projectId ? (
-        <div className="space-y-2 px-0 py-1">
-          {paperRecommendations.map((recommendation) => (
-            <PaperRecommendationCard
-              key={recommendation.arxivId}
-              projectId={projectId}
-              recommendation={recommendation}
-            />
-          ))}
+      {paperRecommendations && projectId && toolUseId ? (
+        <div className="px-0 py-1">
+          <button
+            type="button"
+            onClick={() => openRecommendationSession(toolUseId, paperRecommendations)}
+            className="flex w-full items-center justify-between gap-2 rounded-lg border border-[var(--rb-border)] bg-[color-mix(in_srgb,var(--rb-border)_12%,var(--rb-card-bg))] px-3 py-2 text-left text-xs transition-colors hover:bg-[color-mix(in_srgb,var(--rb-border)_24%,var(--rb-card-bg))]"
+          >
+            <span className="text-[var(--rb-text-primary)]">
+              {t("agent.recommend.toolSummary", { count: paperRecommendations.length })}
+            </span>
+            <span className="shrink-0 font-medium text-[var(--rb-primary)]">
+              {t("agent.recommend.openPanel")}
+            </span>
+          </button>
         </div>
       ) : null}
 

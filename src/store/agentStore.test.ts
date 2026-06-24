@@ -241,6 +241,50 @@ describe("useAgentStore", () => {
     expect(useAgentStore.getState().boxOpen).toBe(true);
   });
 
+  it("tracks recommendation decisions with editable markers and composer prefix", () => {
+    useAgentStore.getState().openRecommendationSession("tool-1", [
+      { arxivId: "2401.1", abstract: "a", reason: "r1" },
+      { arxivId: "2401.2", abstract: "b", reason: "r2" },
+    ]);
+
+    useAgentStore.getState().setRecommendationDecision("2401.1", "included");
+    let state = useAgentStore.getState();
+    expect(state.messages).toHaveLength(1);
+    expect(state.composerInputPrefix).toContain("2401.1");
+    expect(state.recommendationSession?.decisions["2401.1"]).toBe("included");
+
+    useAgentStore.getState().setRecommendationDecision("2401.1", "ignored");
+    state = useAgentStore.getState();
+    expect(state.messages).toHaveLength(1);
+    expect(state.messages[0]?.content[0]).toEqual({
+      type: "text",
+      text: "【已忽略推荐】2401.1",
+    });
+    expect(state.composerInputPrefix).toContain("已忽略：2401.1");
+
+    useAgentStore.getState().setRecommendationDecision("2401.1", null);
+    state = useAgentStore.getState();
+    expect(state.messages).toHaveLength(0);
+    expect(state.composerInputPrefix).toBe("");
+  });
+
+  it("commitRecommendationOnSend removes ignored papers from the session", () => {
+    useAgentStore.getState().openRecommendationSession("tool-1", [
+      { arxivId: "2401.1", abstract: "a", reason: "r1" },
+      { arxivId: "2401.2", abstract: "b", reason: "r2" },
+    ]);
+    useAgentStore.getState().setRecommendationDecision("2401.1", "included");
+    useAgentStore.getState().setRecommendationDecision("2401.2", "ignored");
+
+    useAgentStore.getState().commitRecommendationOnSend();
+
+    const state = useAgentStore.getState();
+    expect(state.composerInputPrefix).toBe("");
+    expect(state.recommendationSession?.papers).toHaveLength(1);
+    expect(state.recommendationSession?.papers[0]?.arxivId).toBe("2401.1");
+    expect(state.recommendationSession?.decisions).toEqual({ "2401.1": "included" });
+  });
+
   it("tracks streaming tool input until cleared", () => {
     useAgentStore.getState().startStreamingTool("tool-1", "python");
     useAgentStore.getState().appendStreamingToolInput("tool-1", '{"code":"print(');
