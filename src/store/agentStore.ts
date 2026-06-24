@@ -16,6 +16,7 @@ interface AgentStoreState {
   streamingText: string;
   streamingThinking: string;
   contextChars: number;
+  artifactsVersion: number;
 }
 
 interface AgentStoreActions {
@@ -31,6 +32,7 @@ interface AgentStoreActions {
   setBoxOpen: (open: boolean) => void;
   openBox: () => void;
   closeBox: () => void;
+  bumpArtifactsVersion: () => void;
   reset: () => void;
 }
 
@@ -43,6 +45,7 @@ const initialState: AgentStoreState = {
   streamingText: "",
   streamingThinking: "",
   contextChars: 0,
+  artifactsVersion: 0,
 };
 
 export const useAgentStore = create<AgentStoreState & AgentStoreActions>()((set) => ({
@@ -121,6 +124,11 @@ export const useAgentStore = create<AgentStoreState & AgentStoreActions>()((set)
     set((state) => ({
       boxOpen: false,
       messages: [...state.messages, buildBoundaryMarker()],
+    })),
+
+  bumpArtifactsVersion: () =>
+    set((state) => ({
+      artifactsVersion: state.artifactsVersion + 1,
     })),
 
   reset: () => set(initialState),

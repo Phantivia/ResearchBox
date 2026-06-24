@@ -89,6 +89,13 @@ describe("useAgentStore", () => {
     expect(state.streamingText).toBe("");
     expect(state.streamingThinking).toBe("");
     expect(state.contextChars).toBe(0);
+    expect(state.artifactsVersion).toBe(0);
+  });
+
+  it("bumpArtifactsVersion increments artifactsVersion", () => {
+    expect(useAgentStore.getState().artifactsVersion).toBe(0);
+    useAgentStore.getState().bumpArtifactsVersion();
+    expect(useAgentStore.getState().artifactsVersion).toBe(1);
   });
 
   it("defaults boxOpen to true", () => {

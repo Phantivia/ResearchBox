@@ -1,5 +1,7 @@
 export { AgentChatPanel } from "./AgentChatPanel";
 export { ApprovalDialog } from "./ApprovalDialog";
+export { ArtifactList, type ArtifactListProps } from "./ArtifactList";
+export { ArtifactPreview, type ArtifactPreviewProps } from "./ArtifactPreview";
 export { AssistantAvatar } from "./AssistantAvatar";
 export { BoxSwitch } from "./BoxSwitch";
 export { ChatComposer, type ChatComposerProps } from "./ChatComposer";

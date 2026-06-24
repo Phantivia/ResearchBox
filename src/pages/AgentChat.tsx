@@ -83,14 +83,23 @@ function buildAgentStoreAdapter(): AgentStore {
   };
 }
 
-function processToolBlocks(message: AgentMessage, runningLabel: string): void {
-  const { setRunningTool, clearRunningTool } = useAgentStore.getState();
+function processToolBlocks(
+  message: AgentMessage,
+  runningLabel: string,
+  toolNameByUseId: Map<string, string>,
+): void {
+  const { setRunningTool, clearRunningTool, bumpArtifactsVersion } = useAgentStore.getState();
   for (const block of message.content) {
     if (block.type === "tool_use") {
+      toolNameByUseId.set(block.id, block.name);
       setRunningTool(block.id, { name: block.name, stage: runningLabel });
     }
     if (block.type === "tool_result") {
       clearRunningTool(block.toolUseId);
+      const toolName = toolNameByUseId.get(block.toolUseId);
+      if (toolName === "artifacts" && !block.isError) {
+        bumpArtifactsVersion();
+      }
     }
   }
 }
@@ -130,6 +139,7 @@ export default function AgentChat() {
   const [sending, setSending] = useState(false);
   const [stopping, setStopping] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const toolNameByUseIdRef = useRef(new Map<string, string>());
 
   useEffect(() => {
     if (!settingsLoaded) {
@@ -287,7 +297,7 @@ export default function AgentChat() {
             accumulatedThinking = "";
           }
           append(message);
-          processToolBlocks(message, runningLabel);
+          processToolBlocks(message, runningLabel, toolNameByUseIdRef.current);
           step = await generator.next();
         }
 

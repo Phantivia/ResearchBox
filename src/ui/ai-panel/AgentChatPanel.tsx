@@ -9,6 +9,7 @@ import { MessageBubble } from "./MessageBubble";
 import { BoxSwitch } from "./BoxSwitch";
 import { PermissionModeSwitch } from "./PermissionModeSwitch";
 import { ThinkingBlock } from "./ThinkingBlock";
+import { ArtifactList } from "./ArtifactList";
 import { ToolCallCard } from "./ToolCallCard";
 
 export interface AgentChatPanelProps {
@@ -171,6 +172,7 @@ export function AgentChatPanel({
           <PermissionModeSwitch className="min-w-0 flex-1" />
         </div>
       </div>
+      <ArtifactList projectId={projectId} />
       <ContextMeter tokens={contextChars} contextWindow={contextWindow} />
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4">
