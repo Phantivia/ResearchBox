@@ -220,6 +220,7 @@ describe("webSearchTool", () => {
     const description = buildWebSearchDescription(new Date("2026-06-24T12:00:00Z"));
     expect(description).toContain("June 2026");
     expect(description).toContain("Sources:");
+    expect(description).toContain("Limited Parallel: Maximum 3 websearch call per time");
     expect(description).toContain("explicit failure message");
     expect(webSearchTool.description).toContain("Sources:");
   });

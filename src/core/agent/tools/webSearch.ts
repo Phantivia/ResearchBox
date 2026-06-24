@@ -26,6 +26,8 @@ export function buildWebSearchDescription(now = new Date()): string {
 
   return `Search the open web for up-to-date information beyond the Paper Box (news, documentation, general knowledge). Read-only, network access; results are tagged [来源: web].
 
+Limited Parallel: Maximum 3 websearch call per time.
+
 IMPORTANT — citation requirement:
 - After answering the user, you MUST include a "Sources:" section listing relevant URLs as markdown hyperlinks: [Title](URL)
 - This is MANDATORY — never skip sources when search results were used
@@ -36,6 +38,7 @@ IMPORTANT — use the correct year in search queries:
 Note: Requires a user-configured Tavily or Perplexity API key in Settings. If search cannot run (missing key, network error, etc.), the tool returns an explicit failure message — explain that to the user; do NOT pretend you searched the web.
 
 中文：开放域网页搜索，获取论文盒子之外的实时信息。只读、可并行；结果带 [来源: web] 标签。
+Limited Parallel：每次最多并行 3 次 websearch 调用。
 重要：回答末尾必须附 "Sources:" 段落，以 [标题](URL) 列出引用来源。
 检索近期信息时请使用正确年份（当前为 ${monthYear}）。
 未配置 API key 或请求失败时，工具会返回明确说明，勿假装已联网搜索。`;
