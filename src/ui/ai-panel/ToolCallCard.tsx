@@ -12,6 +12,12 @@ import { PythonCodePanel } from "./PythonCodePanel";
 const RESULT_PREVIEW_LINES = 4;
 const RESULT_PREVIEW_CHARS = 240;
 
+const PROVENANCE_I18N = {
+  paperbox: "agent.provenance.paperbox",
+  academic: "agent.provenance.academic",
+  web: "agent.provenance.web",
+} as const;
+
 export interface ToolCallCardProps {
   name: string;
   input: unknown;
@@ -94,6 +100,7 @@ export function ToolCallCard({
   projectId,
 }: ToolCallCardProps) {
   const { t } = useTranslation();
+  const [cardExpanded, setCardExpanded] = useState(false);
   const [inputExpanded, setInputExpanded] = useState(false);
   const [resultExpanded, setResultExpanded] = useState(false);
   const running = result === undefined;
@@ -116,15 +123,30 @@ export function ToolCallCard({
     : "bg-[color-mix(in_srgb,var(--rb-border)_35%,var(--rb-page-bg))]";
 
   return (
-    <div className={`w-full min-w-0 rounded-lg border ${borderClass} ${headerBg}`}>
-      <div className="flex items-center gap-2 px-3 py-2 text-sm">
-        <span className="shrink-0 font-medium text-[var(--rb-text-primary)]">
+    <div className={`w-full min-w-0 rounded-lg border ${borderClass}`}>
+      <button
+        type="button"
+        onClick={() => setCardExpanded((value) => !value)}
+        className={`flex w-full min-w-0 items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-[color-mix(in_srgb,var(--rb-border)_50%,var(--rb-page-bg))] ${headerBg}`}
+        aria-expanded={cardExpanded}
+      >
+        <span
+          className={`shrink-0 transition-transform duration-200 ${cardExpanded ? "rotate-90" : ""}`}
+          aria-hidden
+        >
+          ▶
+        </span>
+        <span className="min-w-0 truncate font-medium text-[var(--rb-text-primary)]">
           {name}
         </span>
-        {provenance ? <ProvenanceBadge provenance={provenance} /> : null}
+        {provenance ? (
+          <span className="shrink-0 text-xs text-[var(--rb-text-secondary)]">
+            {t(PROVENANCE_I18N[provenance])}
+          </span>
+        ) : null}
         {running ? (
           <span className="inline-flex shrink-0 items-center gap-1.5 text-[var(--rb-text-secondary)]">
-            {stage ?? t("agent.tool.running")}
+            {cardExpanded ? (stage ?? t("agent.tool.running")) : null}
             <RunningDots />
           </span>
         ) : null}
@@ -133,13 +155,18 @@ export function ToolCallCard({
             {t("agent.tool.error")}
           </span>
         ) : null}
-        {!running && !isError ? (
+        {!running && !isError && cardExpanded ? (
           <span className="shrink-0 text-xs text-[var(--rb-text-secondary)]">
             {t("agent.tool.done")}
           </span>
         ) : null}
-      </div>
+      </button>
 
+      <div
+        className="grid transition-[grid-template-rows] duration-200 ease-in-out"
+        style={{ gridTemplateRows: cardExpanded ? "1fr" : "0fr" }}
+      >
+        <div className="overflow-hidden">
       <div className="border-t border-[var(--rb-border)] px-3 py-2">
         {pythonInput ? (
           <>
@@ -231,6 +258,7 @@ export function ToolCallCard({
               ▶
             </span>
             {t("agent.tool.result")}
+            {provenance ? <ProvenanceBadge provenance={provenance} /> : null}
           </button>
           <div
             className="grid transition-[grid-template-rows] duration-200 ease-in-out"
@@ -259,6 +287,8 @@ export function ToolCallCard({
           ) : null}
         </div>
       ) : null}
+        </div>
+      </div>
     </div>
   );
 }
