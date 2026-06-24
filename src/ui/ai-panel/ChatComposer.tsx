@@ -46,6 +46,7 @@ export interface ChatComposerProps {
   onSend: (payload: ChatSendPayload) => void | Promise<void>;
   onStop?: () => void;
   stopping?: boolean;
+  draftSeed?: { text: string; images: PendingImageAttachment[]; nonce: number } | null;
 }
 
 const MAX_ATTACHMENTS = 10;
@@ -57,6 +58,7 @@ export function ChatComposer({
   onSend,
   onStop,
   stopping = false,
+  draftSeed = null,
 }: ChatComposerProps) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState("");
@@ -71,6 +73,26 @@ export function ChatComposer({
   attachmentsRef.current = attachments;
   const hasPendingApproval = useAgentStore((state) => state.pendingApprovals.length > 0);
   const attachmentInputId = useId();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (draftSeed == null) {
+      return;
+    }
+    setDraft(draftSeed.text);
+    setAttachments((current) => {
+      releaseAttachmentPreviews(current);
+      return draftSeed.images.map((image) => ({ ...image }));
+    });
+    requestAnimationFrame(() => {
+      const textarea = textareaRef.current;
+      if (!textarea) {
+        return;
+      }
+      textarea.focus();
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    });
+  }, [draftSeed]);
 
   useEffect(() => {
     if (hasPendingApproval && contextDetailOpen) {
@@ -257,6 +279,7 @@ export function ChatComposer({
 
       <div className="relative rounded-2xl border border-[var(--rb-border)] bg-[var(--rb-page-bg)] shadow-sm">
         <textarea
+          ref={textareaRef}
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={handleKeyDown}

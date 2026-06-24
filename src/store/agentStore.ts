@@ -37,6 +37,7 @@ interface AgentStoreState {
 
 interface AgentStoreActions {
   append: (m: AgentMessage) => void;
+  truncateMessages: (toIndex: number) => void;
   setStreaming: (partial: { text?: string; thinking?: string }) => void;
   commitStreamingToMessage: () => void;
   enqueueApproval: (req: ApprovalRequest & { resolve: (ok: boolean) => void }) => string;
@@ -82,6 +83,11 @@ export const useAgentStore = create<AgentStoreState & AgentStoreActions>()((set)
   append: (m) =>
     set((state) => ({
       messages: [...state.messages, m],
+    })),
+
+  truncateMessages: (toIndex) =>
+    set((state) => ({
+      messages: state.messages.slice(0, toIndex),
     })),
 
   setStreaming: (partial) =>

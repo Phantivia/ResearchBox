@@ -7,6 +7,24 @@ beforeEach(() => {
 });
 
 describe("useAgentStore", () => {
+  it("truncateMessages keeps messages before index", () => {
+    useAgentStore.getState().append({
+      role: "user",
+      content: [{ type: "text", text: "first" }],
+    });
+    useAgentStore.getState().append({
+      role: "assistant",
+      content: [{ type: "text", text: "second" }],
+    });
+    useAgentStore.getState().truncateMessages(1);
+    expect(useAgentStore.getState().messages).toEqual([
+      {
+        role: "user",
+        content: [{ type: "text", text: "first" }],
+      },
+    ]);
+  });
+
   it("append adds a message to messages", () => {
     const message = {
       role: "user" as const,

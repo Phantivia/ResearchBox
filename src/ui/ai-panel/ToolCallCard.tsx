@@ -7,6 +7,7 @@ import { parsePaperRecommendations } from "@/core/agent/recommendation/types";
 import { useTranslation } from "@/i18n";
 import { ProvenanceBadge } from "./ProvenanceBadge";
 import { PaperRecommendationCard } from "./PaperRecommendationCard";
+import { ExpandChevron } from "./ExpandChevron";
 import { PythonCodePanel } from "./PythonCodePanel";
 
 const RESULT_PREVIEW_LINES = 4;
@@ -128,12 +129,7 @@ export function ToolCallCard({
         className={`flex w-full min-w-0 items-center gap-2 px-0 py-1 text-left text-xs transition-colors hover:text-[var(--rb-text-primary)] ${headerTextClass}`}
         aria-expanded={cardExpanded}
       >
-        <span
-          className={`shrink-0 transition-transform duration-200 ${cardExpanded ? "rotate-90" : ""}`}
-          aria-hidden
-        >
-          ▶
-        </span>
+        <ExpandChevron expanded={cardExpanded} />
         <span className="min-w-0 truncate font-medium">
           {name}
         </span>
@@ -174,12 +170,7 @@ export function ToolCallCard({
               className="mb-2 flex w-full items-center gap-2 text-left text-xs font-medium text-[var(--rb-text-secondary)] hover:text-[var(--rb-text-primary)]"
               aria-expanded={inputExpanded}
             >
-              <span
-                className={`shrink-0 transition-transform duration-200 ${inputExpanded ? "rotate-90" : ""}`}
-                aria-hidden
-              >
-                ▶
-              </span>
+              <ExpandChevron expanded={inputExpanded} />
               {t("agent.tool.input")}
             </button>
             <PythonCodePanel
@@ -196,12 +187,7 @@ export function ToolCallCard({
               className="flex w-full items-center gap-2 text-left text-xs font-medium text-[var(--rb-text-secondary)] hover:text-[var(--rb-text-primary)]"
               aria-expanded={inputExpanded}
             >
-              <span
-                className={`shrink-0 transition-transform duration-200 ${inputExpanded ? "rotate-90" : ""}`}
-                aria-hidden
-              >
-                ▶
-              </span>
+              <ExpandChevron expanded={inputExpanded} />
               {t("agent.tool.input")}
             </button>
             <div
@@ -247,12 +233,7 @@ export function ToolCallCard({
             className={`flex w-full items-center gap-2 text-left text-xs font-medium ${isError ? "text-red-600 dark:text-red-400" : "text-[var(--rb-text-secondary)] hover:text-[var(--rb-text-primary)]"}`}
             aria-expanded={resultExpanded}
           >
-            <span
-              className={`shrink-0 transition-transform duration-200 ${resultExpanded ? "rotate-90" : ""}`}
-              aria-hidden
-            >
-              ▶
-            </span>
+            <ExpandChevron expanded={resultExpanded} />
             {t("agent.tool.result")}
             {provenance ? <ProvenanceBadge provenance={provenance} /> : null}
           </button>

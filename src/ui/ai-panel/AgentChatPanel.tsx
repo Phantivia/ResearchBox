@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { AgentMessage, ContentBlock } from "@/core/agent/types";
 import { BOUNDARY_MARKER_PREFIX } from "@/core/agent/boundary";
+import { extractCopyableText } from "@/core/agent/messageText";
 import { extractStreamingPythonCode } from "@/core/agent/streamingToolInput";
 import { useTranslation } from "@/i18n";
 import { useAgentStore } from "@/store";
@@ -9,8 +10,10 @@ import { AssistantText } from "./AssistantText";
 import { ArtifactCard } from "./ArtifactCard";
 import { ArtifactDetailPanel } from "./ArtifactDetailPanel";
 import { ChatComposer, type ChatSendPayload } from "./ChatComposer";
+import type { PendingImageAttachment } from "./imageAttachments";
 import { BoundaryNotice } from "./BoundaryNotice";
-import { MessageBubble } from "./MessageBubble";
+import { ChatMessageActions } from "./ChatMessageActions";
+import { MessageBubble, UserMessageShell } from "./MessageBubble";
 import { StreamingPythonToolCard } from "./StreamingPythonToolCard";
 import { ThinkingBlock } from "./ThinkingBlock";
 import { ToolCallCard } from "./ToolCallCard";
@@ -22,6 +25,10 @@ export interface AgentChatPanelProps {
   onSend: (payload: ChatSendPayload) => void | Promise<void>;
   onStop?: () => void;
   stopping?: boolean;
+  onRetryUserMessage: (index: number) => void;
+  onEditUserMessage: (index: number) => void;
+  onRetryAssistantMessage: (index: number) => void;
+  draftSeed?: { text: string; images: PendingImageAttachment[]; nonce: number } | null;
 }
 
 type ToolResultEntry = {
@@ -98,6 +105,14 @@ function isUiVisibleMessage(message: AgentMessage): boolean {
   return true;
 }
 
+async function copyMessageText(message: AgentMessage): Promise<void> {
+  const text = extractCopyableText(message);
+  if (!text) {
+    return;
+  }
+  await navigator.clipboard.writeText(text);
+}
+
 function renderMessage(
   message: AgentMessage,
   index: number,
@@ -105,6 +120,15 @@ function renderMessage(
   runningTools: Record<string, { name: string; stage: string }>,
   projectId: string,
   boundaryLabel: string,
+  actionsDisabled: boolean,
+  labels: {
+    copy: string;
+    retry: string;
+    edit: string;
+  },
+  onRetryUserMessage: (index: number) => void,
+  onEditUserMessage: (index: number) => void,
+  onRetryAssistantMessage: (index: number) => void,
 ) {
   if (!isUiVisibleMessage(message)) {
     return null;
@@ -129,11 +153,30 @@ function renderMessage(
   }
 
   if (message.role === "assistant") {
+    const copyText = extractCopyableText(message);
+    const showActions = !actionsDisabled;
+
     return (
-      <div key={index} className="flex gap-2">
+      <div key={index} className="group relative flex gap-2">
         <AssistantAvatar />
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
-          {renderAssistantContent(message.content, toolResults, runningTools, projectId)}
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 flex-col gap-2">
+            {renderAssistantContent(message.content, toolResults, runningTools, projectId)}
+          </div>
+          {showActions ? (
+            <ChatMessageActions
+              align="start"
+              variant="assistant"
+              copyLabel={labels.copy}
+              retryLabel={labels.retry}
+              onCopy={() => {
+                if (copyText) {
+                  void copyMessageText(message);
+                }
+              }}
+              onRetry={() => onRetryAssistantMessage(index)}
+            />
+          ) : null}
         </div>
       </div>
     );
@@ -148,27 +191,46 @@ function renderMessage(
   const text = textBlocks.join("\n\n");
   const isBoundaryMarker = text.startsWith(BOUNDARY_MARKER_PREFIX);
 
+  if (isBoundaryMarker) {
+    return (
+      <div key={index}>
+        <BoundaryNotice label={boundaryLabel} />
+      </div>
+    );
+  }
+
+  const hasContent = text.length > 0 || imageBlocks.length > 0;
+  if (!hasContent) {
+    return null;
+  }
+
   return (
     <div key={index}>
-      {text ? (
-        isBoundaryMarker ? (
-          <BoundaryNotice label={boundaryLabel} />
-        ) : (
-          <MessageBubble>{text}</MessageBubble>
-        )
-      ) : null}
-      {imageBlocks.length > 0 ? (
-        <div className={`flex flex-wrap gap-2 ${text ? "mt-2" : ""}`}>
-          {imageBlocks.map((block, imageIndex) => (
-            <img
-              key={`${index}-image-${imageIndex}`}
-              src={`data:${block.mediaType};base64,${block.data}`}
-              alt=""
-              className="max-h-48 max-w-full rounded-lg border border-[var(--rb-border)] object-contain"
-            />
-          ))}
-        </div>
-      ) : null}
+      <UserMessageShell
+        showActions={!actionsDisabled}
+        copyLabel={labels.copy}
+        retryLabel={labels.retry}
+        editLabel={labels.edit}
+        onCopy={() => {
+          void copyMessageText(message);
+        }}
+        onRetry={() => onRetryUserMessage(index)}
+        onEdit={() => onEditUserMessage(index)}
+      >
+        {text ? <MessageBubble>{text}</MessageBubble> : null}
+        {imageBlocks.length > 0 ? (
+          <div className="mt-2 flex flex-wrap justify-end gap-2">
+            {imageBlocks.map((block, imageIndex) => (
+              <img
+                key={`${index}-image-${imageIndex}`}
+                src={`data:${block.mediaType};base64,${block.data}`}
+                alt=""
+                className="max-h-48 max-w-full rounded-lg border border-[var(--rb-border)] object-contain"
+              />
+            ))}
+          </div>
+        ) : null}
+      </UserMessageShell>
     </div>
   );
 }
@@ -180,6 +242,10 @@ export function AgentChatPanel({
   onSend,
   onStop,
   stopping = false,
+  onRetryUserMessage,
+  onEditUserMessage,
+  onRetryAssistantMessage,
+  draftSeed = null,
 }: AgentChatPanelProps) {
   const { t } = useTranslation();
   const messages = useAgentStore((state) => state.messages);
@@ -199,6 +265,16 @@ export function AgentChatPanel({
   const isStreaming = Boolean(
     streamingText || streamingThinking || streamingPythonCalls.length > 0,
   );
+  const actionsDisabled = disabled || isStreaming;
+
+  const actionLabels = useMemo(
+    () => ({
+      copy: t("agent.message.copy"),
+      retry: t("agent.message.retry"),
+      edit: t("agent.message.edit"),
+    }),
+    [t],
+  );
 
   useEffect(() => {
     const scroll = () => {
@@ -217,7 +293,7 @@ export function AgentChatPanel({
       <div className="relative isolate flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <div className="relative z-1 flex min-h-0 flex-1 flex-col">
         <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4">
-          <div className="mx-auto flex max-w-3xl flex-col gap-4">
+          <div className="mx-auto flex max-w-3xl flex-col gap-5">
             {messages.map((message, index) =>
               renderMessage(
                 message,
@@ -226,6 +302,11 @@ export function AgentChatPanel({
                 runningTools,
                 projectId,
                 t("agent.box.boundaryLabel"),
+                actionsDisabled,
+                actionLabels,
+                onRetryUserMessage,
+                onEditUserMessage,
+                onRetryAssistantMessage,
               ),
             )}
 
@@ -265,6 +346,7 @@ export function AgentChatPanel({
           onSend={onSend}
           onStop={onStop}
           stopping={stopping}
+          draftSeed={draftSeed}
         />
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "@/i18n";
+import { ExpandChevron } from "./ExpandChevron";
 
 const THINKING_PREVIEW_LENGTH = 80;
 
@@ -52,12 +53,7 @@ export function ThinkingBlock({
         className="flex w-full items-center gap-2 px-0 py-1 text-left text-xs text-[var(--rb-text-secondary)] transition-colors hover:text-[var(--rb-text-primary)]"
         aria-expanded={expanded}
       >
-        <span
-          className={`shrink-0 transition-transform duration-300 ${expanded ? "rotate-90" : ""}`}
-          aria-hidden
-        >
-          ▶
-        </span>
+        <ExpandChevron expanded={expanded} className="duration-300" />
         <span className="shrink-0 font-medium">{t("agent.thinkingLabel")}</span>
         {streaming && !responseStarted ? (
           <span className="inline-flex shrink-0 items-center gap-1.5">

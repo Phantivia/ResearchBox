@@ -17,6 +17,7 @@ import { useTranslation } from "@/i18n";
 import { useAgentStore, usePaperStore, useProjectStore, useSettingsStore } from "@/store";
 import { AgentChatPanel } from "@/ui/ai-panel";
 import type { ChatSendPayload } from "@/ui/ai-panel/ChatComposer";
+import { userMessageToSendPayload } from "@/ui/ai-panel/userMessagePayload";
 import { CurrentProjectLabel } from "@/ui/shell/CurrentProjectLabel";
 import { FeatureIcon } from "@/ui/shell/featureIcons";
 
@@ -162,6 +163,7 @@ export default function AgentChat() {
   const streamingText = useAgentStore((state) => state.streamingText);
   const streamingThinking = useAgentStore((state) => state.streamingThinking);
   const append = useAgentStore((state) => state.append);
+  const truncateMessages = useAgentStore((state) => state.truncateMessages);
   const setStreaming = useAgentStore((state) => state.setStreaming);
   const setContextBreakdown = useAgentStore((state) => state.setContextBreakdown);
   const setCurrentSessionId = useAgentStore((state) => state.setCurrentSessionId);
@@ -171,6 +173,11 @@ export default function AgentChat() {
 
   const [sending, setSending] = useState(false);
   const [stopping, setStopping] = useState(false);
+  const [draftSeed, setDraftSeed] = useState<{
+    text: string;
+    images: ChatSendPayload["images"];
+    nonce: number;
+  } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const toolNameByUseIdRef = useRef(new Map<string, string>());
   const prevProjectIdRef = useRef("");
@@ -345,50 +352,10 @@ export default function AgentChat() {
     abortRef.current.abort();
   }, [stopping]);
 
-  const handleSend = useCallback(
-    async (payload: ChatSendPayload) => {
+  const runAgentLoop = useCallback(
+    async (chatMessages: AgentMessage[]) => {
       const config = getActiveProvider();
-      if (!config || !hasActiveProvider() || sending) {
-        return;
-      }
-
-      const sendImagesDirectly = modelSupportsImageInput(config.openRouterMeta);
-      let ocrTexts: string[] | undefined;
-      if (payload.images.length > 0 && !sendImagesDirectly) {
-        setSending(true);
-        try {
-          ocrTexts = await ocrImages(
-            payload.images.map(
-              (image) => `data:${image.mediaType};base64,${image.data}`,
-            ),
-          );
-        } catch (error) {
-          append({
-            role: "assistant",
-            content: [
-              {
-                type: "text",
-                text: t("agent.error.generic", {
-                  message: errorMessage(error),
-                }),
-              },
-            ],
-          });
-          setSending(false);
-          return;
-        }
-      }
-
-      const content = buildUserMessageBlocks({
-        text: payload.text,
-        images: payload.images,
-        sendImagesDirectly,
-        ocrTexts,
-      });
-      if (content.length === 0) {
-        if (payload.images.length > 0 && !sendImagesDirectly) {
-          setSending(false);
-        }
+      if (!config || !hasActiveProvider()) {
         return;
       }
 
@@ -396,16 +363,10 @@ export default function AgentChat() {
       const controller = new AbortController();
       abortRef.current = controller;
 
-      const userMessage: AgentMessage = {
-        role: "user",
-        content,
-      };
-      append(userMessage);
       setStreaming({ text: "", thinking: "" });
       setSending(true);
       setStopping(false);
 
-      const chatMessages = [...useAgentStore.getState().messages];
       let accumulatedText = "";
       let accumulatedThinking = "";
       const runningLabel = t("agent.tool.running");
@@ -504,11 +465,126 @@ export default function AgentChat() {
       hasActiveProvider,
       projectId,
       projectName,
-      sending,
-      setStreaming,
       persistSession,
+      setStreaming,
       t,
     ],
+  );
+
+  const handleSend = useCallback(
+    async (payload: ChatSendPayload) => {
+      const config = getActiveProvider();
+      if (!config || !hasActiveProvider() || sending) {
+        return;
+      }
+
+      const sendImagesDirectly = modelSupportsImageInput(config.openRouterMeta);
+      let ocrTexts: string[] | undefined;
+      if (payload.images.length > 0 && !sendImagesDirectly) {
+        setSending(true);
+        try {
+          ocrTexts = await ocrImages(
+            payload.images.map(
+              (image) => `data:${image.mediaType};base64,${image.data}`,
+            ),
+          );
+        } catch (error) {
+          append({
+            role: "assistant",
+            content: [
+              {
+                type: "text",
+                text: t("agent.error.generic", {
+                  message: errorMessage(error),
+                }),
+              },
+            ],
+          });
+          setSending(false);
+          return;
+        }
+      }
+
+      const content = buildUserMessageBlocks({
+        text: payload.text,
+        images: payload.images,
+        sendImagesDirectly,
+        ocrTexts,
+      });
+      if (content.length === 0) {
+        if (payload.images.length > 0 && !sendImagesDirectly) {
+          setSending(false);
+        }
+        return;
+      }
+
+      const userMessage: AgentMessage = {
+        role: "user",
+        content,
+      };
+      append(userMessage);
+      await runAgentLoop([...useAgentStore.getState().messages]);
+    },
+    [
+      append,
+      getActiveProvider,
+      hasActiveProvider,
+      runAgentLoop,
+      sending,
+      t,
+    ],
+  );
+
+  const handleRetryUserMessage = useCallback(
+    async (index: number) => {
+      if (sending) {
+        return;
+      }
+      const message = useAgentStore.getState().messages[index];
+      if (!message || message.role !== "user") {
+        return;
+      }
+      const payload = userMessageToSendPayload(message);
+      truncateMessages(index);
+      await handleSend(payload);
+    },
+    [handleSend, sending, truncateMessages],
+  );
+
+  const handleEditUserMessage = useCallback(
+    (index: number) => {
+      if (sending) {
+        return;
+      }
+      const message = useAgentStore.getState().messages[index];
+      if (!message || message.role !== "user") {
+        return;
+      }
+      const payload = userMessageToSendPayload(message);
+      truncateMessages(index);
+      setDraftSeed({
+        text: payload.text,
+        images: payload.images,
+        nonce: Date.now(),
+      });
+    },
+    [sending, truncateMessages],
+  );
+
+  const handleRetryAssistantMessage = useCallback(
+    async (index: number) => {
+      if (sending) {
+        return;
+      }
+      truncateMessages(index);
+      const chatMessages = useAgentStore.getState().messages;
+      const lastMessage = chatMessages[chatMessages.length - 1];
+      if (!lastMessage || lastMessage.role !== "user") {
+        return;
+      }
+      await runAgentLoop(chatMessages);
+    },
+    [runAgentLoop, sending, truncateMessages],
   );
 
   const providerReady = hasActiveProvider();
@@ -554,6 +630,14 @@ export default function AgentChat() {
           onSend={handleSend}
           onStop={handleStop}
           stopping={stopping}
+          onRetryUserMessage={(index) => {
+            void handleRetryUserMessage(index);
+          }}
+          onEditUserMessage={handleEditUserMessage}
+          onRetryAssistantMessage={(index) => {
+            void handleRetryAssistantMessage(index);
+          }}
+          draftSeed={draftSeed}
         />
       )}
     </main>
