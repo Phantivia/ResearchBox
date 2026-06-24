@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { AgentMessage, ContentBlock } from "@/core/agent/types";
 import { useAgentStore } from "@/store";
 import { AssistantAvatar } from "./AssistantAvatar";
@@ -6,63 +6,111 @@ import { ChatComposer } from "./ChatComposer";
 import { ContextMeter } from "./ContextMeter";
 import { MessageBubble } from "./MessageBubble";
 import { ThinkingBlock } from "./ThinkingBlock";
+import { ToolCallCard } from "./ToolCallCard";
 
 export interface AgentChatPanelProps {
   contextWindow: number;
   disabled: boolean;
   onSend: (text: string) => void;
+  onStop?: () => void;
+  stopping?: boolean;
 }
 
-function blockText(block: ContentBlock): string | null {
-  switch (block.type) {
-    case "text":
-      return block.text;
-    case "thinking":
-      return null;
-    default:
-      return null;
+type ToolResultEntry = {
+  result: string;
+  isError?: boolean;
+};
+
+function buildToolResultMap(messages: AgentMessage[]): Map<string, ToolResultEntry> {
+  const map = new Map<string, ToolResultEntry>();
+  for (const message of messages) {
+    if (message.role !== "tool") {
+      continue;
+    }
+    for (const block of message.content) {
+      if (block.type === "tool_result") {
+        map.set(block.toolUseId, {
+          result: block.content,
+          isError: block.isError,
+        });
+      }
+    }
   }
+  return map;
 }
 
-function renderMessage(message: AgentMessage, index: number) {
+function renderAssistantContent(
+  content: ContentBlock[],
+  toolResults: Map<string, ToolResultEntry>,
+  runningTools: Record<string, { name: string; stage: string }>,
+) {
+  const hasText = content.some((block) => block.type === "text");
+
+  return content.map((block, blockIndex) => {
+    switch (block.type) {
+      case "thinking":
+        return (
+          <ThinkingBlock
+            key={blockIndex}
+            text={block.text}
+            responseStarted={hasText}
+          />
+        );
+      case "text":
+        return (
+          <MessageBubble key={blockIndex} role="assistant">
+            {block.text}
+          </MessageBubble>
+        );
+      case "tool_use": {
+        const resultEntry = toolResults.get(block.id);
+        const running = runningTools[block.id];
+        return (
+          <ToolCallCard
+            key={block.id}
+            name={block.name}
+            input={block.input}
+            stage={running?.stage}
+            result={resultEntry?.result}
+            isError={resultEntry?.isError}
+          />
+        );
+      }
+      default:
+        return null;
+    }
+  });
+}
+
+function renderMessage(
+  message: AgentMessage,
+  index: number,
+  toolResults: Map<string, ToolResultEntry>,
+  runningTools: Record<string, { name: string; stage: string }>,
+) {
   if (message.role === "tool") {
     return null;
   }
 
-  const bubbleRole: "user" | "assistant" =
-    message.role === "user" ? "user" : "assistant";
-  const thinkingBlocks = message.content.filter(
-    (block): block is Extract<ContentBlock, { type: "thinking" }> =>
-      block.type === "thinking",
-  );
-  const textBlocks = message.content
-    .map(blockText)
-    .filter((text): text is string => text != null);
-  const text = textBlocks.join("\n\n");
-
   if (message.role === "assistant") {
-    const hasText = Boolean(text);
-
     return (
       <div key={index} className="flex gap-2">
         <AssistantAvatar />
         <div className="flex min-w-0 flex-1 flex-col gap-2">
-          {thinkingBlocks.map((block, blockIndex) => (
-            <ThinkingBlock
-              key={blockIndex}
-              text={block.text}
-              responseStarted={hasText}
-            />
-          ))}
-          {text ? <MessageBubble role="assistant">{text}</MessageBubble> : null}
+          {renderAssistantContent(message.content, toolResults, runningTools)}
         </div>
       </div>
     );
   }
 
+  const textBlocks = message.content
+    .filter((block): block is Extract<ContentBlock, { type: "text" }> => block.type === "text")
+    .map((block) => block.text);
+  const text = textBlocks.join("\n\n");
+
   return (
     <div key={index}>
-      {text ? <MessageBubble role={bubbleRole}>{text}</MessageBubble> : null}
+      {text ? <MessageBubble role="user">{text}</MessageBubble> : null}
     </div>
   );
 }
@@ -71,18 +119,22 @@ export function AgentChatPanel({
   contextWindow,
   disabled,
   onSend,
+  onStop,
+  stopping = false,
 }: AgentChatPanelProps) {
   const messages = useAgentStore((state) => state.messages);
   const streamingText = useAgentStore((state) => state.streamingText);
   const streamingThinking = useAgentStore((state) => state.streamingThinking);
+  const runningTools = useAgentStore((state) => state.runningTools);
   const contextChars = useAgentStore((state) => state.contextChars);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const toolResults = useMemo(() => buildToolResultMap(messages), [messages]);
   const isStreaming = Boolean(streamingText || streamingThinking);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingText, streamingThinking]);
+  }, [messages, streamingText, streamingThinking, runningTools]);
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[var(--rb-page-bg)]">
@@ -90,7 +142,9 @@ export function AgentChatPanel({
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4">
         <div className="mx-auto flex max-w-3xl flex-col gap-4">
-          {messages.map((message, index) => renderMessage(message, index))}
+          {messages.map((message, index) =>
+            renderMessage(message, index, toolResults, runningTools),
+          )}
 
           {isStreaming ? (
             <div className="flex gap-2">
@@ -114,7 +168,12 @@ export function AgentChatPanel({
         </div>
       </div>
 
-      <ChatComposer disabled={disabled} onSend={onSend} />
+      <ChatComposer
+        disabled={disabled}
+        onSend={onSend}
+        onStop={onStop}
+        stopping={stopping}
+      />
     </div>
   );
 }

@@ -4,9 +4,16 @@ import { useTranslation } from "@/i18n";
 export interface ChatComposerProps {
   disabled: boolean;
   onSend: (text: string) => void;
+  onStop?: () => void;
+  stopping?: boolean;
 }
 
-export function ChatComposer({ disabled, onSend }: ChatComposerProps) {
+export function ChatComposer({
+  disabled,
+  onSend,
+  onStop,
+  stopping = false,
+}: ChatComposerProps) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState("");
 
@@ -47,6 +54,16 @@ export function ChatComposer({ disabled, onSend }: ChatComposerProps) {
         >
           {t("agent.send")}
         </button>
+        {onStop ? (
+          <button
+            type="button"
+            onClick={onStop}
+            disabled={!disabled || stopping}
+            className="shrink-0 rounded-lg border border-[var(--rb-border)] bg-[var(--rb-page-bg)] px-4 py-2 text-sm font-medium text-[var(--rb-text-primary)] hover:bg-[color-mix(in_srgb,var(--rb-border)_40%,var(--rb-page-bg))] focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--rb-border)_50%,transparent)] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {stopping ? t("agent.stopping") : t("agent.stop")}
+          </button>
+        ) : null}
       </div>
       <p className="mt-1.5 hidden text-[11px] text-[var(--rb-text-secondary)] sm:block">
         {t("agent.enterHint")}

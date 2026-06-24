@@ -1,18 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
-import { runChat } from "@/core/agent/chatController";
+import { Link, useParams } from "react-router-dom";
+import { runAgent, type BatchExecutor } from "@/core/agent/loop";
+import { executeBatched } from "@/core/agent/orchestrate";
+import { buildAgentSystemPrompt } from "@/core/agent/systemPrompt";
+import { buildResearchTools } from "@/core/agent/tools";
+import type { AgentDeps, AgentMessage, ContentBlock, Terminal } from "@/core/agent/types";
 import { estimateTokens } from "@/core/agent/contextSize";
-import type { AgentMessage, ContentBlock } from "@/core/agent/types";
 import { createProvider } from "@/core/llm";
+import { db } from "@/db";
 import { useTranslation } from "@/i18n";
-import { useAgentStore, useSettingsStore } from "@/store";
+import { useAgentStore, useProjectStore, useSettingsStore } from "@/store";
 import { AgentChatPanel } from "@/ui/ai-panel";
 import { CurrentProjectLabel } from "@/ui/shell/CurrentProjectLabel";
 import { FeatureIcon } from "@/ui/shell/featureIcons";
 
 const DEFAULT_CONTEXT_WINDOW = 200_000;
-const AGENT_SYSTEM_PROMPT =
-  "You are a helpful research assistant for ResearchBox. Answer clearly and concisely.";
 
 function resolveContextWindow(
   openRouterContextLength: number | null | undefined,
@@ -54,8 +56,56 @@ function messagesWithStreaming(
   return [...messages, { role: "assistant", content }];
 }
 
+function buildAgentStoreAdapter(): AgentDeps["store"] {
+  const state = useAgentStore.getState();
+  return {
+    messages: state.messages,
+    pendingApprovals: state.pendingApprovals.map(({ tool, input, reason, risk }) => ({
+      tool,
+      input,
+      reason,
+      risk,
+    })),
+    runningTools: state.runningTools,
+    permissionMode: state.permissionMode,
+    append: (message) => useAgentStore.getState().append(message),
+    enqueueApproval: (request) => {
+      useAgentStore.getState().enqueueApproval({
+        ...request,
+        resolve: () => {},
+      });
+    },
+  };
+}
+
+function processToolBlocks(message: AgentMessage, runningLabel: string): void {
+  const { setRunningTool, clearRunningTool } = useAgentStore.getState();
+  for (const block of message.content) {
+    if (block.type === "tool_use") {
+      setRunningTool(block.id, { name: block.name, stage: runningLabel });
+    }
+    if (block.type === "tool_result") {
+      clearRunningTool(block.toolUseId);
+    }
+  }
+}
+
+const runTools: BatchExecutor = async function* (toolUses, tools, deps) {
+  const calls = toolUses.map(({ id, name, input }) => ({ id, name, input }));
+  const batch = executeBatched(calls, tools, deps);
+  let step = await batch.next();
+  while (!step.done) {
+    step = await batch.next();
+  }
+  return step.value;
+};
+
 export default function AgentChat() {
   const { t } = useTranslation();
+  const { projectId = "" } = useParams<{ projectId: string }>();
+  const { projects } = useProjectStore();
+  const projectName = projects.find((project) => project.id === projectId)?.name;
+
   const {
     loaded: settingsLoaded,
     load: loadSettings,
@@ -67,12 +117,10 @@ export default function AgentChat() {
   const streamingThinking = useAgentStore((state) => state.streamingThinking);
   const append = useAgentStore((state) => state.append);
   const setStreaming = useAgentStore((state) => state.setStreaming);
-  const commitStreamingToMessage = useAgentStore(
-    (state) => state.commitStreamingToMessage,
-  );
   const setContextChars = useAgentStore((state) => state.setContextChars);
 
   const [sending, setSending] = useState(false);
+  const [stopping, setStopping] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -99,6 +147,62 @@ export default function AgentChat() {
     setContextChars(tokens);
   }, [messages, streamingText, streamingThinking, setContextChars]);
 
+  const appendTerminalNotice = useCallback(
+    (terminal: Terminal) => {
+      switch (terminal.reason) {
+        case "completed":
+          return;
+        case "aborted":
+          append({
+            role: "assistant",
+            content: [{ type: "text", text: t("agent.terminal.aborted") }],
+          });
+          return;
+        case "max_turns":
+          append({
+            role: "assistant",
+            content: [{ type: "text", text: t("agent.terminal.maxTurns") }],
+          });
+          return;
+        case "approval_denied":
+          append({
+            role: "assistant",
+            content: [
+              {
+                type: "text",
+                text: t("agent.terminal.approvalDenied", {
+                  tool: terminal.toolName,
+                }),
+              },
+            ],
+          });
+          return;
+        case "model_error":
+          append({
+            role: "assistant",
+            content: [
+              {
+                type: "text",
+                text: t("agent.terminal.modelError", {
+                  message: errorMessage(terminal.error),
+                }),
+              },
+            ],
+          });
+          return;
+      }
+    },
+    [append, t],
+  );
+
+  const handleStop = useCallback(() => {
+    if (!abortRef.current || stopping) {
+      return;
+    }
+    setStopping(true);
+    abortRef.current.abort();
+  }, [stopping]);
+
   const handleSend = useCallback(
     async (text: string) => {
       const config = getActiveProvider();
@@ -117,49 +221,61 @@ export default function AgentChat() {
       append(userMessage);
       setStreaming({ text: "", thinking: "" });
       setSending(true);
+      setStopping(false);
 
       const chatMessages = [...useAgentStore.getState().messages];
       let accumulatedText = "";
       let accumulatedThinking = "";
+      const runningLabel = t("agent.tool.running");
+
+      const deps: AgentDeps = {
+        db,
+        llm: createProvider(config),
+        store: buildAgentStoreAdapter(),
+        signal: controller.signal,
+        requestApproval: async () => true,
+        projectId,
+      };
 
       try {
-        await runChat({
-          provider: createProvider(config),
-          system: AGENT_SYSTEM_PROMPT,
-          messages: chatMessages,
-          signal: controller.signal,
-          onThinkingDelta: (chunk) => {
-            accumulatedThinking += chunk;
-            setStreaming({ thinking: accumulatedThinking });
+        const generator = runAgent(
+          {
+            messages: chatMessages,
+            tools: buildResearchTools({ allowWeb: false, allowCode: false }),
+            system: buildAgentSystemPrompt({
+              projectName,
+              date: new Date().toISOString().slice(0, 10),
+            }),
+            onEvent: (event) => {
+              if (event.type === "thinking_delta") {
+                accumulatedThinking += event.text;
+                setStreaming({ thinking: accumulatedThinking });
+              }
+              if (event.type === "text_delta") {
+                accumulatedText += event.text;
+                setStreaming({ text: accumulatedText });
+              }
+            },
           },
-          onDelta: (chunk) => {
-            accumulatedText += chunk;
-            setStreaming({ text: accumulatedText });
-          },
-          onDone: (result) => {
-            setStreaming({ text: result.text, thinking: result.thinking });
-            commitStreamingToMessage();
-            setSending(false);
-          },
-          onError: (error) => {
-            if (controller.signal.aborted) {
-              return;
-            }
-            append({
-              role: "assistant",
-              content: [
-                {
-                  type: "text",
-                  text: t("agent.error.generic", {
-                    message: errorMessage(error),
-                  }),
-                },
-              ],
-            });
+          deps,
+          runTools,
+        );
+
+        let step = await generator.next();
+        while (!step.done) {
+          const message = step.value;
+          if (message.role === "assistant") {
             setStreaming({ text: "", thinking: "" });
-            setSending(false);
-          },
-        });
+            accumulatedText = "";
+            accumulatedThinking = "";
+          }
+          append(message);
+          processToolBlocks(message, runningLabel);
+          step = await generator.next();
+        }
+
+        const terminal = step.value;
+        appendTerminalNotice(terminal);
       } catch (error) {
         if (!controller.signal.aborted) {
           append({
@@ -173,16 +289,21 @@ export default function AgentChat() {
               },
             ],
           });
-          setStreaming({ text: "", thinking: "" });
-          setSending(false);
         }
+      } finally {
+        setStreaming({ text: "", thinking: "" });
+        setSending(false);
+        setStopping(false);
+        abortRef.current = null;
       }
     },
     [
       append,
-      commitStreamingToMessage,
+      appendTerminalNotice,
       getActiveProvider,
       hasActiveProvider,
+      projectId,
+      projectName,
       sending,
       setStreaming,
       t,
@@ -229,6 +350,8 @@ export default function AgentChat() {
           contextWindow={contextWindow}
           disabled={sending}
           onSend={handleSend}
+          onStop={handleStop}
+          stopping={stopping}
         />
       )}
     </main>
